@@ -1,6 +1,6 @@
 require("@nomicfoundation/hardhat-toolbox");
-import * as dotenv from "dotenv";
-import * as path from "path";
+const dotenv = require("dotenv");
+const path = require("path");
 
 dotenv.config({ path: path.join(__dirname, ".env") });
 const NETWORK_URL = process.env.NETWORK_URL || "";

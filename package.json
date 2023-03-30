@@ -11,6 +11,7 @@
     "web3": "^1.8.2"
   },
   "dependencies": {
+    "@nomicfoundation/ethereumjs-util": "^9.0.0",
     "@openzeppelin/contracts": "^4.8.2",
     "@openzeppelin/contracts-upgradeable": "^4.8.2",
     "dotenv": "^16.0.3"
