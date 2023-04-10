@@ -11,18 +11,18 @@ interface IDawnDeposit {
     function unstake(uint pEthAmount) external returns (uint256);
 
     // receive ETH rewards from RewardsVault
-    function receiveRewards() external;
-    // distribute ETH rewards to NodeOperators、DawnVault、DawnTreasury
-    function distributeRewards(uint256 rewards) internal;
-    // transfer pETH as rewards to DawnVault
-    function transferToVault(uint256 rewards) internal;
+    function receiveRewards() external payable;
+    // distribute pETH rewards to NodeOperators、DawnInsurance、DawnTreasury
+    function distributeRewards(uint256 rewardsPEth) internal;
+    // transfer pETH as rewards to DawnInsurance
+    function transferToInsurance(uint256 rewardsPEth) internal;
     // transfer pETH as rewards to DawnTreasury
-    function transferToTreasury(uint256 rewards) internal;
+    function transferToTreasury(uint256 rewardsPEth) internal;
     // distribute pETH as rewards to NodeOperators
-    function distributeNodeOperatorRewards(uint256 rewards) internal;
+    function distributeNodeOperatorRewards(uint256 rewardsPEth) internal;
 
-    // oracle report balance of validators
-    function oracleReport() external;
+    // handle oracle report
+    function handleOracleReport(uint256 beaconValidators, uint256 beaconBalance, uint256 availableRewards) external;
 
     // receive pETH from Treasury, and burn pETH
     function receiveFromTreasury(uint256 pEthAmount) external;
