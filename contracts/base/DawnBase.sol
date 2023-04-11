@@ -6,9 +6,9 @@ import "../interface/IDawnStorageInterface.sol";
 abstract contract DawnBase {
 
     /// 定义ETH计算基础单位 1 ether = 1e18 wei
-    uint256 constant calcBase = 1 ether;
+    uint256 internal constant _CALC_BASE = 1 ether;
     /// 数据存储接口初始化
-    IDawnStorageInterface dawnStorage = IDawnStorageInterface(address(0));
+    IDawnStorageInterface internal _dawnStorage = IDawnStorageInterface(address(0));
 
     /// 仅限DawnPool内部合约调用合约方法
     modifier onlyDawnPoolContract() {
@@ -17,67 +17,67 @@ abstract contract DawnBase {
     }
 
     /// 仅限匹配最新部署的DawnPool合约
-    modifier onlyLatestContract(string memory _contractName, address _contractAddress) {
-        require(_contractAddress == getAddress(keccak256(abi.encodePacked("contract.address", _contractName))), "Invalid or outdated contract");
+    modifier onlyLatestContract(string memory contractName, address contractAddress) {
+        require(contractAddress == getAddress(keccak256(abi.encodePacked("contract.address", contractName))), "Invalid or outdated contract");
         _;
     }
 
     /// 仅匹配初始化设置的监护人地址
     modifier onlyGuardian() {
-        require(msg.sender == dawnStorage.getGuardian(), "Account is not a temporary guardian");
+        require(msg.sender == _dawnStorage.getGuardian(), "Account is not a temporary guardian");
         _;
     }
 
     /// 构造函数初始化设置dawnStorage合约地址
-    constructor(IDawnStorageInterface _dawnStorageAddress) {
-        dawnStorage = IDawnStorageInterface(_dawnStorageAddress);
+    constructor(IDawnStorageInterface dawnStorageAddress) {
+        _dawnStorage = IDawnStorageInterface(dawnStorageAddress);
     }
 
     /// 基础方法：通过数据存储的合约名称获取合约地址（排除0x0地址）
-    function getContractAddress(string memory _contractName) internal view returns (address) {
-        address contractAddress = getAddress(keccak256(abi.encodePacked("contract.address", _contractName)));
+    function getContractAddress(string memory contractName) internal view returns (address) {
+        address contractAddress = getAddress(keccak256(abi.encodePacked("contract.address", contractName)));
         require(contractAddress != address(0x0), "Contract not found");
         return contractAddress;
     }
 
     /// 基础方法：通过数据存储的合约名称获取合约地址（不排除0x0地址）
-    function getContractAddressUnsafe(string memory _contractName) internal view returns (address) {
-        address contractAddress = getAddress(keccak256(abi.encodePacked("contract.address", _contractName)));
+    function getContractAddressUnsafe(string memory contractName) internal view returns (address) {
+        address contractAddress = getAddress(keccak256(abi.encodePacked("contract.address", contractName)));
         return contractAddress;
     }
 
     /// 基础方法：通过数据存储的合约地址获取合约名称
-    function getContractName(address _contractAddress) internal view returns (string memory) {
-        string memory contractName = getString(keccak256(abi.encodePacked("contract.name", _contractAddress)));
+    function getContractName(address contractAddress) internal view returns (string memory) {
+        string memory contractName = getString(keccak256(abi.encodePacked("contract.name", contractAddress)));
         require(bytes(contractName).length > 0, "Contract not found");
         return contractName;
     }
 
     /// DawnStorage方法实现
-    function getAddress(bytes32 _key) internal view returns (address) { return dawnStorage.getAddress(_key); }
-    function getUint(bytes32 _key) internal view returns (uint) { return dawnStorage.getUint(_key); }
-    function getString(bytes32 _key) internal view returns (string memory) { return dawnStorage.getString(_key); }
-    function getBytes(bytes32 _key) internal view returns (bytes memory) { return dawnStorage.getBytes(_key); }
-    function getBool(bytes32 _key) internal view returns (bool) { return dawnStorage.getBool(_key); }
-    function getInt(bytes32 _key) internal view returns (int) { return dawnStorage.getInt(_key); }
-    function getBytes32(bytes32 _key) internal view returns (bytes32) { return dawnStorage.getBytes32(_key); }
+    function getAddress(bytes32 key) internal view returns (address) { return _dawnStorage.getAddress(key); }
+    function getUint(bytes32 key) internal view returns (uint) { return _dawnStorage.getUint(key); }
+    function getString(bytes32 key) internal view returns (string memory) { return _dawnStorage.getString(key); }
+    function getBytes(bytes32 key) internal view returns (bytes memory) { return _dawnStorage.getBytes(key); }
+    function getBool(bytes32 key) internal view returns (bool) { return _dawnStorage.getBool(key); }
+    function getInt(bytes32 key) internal view returns (int) { return _dawnStorage.getInt(key); }
+    function getBytes32(bytes32 key) internal view returns (bytes32) { return _dawnStorage.getBytes32(key); }
 
-    function setAddress(bytes32 _key, address _value) internal { dawnStorage.setAddress(_key, _value); }
-    function setUint(bytes32 _key, uint _value) internal { dawnStorage.setUint(_key, _value); }
-    function setString(bytes32 _key, string memory _value) internal { dawnStorage.setString(_key, _value); }
-    function setBytes(bytes32 _key, bytes memory _value) internal { dawnStorage.setBytes(_key, _value); }
-    function setBool(bytes32 _key, bool _value) internal { dawnStorage.setBool(_key, _value); }
-    function setInt(bytes32 _key, int _value) internal { dawnStorage.setInt(_key, _value); }
-    function setBytes32(bytes32 _key, bytes32 _value) internal { dawnStorage.setBytes32(_key, _value); }
+    function setAddress(bytes32 key, address value) internal { _dawnStorage.setAddress(key, value); }
+    function setUint(bytes32 key, uint value) internal { _dawnStorage.setUint(key, value); }
+    function setString(bytes32 key, string memory value) internal { _dawnStorage.setString(key, value); }
+    function setBytes(bytes32 key, bytes memory value) internal { _dawnStorage.setBytes(key, value); }
+    function setBool(bytes32 key, bool value) internal { _dawnStorage.setBool(key, value); }
+    function setInt(bytes32 key, int value) internal { _dawnStorage.setInt(key, value); }
+    function setBytes32(bytes32 key, bytes32 value) internal { _dawnStorage.setBytes32(key, value); }
 
-    function deleteAddress(bytes32 _key) internal { dawnStorage.deleteAddress(_key); }
-    function deleteUint(bytes32 _key) internal { dawnStorage.deleteUint(_key); }
-    function deleteString(bytes32 _key) internal { dawnStorage.deleteString(_key); }
-    function deleteBytes(bytes32 _key) internal { dawnStorage.deleteBytes(_key); }
-    function deleteBool(bytes32 _key) internal { dawnStorage.deleteBool(_key); }
-    function deleteInt(bytes32 _key) internal { dawnStorage.deleteInt(_key); }
-    function deleteBytes32(bytes32 _key) internal { dawnStorage.deleteBytes32(_key); }
+    function deleteAddress(bytes32 key) internal { _dawnStorage.deleteAddress(key); }
+    function deleteUint(bytes32 key) internal { _dawnStorage.deleteUint(key); }
+    function deleteString(bytes32 key) internal { _dawnStorage.deleteString(key); }
+    function deleteBytes(bytes32 key) internal { _dawnStorage.deleteBytes(key); }
+    function deleteBool(bytes32 key) internal { _dawnStorage.deleteBool(key); }
+    function deleteInt(bytes32 key) internal { _dawnStorage.deleteInt(key); }
+    function deleteBytes32(bytes32 key) internal { _dawnStorage.deleteBytes32(key); }
 
-    function addUint(bytes32 _key, uint256 _amount) internal { dawnStorage.addUint(_key, _amount); }
-    function subUint(bytes32 _key, uint256 _amount) internal { dawnStorage.subUint(_key, _amount); }
+    function addUint(bytes32 key, uint256 amount) internal { _dawnStorage.addUint(key, amount); }
+    function subUint(bytes32 key, uint256 amount) internal { _dawnStorage.subUint(key, amount); }
 }
