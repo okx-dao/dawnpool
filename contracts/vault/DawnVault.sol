@@ -2,10 +2,11 @@
 pragma solidity ^0.8.17;
 
 import "../interface/IDawnStorageInterface.sol";
+import "../base/DawnBase.sol";
 
-contract DawnVault {
+contract DawnVault is DawnBase {
 
-    constructor(IDawnStorageInterface _dawnStorageAddress) {
+    constructor(IDawnStorageInterface dawnStorageAddress) DawnBase(dawnStorageAddress) {
 
     }
 }
