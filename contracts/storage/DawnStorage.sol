@@ -4,12 +4,16 @@ pragma solidity ^0.8.17;
 import "../interface/IDawnStorageInterface.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
+/// IDawnStorageInterface接口实现类
 contract DawnStorage is IDawnStorageInterface {
 
+    /// 监护人权限变更事件
     event GuardianChanged(address oldGuardian, address newGuardian);
 
+    /// 安全的数学方法（比如数据溢出、除0判断等处理）
     using SafeMath for uint256;
 
+    /// key为bytes32、value为字符串
     mapping(bytes32 => string)     private stringStorage;
     mapping(bytes32 => bytes)      private bytesStorage;
     mapping(bytes32 => uint256)    private uintStorage;
@@ -23,6 +27,7 @@ contract DawnStorage is IDawnStorageInterface {
 
     bool storageInit = false;
 
+    /// 仅允许在部署后从DawnPool最新的合约进行访问
     modifier onlyLatestDawnPoolNetworkContract() {
         if (storageInit == true) {
             require(booleanStorage[keccak256(abi.encodePacked("contract.exists", msg.sender))], "Invalid or outdated network contract");

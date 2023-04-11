@@ -1,9 +1,6 @@
-const { ethers, web3, network} = require("hardhat");
-const {loadFixture} = require("@nomicfoundation/hardhat-network-helpers");
-const {expect} = require("chai");
-const {keccak256} = require("hardhat/internal/util/keccak");
-const Web3 = require("web3");
-const ethereumjsUtil = require("ethereumjs-util");
+const { ethers } = require("hardhat");
+const { loadFixture } = require("@nomicfoundation/hardhat-network-helpers");
+const { keccak256, encodePacked } = require('web3-utils');
 
 describe("DawnStorageTest", function () {
     // We define a fixture to reuse the same setup in every test.
@@ -29,8 +26,8 @@ describe("DawnStorageTest", function () {
             console.log("owner address is :" + await owner.getAddress());
             console.log("Guardian address is :" + await ds.getGuardian());
 
-            let encodePackedMessage = Web3.utils.encodePacked(dsNameSpace, 'EOAAddress', nID);
-            let hashedMessage = keccak256(ethereumjsUtil.toBuffer(encodePackedMessage));
+            let encodePackedMessage = encodePacked(dsNameSpace, 'EOAAddress', nID);
+            let hashedMessage = keccak256(encodePackedMessage);
             await ds.setString(hashedMessage, ethDepositAddress);
             console.log("getString is :" + await ds.getString(hashedMessage));
 
