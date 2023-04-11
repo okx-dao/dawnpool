@@ -7,5 +7,5 @@ interface IDawnDepositPoolInterface {
     /// 质押ETH
     function deposit() external payable;
     /// 提取ETH
-    function withdraw(uint256 _amount) external;
+    function withdraw(uint256 amount) external;
 }

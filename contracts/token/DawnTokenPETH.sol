@@ -11,16 +11,16 @@ contract DawnTokenPETH is DawnBase, IDawnTokenPETH, ERC20 {
 
     using SafeERC20 for IERC20;
 
-    constructor(IDawnStorageInterface _dawnStorageAddress) DawnBase(_dawnStorageAddress) ERC20("Dawn Pool ETH", "pETH") {
+    constructor(IDawnStorageInterface dawnStorageAddress) DawnBase(dawnStorageAddress) ERC20("Dawn Pool ETH", "pETH") {
 
     }
 
-    function mint(uint256 _ethAmount, address _to) override external onlyLatestContract("dawnDepositPool", msg.sender) {
+    function mint(uint256 ethAmount, address to) override external onlyLatestContract("dawnDepositPool", msg.sender) {
 
     }
 
-    function burn(uint256 _pethAmount) override external view {
-        require(_pethAmount > 0, "Invalid token burn amount");
-        require(balanceOf(msg.sender) >= _pethAmount, "Insufficient pETH balance");
+    function burn(uint256 pethAmount) override external view {
+        require(pethAmount > 0, "Invalid token burn amount");
+        require(balanceOf(msg.sender) >= pethAmount, "Insufficient pETH balance");
     }
 }
