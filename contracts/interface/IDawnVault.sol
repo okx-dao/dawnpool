@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * （以下是合约接口描述内容、主要的接口功能描述）
  *
  */
-interface IDawnVaultInterface {
+interface IDawnVault {
     /**
     * @dev 查询某个合约地址上的ETH余额.
     * @param networkContractName - DawnPool合约名称.
