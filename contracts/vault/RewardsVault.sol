@@ -11,7 +11,7 @@ interface IDawnDeposit {
 
 contract RewardsVault is DawnBase, IRewardsVault {
 
-    constructor(IDawnStorageInterface _dawnStorageAddress) DawnBase(_dawnStorageAddress) {
+    constructor(IDawnStorageInterface dawnStorageAddress) DawnBase(dawnStorageAddress) {
 
     }
 

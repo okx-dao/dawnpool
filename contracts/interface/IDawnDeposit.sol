@@ -5,6 +5,7 @@ interface IDawnDeposit {
 
     event LogStake(address indexed staker, uint256 ethAmount);
     event LogReceiveRewards(uint256 ethAmount);
+    event LogReceiveInsurance(uint256 pEthAmount);
 
     // user stake ETH to DawnPool returns pETH
     function stake() external payable returns (uint256);
