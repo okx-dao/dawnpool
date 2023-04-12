@@ -190,4 +190,8 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
         this.stake();
     }
 
+    function mintSharesForNodeOperator(address to, uint256 ethAmount) external {
+
+
+    }
 }

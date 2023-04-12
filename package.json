@@ -16,6 +16,7 @@
     "@openzeppelin/contracts": "^4.8.2",
     "@openzeppelin/contracts-upgradeable": "^4.8.2",
     "dotenv": "^16.0.3",
+    "solidity-bytes-utils": "^0.8.0",
     "web3-utils": "^1.9.0"
   }
 }

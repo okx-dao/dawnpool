@@ -18,4 +18,6 @@ interface IDawnDeposit {
     function receiveFromInsurance(uint256 pEthAmount) external;
     // deposit 32 ETH to activate validator
     function activateValidator() external;
+    // Node operator deposit his 2 ethers to deposit contract, need mint shares for him.
+    function mintSharesForNodeOperator(address to, uint256 ethAmount) external;
 }
