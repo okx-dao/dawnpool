@@ -14,26 +14,26 @@ contract DawnStorage is IDawnStorageInterface {
     using SafeMath for uint256;
 
     /// key为bytes32、value为字符串
-    mapping(bytes32 => string)     private stringStorage;
-    mapping(bytes32 => bytes)      private bytesStorage;
-    mapping(bytes32 => uint256)    private uintStorage;
-    mapping(bytes32 => int256)     private intStorage;
-    mapping(bytes32 => address)    private addressStorage;
-    mapping(bytes32 => bool)       private booleanStorage;
-    mapping(bytes32 => bytes32)    private bytes32Storage;
+    mapping(bytes32 => string)     private _stringStorage;
+    mapping(bytes32 => bytes)      private _bytesStorage;
+    mapping(bytes32 => uint256)    private _uintStorage;
+    mapping(bytes32 => int256)     private _intStorage;
+    mapping(bytes32 => address)    private _addressStorage;
+    mapping(bytes32 => bool)       private _booleanStorage;
+    mapping(bytes32 => bytes32)    private _bytes32Storage;
 
-    address _guardian;
-    address _newGuardian;
+    address private _guardian;
+    address private _newGuardian;
 
-    bool _storageInit = false;
+    bool private _storageInit = false;
 
     /// 仅允许在部署后从DawnPool最新的合约进行访问
     modifier onlyLatestDawnPoolNetworkContract() {
         if (_storageInit == true) {
-            require(booleanStorage[keccak256(abi.encodePacked("contract.exists", msg.sender))], "Invalid or outdated network contract");
+            require(_booleanStorage[keccak256(abi.encodePacked("contract.exists", msg.sender))], "Invalid or outdated network contract");
         } else {
             require((
-                booleanStorage[keccak256(abi.encodePacked("contract.exists", msg.sender))] || tx.origin == _guardian
+                _booleanStorage[keccak256(abi.encodePacked("contract.exists", msg.sender))] || tx.origin == _guardian
                 ), "Invalid or outdated network contract attempting access during deployment");
         }
         _;
@@ -47,9 +47,9 @@ contract DawnStorage is IDawnStorageInterface {
         return _guardian;
     }
 
-    function setGuardian(address _newAddress) external override {
+    function setGuardian(address newAddress) external override {
         require(msg.sender == _guardian, "Is not guardian account");
-        _newGuardian = _newAddress;
+        _newGuardian = newAddress;
     }
 
     function confirmGuardian() external override {
@@ -70,94 +70,94 @@ contract DawnStorage is IDawnStorageInterface {
     }
 
     function getAddress(bytes32 key) override external view returns (address r) {
-        return addressStorage[key];
+        return _addressStorage[key];
     }
 
     function getUint(bytes32 key) override external view returns (uint256 r) {
-        return uintStorage[key];
+        return _uintStorage[key];
     }
 
     function getString(bytes32 key) override external view returns (string memory) {
-        return stringStorage[key];
+        return _stringStorage[key];
     }
 
     function getBytes(bytes32 key) override external view returns (bytes memory) {
-        return bytesStorage[key];
+        return _bytesStorage[key];
     }
 
     function getBool(bytes32 key) override external view returns (bool r) {
-        return booleanStorage[key];
+        return _booleanStorage[key];
     }
 
     function getInt(bytes32 key) override external view returns (int r) {
-        return intStorage[key];
+        return _intStorage[key];
     }
 
     function getBytes32(bytes32 key) override external view returns (bytes32 r) {
-        return bytes32Storage[key];
+        return _bytes32Storage[key];
     }
 
     function setAddress(bytes32 key, address value) onlyLatestDawnPoolNetworkContract override external {
-        addressStorage[key] = value;
+        _addressStorage[key] = value;
     }
 
     function setUint(bytes32 key, uint value) onlyLatestDawnPoolNetworkContract override external {
-        uintStorage[key] = value;
+        _uintStorage[key] = value;
     }
 
     function setString(bytes32 key, string calldata value) onlyLatestDawnPoolNetworkContract override external {
-        stringStorage[key] = value;
+        _stringStorage[key] = value;
     }
 
     function setBytes(bytes32 key, bytes calldata value) onlyLatestDawnPoolNetworkContract override external {
-        bytesStorage[key] = value;
+        _bytesStorage[key] = value;
     }
 
     function setBool(bytes32 key, bool value) onlyLatestDawnPoolNetworkContract override external {
-        booleanStorage[key] = value;
+        _booleanStorage[key] = value;
     }
 
     function setInt(bytes32 key, int value) onlyLatestDawnPoolNetworkContract override external {
-        intStorage[key] = value;
+        _intStorage[key] = value;
     }
 
     function setBytes32(bytes32 key, bytes32 value) onlyLatestDawnPoolNetworkContract override external {
-        bytes32Storage[key] = value;
+        _bytes32Storage[key] = value;
     }
 
     function deleteAddress(bytes32 key) onlyLatestDawnPoolNetworkContract override external {
-        delete addressStorage[key];
+        delete _addressStorage[key];
     }
 
     function deleteUint(bytes32 key) onlyLatestDawnPoolNetworkContract override external {
-        delete uintStorage[key];
+        delete _uintStorage[key];
     }
 
     function deleteString(bytes32 key) onlyLatestDawnPoolNetworkContract override external {
-        delete stringStorage[key];
+        delete _stringStorage[key];
     }
 
     function deleteBytes(bytes32 key) onlyLatestDawnPoolNetworkContract override external {
-        delete bytesStorage[key];
+        delete _bytesStorage[key];
     }
 
     function deleteBool(bytes32 key) onlyLatestDawnPoolNetworkContract override external {
-        delete booleanStorage[key];
+        delete _booleanStorage[key];
     }
 
     function deleteInt(bytes32 key) onlyLatestDawnPoolNetworkContract override external {
-        delete intStorage[key];
+        delete _intStorage[key];
     }
 
     function deleteBytes32(bytes32 key) onlyLatestDawnPoolNetworkContract override external {
-        delete bytes32Storage[key];
+        delete _bytes32Storage[key];
     }
 
     function addUint(bytes32 key, uint256 amount) onlyLatestDawnPoolNetworkContract override external {
-        uintStorage[key] = uintStorage[key].add(amount);
+        _uintStorage[key] = _uintStorage[key].add(amount);
     }
 
     function subUint(bytes32 key, uint256 amount) onlyLatestDawnPoolNetworkContract override external {
-        uintStorage[key] = uintStorage[key].sub(amount);
+        _uintStorage[key] = _uintStorage[key].sub(amount);
     }
 }
