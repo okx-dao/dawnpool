@@ -49,6 +49,7 @@
   },
   "dependencies": {
     "@openzeppelin/contracts": "^4.8.2",
-    "@openzeppelin/contracts-upgradeable": "^4.8.2"
+    "@openzeppelin/contracts-upgradeable": "^4.8.2",
+    "solidity-bytes-utils": "^0.8.0"
   }
 }
