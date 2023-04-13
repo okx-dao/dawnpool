@@ -17,6 +17,8 @@ interface IDawnDeposit {
     function handleOracleReport(uint256 beaconValidators, uint256 beaconBalance, uint256 availableRewards) external;
     // receive pETH from Insurance, and burn
     function receiveFromInsurance(uint256 pEthAmount) external;
-    // deposit 32 ETH to activate validator
-    function activateValidator() external;
+    // deposit 31 ETH to activate validator
+    function activateValidator(address operator, bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external;
+    // deposit 1 ETH for NodeOperatorRegister
+    function preActivateValidator(address operator, bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external;
 }

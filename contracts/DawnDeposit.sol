@@ -65,8 +65,12 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
         emit LogReceiveInsurance(pEthAmount);
     }
 
-    // deposit 32 ETH to activate validator
-    function activateValidator() external {
+    // deposit 31 ETH to activate validator
+    function activateValidator(address operator, bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external {
+
+    }
+    // deposit 1 ETH for NodeOperatorRegister
+    function preActivateValidator(address operator, bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external {
 
     }
 
@@ -195,5 +199,7 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
         emit LogStake(msg.sender, msg.value);
         return pEthAmount;
     }
+
+
 
 }
