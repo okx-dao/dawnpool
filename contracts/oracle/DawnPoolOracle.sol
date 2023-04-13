@@ -5,6 +5,5 @@ import "../interface/IDawnPoolOracle.sol";
 import "../base/DawnBase.sol";
 
 contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
-    constructor(IDawnStorageInterface dawnStorageAddress) DawnBase(dawnStorageAddress) { }
-
+    constructor(IDawnStorageInterface dawnStorageAddress) DawnBase(dawnStorageAddress) {}
 }
