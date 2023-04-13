@@ -37,7 +37,7 @@ describe('DawnDepositTest', function () {
       }
 
       // try {
-      //     await web3js.eth.sendTransaction({ to: dawnDeposit.address, from: owner.address, value: 0 })
+      //     await web3.eth.sendTransaction({ to: dawnDeposit.address, from: owner.address, value: 0 })
       // } catch (e) {
       //     chai.assert.match(e, /STAKE_ZERO_ETHER/)
       //     console.log(e)
@@ -47,8 +47,10 @@ describe('DawnDepositTest', function () {
       await dawnDeposit.stake({ from: owner.address, value: 1 });
       await chai.assert.equal(await dawnDeposit.balanceOf(owner.address), 1);
 
-      // await web3js.eth.sendTransaction({ to: dawnDeposit.address, from: owner.address, value: 1 })
+      // await web3.eth.sendTransaction({ to: dawnDeposit.address, from: owner.address, value: 1 })
       // await chai.assert.equal(await dawnDeposit.balanceOf(owner.address), 2)
     });
   });
+
+  // describe("")
 });
