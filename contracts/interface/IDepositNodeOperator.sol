@@ -3,5 +3,4 @@ pragma solidity ^0.8.17;
 
 interface IDepositNodeOperator {
     function getOperator() external view returns (address);
-
 }

@@ -12,7 +12,7 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
     uint64 internal constant PUBKEY_LENGTH = 48;
     uint64 internal constant SIGNATURE_LENGTH = 96;
 
-    constructor(address operator, IDawnStorageInterface dawnStorage) DawnBase(dawnStorage){
+    constructor(address operator, IDawnStorageInterface dawnStorage) DawnBase(dawnStorage) {
         setAddress(_getOperatorStorageKey(), operator);
     }
 
@@ -20,7 +20,10 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
         return getAddress(_getOperatorStorageKey());
     }
 
-    function addValidators(bytes calldata pubkeys, bytes calldata signatures) external payable returns (uint256 startIndex, uint256 count) {
+    function addValidators(
+        bytes calldata pubkeys,
+        bytes calldata signatures
+    ) external payable returns (uint256 startIndex, uint256 count) {
         require(msg.sender == getOperator(), "Only operator can add validators!");
         require(pubkeys.length % PUBKEY_LENGTH == 0, "Inconsistent public keys len!");
         require(signatures.length % SIGNATURE_LENGTH == 0, "Inconsistent signatures len!");
@@ -30,14 +33,13 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
         require(msg.value == minAmount * count, "Inconsistent deposits!");
         startIndex = IDepositNodeManager(_getDepositNodeManager()).registerValidators(msg.sender, count);
         bytes32 withdrawalCredentials = _getWithdrawalCredentials();
-        for(uint256 i = 0; i < count; ++i) {
+        for (uint256 i = 0; i < count; ++i) {
             bytes memory pubkey = BytesLib.slice(pubkeys, i * PUBKEY_LENGTH, PUBKEY_LENGTH);
             bytes memory signature = BytesLib.slice(signatures, i * SIGNATURE_LENGTH, SIGNATURE_LENGTH);
             bytes memory signingKey = BytesLib.concat(pubkey, signature);
             setBytes(_getStorageKeyByValidatorIndex(startIndex + i), signingKey);
             _deposit(pubkey, signature, minAmount, withdrawalCredentials);
         }
-
     }
 
     function _getStorageKeyByValidatorIndex(uint256 index) internal view returns (bytes32) {
@@ -49,27 +51,26 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
     }
 
     /**
-    * @dev Padding memory array with zeroes up to 64 bytes on the right
-    * @param _b Memory array of size 32 .. 64
-    */
+     * @dev Padding memory array with zeroes up to 64 bytes on the right
+     * @param _b Memory array of size 32 .. 64
+     */
     function _pad64(bytes memory _b) internal pure returns (bytes memory) {
         assert(_b.length >= 32 && _b.length <= 64);
-        if (64 == _b.length)
-            return _b;
+        if (64 == _b.length) return _b;
 
         bytes memory zero32 = new bytes(32);
-        assembly { mstore(add(zero32, 0x20), 0) }
+        assembly {
+            mstore(add(zero32, 0x20), 0)
+        }
 
-        if (32 == _b.length)
-            return BytesLib.concat(_b, zero32);
-        else
-            return BytesLib.concat(_b, BytesLib.slice(zero32, 0, uint256(64) - _b.length));
+        if (32 == _b.length) return BytesLib.concat(_b, zero32);
+        else return BytesLib.concat(_b, BytesLib.slice(zero32, 0, uint256(64) - _b.length));
     }
 
     /**
-    * @dev Converting value to little endian bytes and padding up to 32 bytes on the right
-    * @param _value Number less than `2**64` for compatibility reasons
-    */
+     * @dev Converting value to little endian bytes and padding up to 32 bytes on the right
+     * @param _value Number less than `2**64` for compatibility reasons
+     */
     function _toLittleEndian64(uint256 _value) internal pure returns (uint256 result) {
         result = 0;
         uint256 temp_value = _value;
@@ -78,11 +79,16 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
             temp_value >>= 8;
         }
 
-        assert(0 == temp_value);    // fully converted
+        assert(0 == temp_value); // fully converted
         result <<= (24 * 8);
     }
 
-    function _deposit(bytes memory pubkey, bytes memory signature, uint256 amount, bytes32 withdrawalCredentials) internal {
+    function _deposit(
+        bytes memory pubkey,
+        bytes memory signature,
+        uint256 amount,
+        bytes32 withdrawalCredentials
+    ) internal {
         // Compute deposit data root (`DepositData` hash tree root) according to deposit_contract.sol
         bytes32 pubkeyRoot = sha256(_pad64(pubkey));
         bytes32 signatureRoot = sha256(
@@ -98,8 +104,12 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
             )
         );
         uint256 targetBalance = address(this).balance - amount;
-        IDepositContract(_getDepositContract()).deposit{ value: amount }(
-            pubkey, abi.encodePacked(withdrawalCredentials), signature, depositDataRoot);
+        IDepositContract(_getDepositContract()).deposit{value: amount}(
+            pubkey,
+            abi.encodePacked(withdrawalCredentials),
+            signature,
+            depositDataRoot
+        );
         require(address(this).balance == targetBalance, "Expecting deposit to happen!");
     }
 

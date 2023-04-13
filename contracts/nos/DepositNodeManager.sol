@@ -10,12 +10,11 @@ import "../interface/IDawnDeposit.sol";
 /// @author Ray Lv
 /// @notice Dawn manage their node operators by this contract
 contract DepositNodeManager is IDepositNodeManager, DawnBase {
-    uint256 constant internal DEPOSIT_BASE = 32 ether;
-    bytes32 constant internal NEXT_VALIDATOR_ID = keccak256("DepositNodeManager.NEXT_VALIDATOR_ID");
-    bytes32 constant internal AVAILABLE_VALIDATOR_COUNT = keccak256("DepositNodeManager.AVAILABLE_VALIDATOR_COUNT");
+    uint256 internal constant DEPOSIT_BASE = 32 ether;
+    bytes32 internal constant NEXT_VALIDATOR_ID = keccak256("DepositNodeManager.NEXT_VALIDATOR_ID");
+    bytes32 internal constant AVAILABLE_VALIDATOR_COUNT = keccak256("DepositNodeManager.AVAILABLE_VALIDATOR_COUNT");
 
-    constructor(IDawnStorageInterface dawnStorage) DawnBase(dawnStorage) {
-    }
+    constructor(IDawnStorageInterface dawnStorage) DawnBase(dawnStorage) {}
 
     /// @notice Register an node operator and deploy a node operator contract for request address
     /// @return Deployed node operator contract address
@@ -30,7 +29,7 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
     }
 
     /// @notice Get the node operator contract address
-    function getNodeOperator(address operator) public view returns (address nodeAddress, bool isActive){
+    function getNodeOperator(address operator) public view returns (address nodeAddress, bool isActive) {
         bytes32 operatorStorageKey = _getStorageKeyByOperatorAddress(operator);
         nodeAddress = getAddress(operatorStorageKey);
         isActive = getBool(operatorStorageKey);
@@ -40,10 +39,14 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
         return getUint(AVAILABLE_VALIDATOR_COUNT);
     }
 
-    function distributeFunds(uint256[] calldata validatorIds) external payable onlyLatestContract("DawnDeposit", msg.sender) {
+    function distributeFunds(
+        uint256[] calldata validatorIds
+    ) external payable onlyLatestContract("DawnDeposit", msg.sender) {
         uint256 depositCount = validatorIds.length;
-        require(msg.value >= depositCount * (DEPOSIT_BASE - _getMinOperatorDepositAmount()),
-            "Not enough distributed funds!");
+        require(
+            msg.value >= depositCount * (DEPOSIT_BASE - _getMinOperatorDepositAmount()),
+            "Not enough distributed funds!"
+        );
         require(depositCount <= getAvailableValidatorsCount(), "Not enough available validators!");
         /// TODO deposit
     }
@@ -58,7 +61,7 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
         );
         uint256 startIndex = getUint(NEXT_VALIDATOR_ID);
         bytes32 validatorStorageKey;
-        for(uint i = 0; i < count; ++i) {
+        for (uint i = 0; i < count; ++i) {
             validatorStorageKey = _getStorageKeyByValidatorIndex(startIndex + i);
             setAddress(validatorStorageKey, msg.sender);
             setUint(validatorStorageKey, uint(ValidatorStatus.WAITING_ACTIVATED));
@@ -68,13 +71,15 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
         return startIndex;
     }
 
-    function getNodeValidator(uint256 validatorIndex) external view returns (address nodeAddress, ValidatorStatus status) {
+    function getNodeValidator(
+        uint256 validatorIndex
+    ) external view returns (address nodeAddress, ValidatorStatus status) {
         bytes32 validatorStorageKey = _getStorageKeyByValidatorIndex(validatorIndex);
         nodeAddress = getAddress(validatorStorageKey);
         status = ValidatorStatus(getUint(validatorStorageKey));
     }
 
-    function _getMinOperatorDepositAmount() internal view returns (uint256){
+    function _getMinOperatorDepositAmount() internal view returns (uint256) {
         // TODO
         return 2 ether;
     }
@@ -86,5 +91,4 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
     function _getStorageKeyByValidatorIndex(uint256 index) internal view returns (bytes32) {
         return keccak256(abi.encodePacked("DepositNodeManager.validatorIndex", index));
     }
-
 }
