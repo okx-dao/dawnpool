@@ -4,9 +4,13 @@
     "compile": "hardhat compile",
     "test": "hardhat test",
     "coverage": "NODE_OPTIONS=\"--max-old-space-size=4096\" hardhat coverage",
-    "format": "prettier --write \"**/*.js\" \"*.json\"",
-    "lint": "solhint --max-warnings 0 \"contracts/**/*.sol\" && eslint \"**/*.js\"",
-    "lint:fix": "eslint --fix \"**/*.js\"",
+    "lint": "npm run lint:js && npm run lint:sol",
+    "lint:fix": "npm run lint:js:fix && npm run lint:sol:fix",
+    "lint:js": "prettier --loglevel warn --ignore-path .gitignore '**/*.{js,ts}' --check && eslint --ignore-path .gitignore .",
+    "lint:js:fix": "prettier --loglevel warn --ignore-path .gitignore '**/*.{js,ts}' --write && eslint --ignore-path .gitignore . --fix",
+    "lint:sol": "prettier --loglevel warn --ignore-path .gitignore '{contracts,test}/**/*.sol' --check && solhint '{contracts,test}/**/*.sol'",
+    "lint:sol:fix": "prettier --loglevel warn --ignore-path .gitignore '{contracts,test}/**/*.sol' --write",
+    "clean": "hardhat clean && rimraf build contracts/build",
     "deploy-contracts": "yarn compile && npx hardhat run --no-compile scripts/deploy.js",
     "upgrade-contracts": "yarn compile && npx hardhat run --no-compile scripts/upgrade.js"
   },
@@ -49,6 +53,7 @@
   },
   "dependencies": {
     "@openzeppelin/contracts": "^4.8.2",
-    "@openzeppelin/contracts-upgradeable": "^4.8.2"
+    "@openzeppelin/contracts-upgradeable": "^4.8.2",
+    "solidity-bytes-utils": "^0.8.0"
   }
 }
