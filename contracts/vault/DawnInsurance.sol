@@ -15,8 +15,8 @@ contract DawnInsurance is IDawnInsurance, DawnBase {
 
     function transferToStakingPool(uint256 amountPEth) external {
         //todo: ACL
-        require(getContractAddress("DawnDeposit") != address(0), "pETH token not exists");
-        address pETH = getContractAddress("DawnDeposit");
+        require(_getContractAddress("DawnDeposit") != address(0), "pETH token not exists");
+        address pETH = _getContractAddress("DawnDeposit");
         amountPEth = IERC20(pETH).balanceOf(address(this)) > amountPEth ? amountPEth : IERC20(pETH).balanceOf(address(this));
         IDawnDeposit(pETH).receiveFromInsurance(amountPEth);
     }

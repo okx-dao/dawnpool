@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.17;
 
-import "./interface/IDawnDeposit.sol";
-import "./token/DawnTokenPETH.sol";
+import "../interface/IDawnDeposit.sol";
+import "../token/DawnTokenPETH.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "./base/DawnBase.sol";
+import "../base/DawnBase.sol";
 
 interface IRewardsVault {
     function withdrawRewards(uint256 availableRewards) external;
@@ -15,23 +15,23 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
     using SafeMath for uint256;
 
     uint256 public constant DEPOSIT_VALUE_PER_VALIDATOR = 32 ether;
-    uint256 internal constant FEE_BASIC = 10000;
+    uint256 internal constant _FEE_BASIC = 10000;
 
-    bytes32 internal constant BUFFERED_ETHER_KEY = keccak256("dawnDeposit.bufferedEther");
-    bytes32 internal constant DEPOSITED_VALIDATORS_KEY  = keccak256("dawnDeposit.depositedValidators");
-    bytes32 internal constant BEACON_VALIDATORS_KEY = keccak256("dawnDeposit.beaconValidators");
-    bytes32 internal constant BEACON_BALANCE_KEY = keccak256("dawnDeposit.beaconBalance");
+    bytes32 internal constant _BUFFERED_ETHER_KEY = keccak256("dawnDeposit.bufferedEther");
+    bytes32 internal constant _DEPOSITED_VALIDATORS_KEY  = keccak256("dawnDeposit.depositedValidators");
+    bytes32 internal constant _BEACON_VALIDATORS_KEY = keccak256("dawnDeposit.beaconValidators");
+    bytes32 internal constant _BEACON_BALANCE_KEY = keccak256("dawnDeposit.beaconBalance");
 
-    bytes32 internal constant FEE_KEY = keccak256("dawnDeposit.fee");
-    bytes32 internal constant INSURANCE_FEE_KEY = keccak256("dawnDeposit.insuranceFee");
-    bytes32 internal constant TREASURY_FEE_KEY = keccak256("dawnDeposit.treasuryFee");
-    bytes32 internal constant NODE_OPERATOR_FEE_KEY = keccak256("dawnDeposit.nodeOperatorFee");
+    bytes32 internal constant _FEE_KEY = keccak256("dawnDeposit.fee");
+    bytes32 internal constant _INSURANCE_FEE_KEY = keccak256("dawnDeposit.insuranceFee");
+    bytes32 internal constant _TREASURY_FEE_KEY = keccak256("dawnDeposit.treasuryFee");
+    bytes32 internal constant _NODE_OPERATOR_FEE_KEY = keccak256("dawnDeposit.nodeOperatorFee");
 
-    string internal constant REWARDS_VAULT_CONTRACT_NAME = "RewardsVault";
-    string internal constant TREASURY_CONTRACT_NAME = "DawnTreasury";
-    string internal constant INSURANCE_CONTRACT_NAME = "DawnInsurance";
-    string internal constant NODE_OPERATOR_REGISTER_CONTRACT_NAME = "NodeOperatorRegister";
-    string internal constant ORACLE_CONTRACT_NAME = "DawnPoolOracle";
+    string internal constant _REWARDS_VAULT_CONTRACT_NAME = "RewardsVault";
+    string internal constant _TREASURY_CONTRACT_NAME = "DawnTreasury";
+    string internal constant _INSURANCE_CONTRACT_NAME = "DawnInsurance";
+    string internal constant _NODE_OPERATOR_REGISTER_CONTRACT_NAME = "DepositNodeManager";
+    string internal constant _ORACLE_CONTRACT_NAME = "DawnPoolOracle";
 
     // constructor
     constructor(IDawnStorageInterface dawnStorageAddress) DawnTokenPETH() DawnBase(dawnStorageAddress) {
@@ -52,15 +52,15 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
 
     // user unstake pETH from DawnPool returns ETH
     function unstake(uint pEthAmount) external returns (uint256) {
-        return 0;
+        return pEthAmount;
     }
 
     // receive pETH from Insurance, and burn pETH
     function receiveFromInsurance(uint256 pEthAmount) external {
-        require(msg.sender == getContractAddress(INSURANCE_CONTRACT_NAME), "receive not from insurance");
+        require(msg.sender == _getContractAddress(_INSURANCE_CONTRACT_NAME), "receive not from insurance");
 
         // burn insurance's pEth
-        _burn(getContractAddress(INSURANCE_CONTRACT_NAME), pEthAmount);
+        _burn(_getContractAddress(_INSURANCE_CONTRACT_NAME), pEthAmount);
 
         emit LogReceiveInsurance(pEthAmount);
     }
@@ -81,25 +81,25 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
 
     // handle oracle report
     function handleOracleReport(uint256 beaconValidators, uint256 beaconBalance, uint256 availableRewards) external {
-        require(msg.sender == getContractAddress(ORACLE_CONTRACT_NAME), "only call by DawnPoolOracle");
-        require(availableRewards <= getContractAddress(REWARDS_VAULT_CONTRACT_NAME).balance, "RewardsVault insufficient balance");
+        require(msg.sender == _getContractAddress(_ORACLE_CONTRACT_NAME), "only call by DawnPoolOracle");
+        require(availableRewards <= _getContractAddress(_REWARDS_VAULT_CONTRACT_NAME).balance, "RewardsVault insufficient balance");
         require(
             beaconBalance.add(availableRewards)
             >=
-            getUint(BEACON_BALANCE_KEY)
+            _getUint(_BEACON_BALANCE_KEY)
             .add(
                 beaconValidators
-                .sub(getUint(BEACON_VALIDATORS_KEY))
+                .sub(_getUint(_BEACON_VALIDATORS_KEY))
                 .mul(DEPOSIT_VALUE_PER_VALIDATOR)
             ), "unprofitable");
 
         uint256 rewards = beaconBalance
         .add(availableRewards)
         .sub(
-            getUint(BEACON_BALANCE_KEY)
+            _getUint(_BEACON_BALANCE_KEY)
             .add(
                 beaconValidators
-                .sub(getUint(BEACON_VALIDATORS_KEY))
+                .sub(_getUint(_BEACON_VALIDATORS_KEY))
                 .mul(DEPOSIT_VALUE_PER_VALIDATOR)
             )
         );
@@ -108,11 +108,11 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
         uint256 preTotalPEth = totalSupply();
 
         // store beacon balance and validators
-        setUint(BEACON_VALIDATORS_KEY, beaconValidators);
-        setUint(BEACON_BALANCE_KEY, beaconBalance);
+        _setUint(_BEACON_VALIDATORS_KEY, beaconValidators);
+        _setUint(_BEACON_BALANCE_KEY, beaconBalance);
 
         // claim availableRewards from RewardsVault
-        IRewardsVault(getContractAddress(REWARDS_VAULT_CONTRACT_NAME)).withdrawRewards(availableRewards);
+        IRewardsVault(_getContractAddress(_REWARDS_VAULT_CONTRACT_NAME)).withdrawRewards(availableRewards);
 
         // calculate rewardsPEth
         // rewardsPEth / (rewards * fee/basic) = preTotalPEth / (preTotalEther + rewards * (basic - fee)/basic)
@@ -120,15 +120,15 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
         // rewardsPEth = preTotalPEth * rewards * fee / (preTotalEther * basic + rewards * (basic - fee))
         uint256 rewardsPEth = preTotalPEth
         .mul(rewards)
-        .mul(getUint(FEE_KEY))
+        .mul(_getUint(_FEE_KEY))
         .div(
             preTotalEther
-            .mul(FEE_BASIC)
+            .mul(_FEE_BASIC)
             .add(
                 rewards
                 .mul(
-                    FEE_BASIC
-                    .sub(getUint(FEE_KEY))
+                    _FEE_BASIC
+                    .sub(_getUint(_FEE_KEY))
                 )
             )
         );
@@ -154,31 +154,31 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
     }
     // get DawnPool protocol total value locked
     function getTotalPooledEther() public view returns (uint256) {
-        return getUint(BUFFERED_ETHER_KEY)
-        .add(getUint(BEACON_BALANCE_KEY))
+        return _getUint(_BUFFERED_ETHER_KEY)
+        .add(_getUint(_BEACON_BALANCE_KEY))
         .add(
-            getUint(DEPOSITED_VALIDATORS_KEY)
-            .sub(getUint(BEACON_VALIDATORS_KEY))
+            _getUint(_DEPOSITED_VALIDATORS_KEY)
+            .sub(_getUint(_BEACON_VALIDATORS_KEY))
             .mul(DEPOSIT_VALUE_PER_VALIDATOR)
         );
     }
 
     // distribute pETH rewards to NodeOperators、DawnInsurance、DawnTreasury
     function _distributeRewards(uint256 rewardsPEth) internal {
-        uint256 insuranceFee = getUint(INSURANCE_FEE_KEY);
-        uint256 treasuryFee = getUint(TREASURY_FEE_KEY);
-        uint256 nodeOperatorFee = getUint(NODE_OPERATOR_FEE_KEY);
-        _transferToInsurance(rewardsPEth.mul(insuranceFee).div(FEE_BASIC));
-        _transferToTreasury(rewardsPEth.mul(treasuryFee).div(FEE_BASIC));
-        _distributeNodeOperatorRewards(rewardsPEth.mul(nodeOperatorFee).div(FEE_BASIC));
+        uint256 insuranceFee = _getUint(_INSURANCE_FEE_KEY);
+        uint256 treasuryFee = _getUint(_TREASURY_FEE_KEY);
+        uint256 nodeOperatorFee = _getUint(_NODE_OPERATOR_FEE_KEY);
+        _transferToInsurance(rewardsPEth.mul(insuranceFee).div(_FEE_BASIC));
+        _transferToTreasury(rewardsPEth.mul(treasuryFee).div(_FEE_BASIC));
+        _distributeNodeOperatorRewards(rewardsPEth.mul(nodeOperatorFee).div(_FEE_BASIC));
     }
     // transfer pETH as rewards to DawnInsurance
     function _transferToInsurance(uint256 rewardsPEth) internal {
-        transfer(getContractAddress(INSURANCE_CONTRACT_NAME), rewardsPEth);
+        transfer(_getContractAddress(_INSURANCE_CONTRACT_NAME), rewardsPEth);
     }
     // transfer pETH as rewards to DawnTreasury
     function _transferToTreasury(uint256 rewardsPEth) internal {
-        transfer(getContractAddress(TREASURY_CONTRACT_NAME), rewardsPEth);
+        transfer(_getContractAddress(_TREASURY_CONTRACT_NAME), rewardsPEth);
     }
     // distribute pETH as rewards to NodeOperators
     function _distributeNodeOperatorRewards(uint256 rewardsPEth) internal {
@@ -194,12 +194,10 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
         }
         _mint(msg.sender, pEthAmount);
         // update buffered ether
-        addUint(BUFFERED_ETHER_KEY, msg.value);
+        _addUint(_BUFFERED_ETHER_KEY, msg.value);
 
         emit LogStake(msg.sender, msg.value);
         return pEthAmount;
     }
-
-
 
 }
