@@ -5,6 +5,5 @@ import "../interface/IDawnTreasury.sol";
 import "../base/DawnBase.sol";
 
 contract DawnTreasury is IDawnTreasury, DawnBase {
-    constructor(IDawnStorageInterface dawnStorageAddress) DawnBase(dawnStorageAddress) { }
-
+    constructor(IDawnStorageInterface dawnStorageAddress) DawnBase(dawnStorageAddress) {}
 }

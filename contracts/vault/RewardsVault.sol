@@ -10,10 +10,7 @@ interface IDawnDeposit {
 }
 
 contract RewardsVault is DawnBase, IRewardsVault {
-
-    constructor(IDawnStorageInterface dawnStorageAddress) DawnBase(dawnStorageAddress) {
-
-    }
+    constructor(IDawnStorageInterface dawnStorageAddress) DawnBase(dawnStorageAddress) {}
 
     function withdrawRewards(uint256 availableRewards) external {
         require(msg.sender == getContractAddress("DawnDeposit"), "only call by DawnDeposit");

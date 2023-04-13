@@ -10,14 +10,15 @@ interface IDawnDeposit {
 }
 
 contract DawnInsurance is IDawnInsurance, DawnBase {
-
-    constructor(IDawnStorageInterface dawnStorageAddress) DawnBase(dawnStorageAddress) { }
+    constructor(IDawnStorageInterface dawnStorageAddress) DawnBase(dawnStorageAddress) {}
 
     function transferToStakingPool(uint256 amountPEth) external {
         //todo: ACL
         require(getContractAddress("DawnDeposit") != address(0), "pETH token not exists");
         address pETH = getContractAddress("DawnDeposit");
-        amountPEth = IERC20(pETH).balanceOf(address(this)) > amountPEth ? amountPEth : IERC20(pETH).balanceOf(address(this));
+        amountPEth = IERC20(pETH).balanceOf(address(this)) > amountPEth
+            ? amountPEth
+            : IERC20(pETH).balanceOf(address(this));
         IDawnDeposit(pETH).receiveFromInsurance(amountPEth);
     }
 }
