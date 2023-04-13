@@ -5,6 +5,7 @@ interface IDawnDeposit {
 
     event LogStake(address indexed staker, uint256 ethAmount);
     event LogReceiveRewards(uint256 ethAmount);
+    event LogReceiveInsurance(uint256 pEthAmount);
 
     // user stake ETH to DawnPool returns pETH
     function stake() external payable returns (uint256);
@@ -16,8 +17,8 @@ interface IDawnDeposit {
     function handleOracleReport(uint256 beaconValidators, uint256 beaconBalance, uint256 availableRewards) external;
     // receive pETH from Insurance, and burn
     function receiveFromInsurance(uint256 pEthAmount) external;
-    // deposit 32 ETH to activate validator
-    function activateValidator() external;
-    // Node operator deposit his 2 ethers to deposit contract, need mint shares for him.
-    function mintSharesForNodeOperator(address to, uint256 ethAmount) external;
+    // deposit 31 ETH to activate validator
+    function activateValidator(address operator, bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external;
+    // deposit 1 ETH for NodeOperatorRegister
+    function preActivateValidator(address operator, bytes calldata pubkey, bytes calldata signature, bytes32 depositDataRoot) external;
 }

@@ -1,22 +1,42 @@
 {
   "name": "hardhat-project",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy-contracts": "yarn compile && npx hardhat run --no-compile scripts/deploy.js",
+    "upgrade-contracts": "yarn compile && npx hardhat run --no-compile scripts/upgrade.js"
+  },
   "devDependencies": {
+    "@nomicfoundation/hardhat-chai-matchers": "^1.0.6",
+    "@nomicfoundation/hardhat-network-helpers": "^1.0.8",
     "@nomicfoundation/hardhat-toolbox": "^2.0.2",
+    "@nomiclabs/hardhat-ethers": "^2.2.3",
     "@nomiclabs/hardhat-etherscan": "^3.1.7",
     "@nomiclabs/hardhat-truffle5": "^2.0.7",
     "@nomiclabs/hardhat-web3": "^2.0.0",
     "@openzeppelin/hardhat-upgrades": "^1.22.1",
+    "@openzeppelin/test-helpers": "^0.5.16",
+    "@typechain/ethers-v5": "^10.2.0",
+    "@typechain/hardhat": "^6.1.5",
+    "@types/mocha": "^10.0.1",
+    "chai": "^4.3.7",
+    "chalk": "^5.2.0",
+    "dotenv": "^16.0.3",
+    "ethers": "^5.7.2",
     "hardhat": "^2.13.0",
+    "hardhat-gas-reporter": "^1.0.9",
     "mocha": "^10.2.0",
-    "web3": "^1.8.2"
+    "solidity-coverage": "^0.8.2",
+    "ts-node": "^10.9.1",
+    "typechain": "^8.1.1",
+    "typescript": "^5.0.4",
+    "web3": "^1.8.2",
+    "web3-utils": "^1.9.0"
   },
   "dependencies": {
-    "@nomicfoundation/ethereumjs-util": "^9.0.0",
-    "@nomicfoundation/hardhat-network-helpers": "^1.0.8",
     "@openzeppelin/contracts": "^4.8.2",
     "@openzeppelin/contracts-upgradeable": "^4.8.2",
-    "dotenv": "^16.0.3",
-    "solidity-bytes-utils": "^0.8.0",
-    "web3-utils": "^1.9.0"
+    "yarn": "^1.22.19",
+    "solidity-bytes-utils": "^0.8.0"
   }
 }
