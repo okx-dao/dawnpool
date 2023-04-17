@@ -11,6 +11,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 interface IDawnDeposit {
     function stake() external payable returns (uint256);
+
     // deposit 31 ETH to activate validator
     function activateValidator(
         address operator,
@@ -31,14 +32,14 @@ interface IDawnDeposit {
 }
 
 /**
-* @title Node operator contract
-* @author Ray
-* @notice Node operator add his validator pubkeys through his node operator contract
-* @dev Node operator needs to stake specified amount of ETH to add a validator through this contract
-* The staked ETH will be transferred to dawn deposit pool and the returned pETH locked in this contract
-* It will be claimable if the operator exit his validators
-* However, the "overflow" part of shares can be claimed with validator rewards
-*/
+ * @title Node operator contract
+ * @author Ray
+ * @notice Node operator add his validator pubkeys through his node operator contract
+ * @dev Node operator needs to stake specified amount of ETH to add a validator through this contract
+ * The staked ETH will be transferred to dawn deposit pool and the returned pETH locked in this contract
+ * It will be claimable if the operator exit his validators
+ * However, the "overflow" part of shares can be claimed with validator rewards
+ */
 contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
     uint64 internal constant _PUBKEY_LENGTH = 48;
     uint64 internal constant _SIGNATURE_LENGTH = 96;
@@ -46,57 +47,52 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
     uint128 internal constant _PRE_DEPOSIT_VALUE = 1 ether;
     /// @dev Active validators count
     bytes32 internal constant _ACTIVE_VALIDATORS_COUNT = keccak256("DepositNodeOperator.ACTIVE_VALIDATORS_COUNT");
+
     /**
-    * @dev Constructor
-    * @param operator Address of node operator
-    * @param dawnStorage Storage address
-    */
-    constructor(address operator, IDawnStorageInterface dawnStorage) DawnBase(dawnStorage){
+     * @dev Constructor
+     * @param operator Address of node operator
+     * @param dawnStorage Storage address
+     */
+    constructor(address operator, IDawnStorageInterface dawnStorage) DawnBase(dawnStorage) {
         _setAddress(_getOperatorStorageKey(), operator);
     }
 
     /**
-    * @notice Get node operator address
-    * @return Node operator address
-    */
+     * @notice Get node operator address
+     * @return Node operator address
+     */
     function getOperator() public view returns (address) {
         return _getAddress(_getOperatorStorageKey());
     }
 
     /**
-    * @notice Add stakes for operator, and any account can do this
-    * @return Minted pETH amount
-    */
+     * @notice Add stakes for operator, and any account can do this
+     * @return Minted pETH amount
+     */
     function addStakes() external payable returns (uint256) {
-        return IDawnDeposit(_getDawnDeposit()).stake{ value: msg.value }();
+        return IDawnDeposit(_getDawnDeposit()).stake{value: msg.value}();
     }
 
     /**
-    * @notice Add validator pubkeys and signatures
-    * @dev Make sure to have enough stakes to add validators
-    * @param pubkeys Public keys
-    * @param signatures Signatures
-    * @return startIndex The first index of validators added
-    * @return count Added validators count
-    */
+     * @notice Add validator pubkeys and signatures
+     * @dev Make sure to have enough stakes to add validators
+     * @param pubkeys Public keys
+     * @param signatures Signatures
+     * @return startIndex The first index of validators added
+     * @return count Added validators count
+     */
     function addValidators(
         bytes calldata pubkeys,
         bytes calldata signatures
-    )
-    external
-    payable
-    returns (
-        uint256 startIndex,
-        uint256 count
-    ) {
+    ) external payable returns (uint256 startIndex, uint256 count) {
         require(msg.sender == getOperator(), "Only operator can add validators!");
         require(pubkeys.length % _PUBKEY_LENGTH == 0, "Inconsistent public keys len!");
         require(signatures.length % _SIGNATURE_LENGTH == 0, "Inconsistent signatures len!");
         count = pubkeys.length / _PUBKEY_LENGTH;
         require(signatures.length / _SIGNATURE_LENGTH == count, "Inconsistent signatures count!");
         IDawnDeposit dawnDeposit = IDawnDeposit(_getDawnDeposit());
-        if(msg.value > 0) {
-            dawnDeposit.stake{ value: msg.value }();
+        if (msg.value > 0) {
+            dawnDeposit.stake{value: msg.value}();
         }
         uint256 operatorBalance = dawnDeposit.getEtherByPEth(IERC20(address(dawnDeposit)).balanceOf(address(this)));
         IDepositNodeManager nodeManager = IDepositNodeManager(_getDepositNodeManager());
@@ -105,7 +101,7 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
         require(operatorBalance >= requiredAmount, "Not enough deposits!");
         startIndex = nodeManager.registerValidators(msg.sender, count);
         bytes32 withdrawalCredentials = getWithdrawalCredentials();
-        for(uint256 i = 0; i < count; ++i) {
+        for (uint256 i = 0; i < count; ++i) {
             bytes memory pubkey = BytesLib.slice(pubkeys, i * _PUBKEY_LENGTH, _PUBKEY_LENGTH);
             bytes memory signature = BytesLib.slice(signatures, i * _SIGNATURE_LENGTH, _SIGNATURE_LENGTH);
             bytes memory signingKey = BytesLib.concat(pubkey, signature);
@@ -117,18 +113,18 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
     }
 
     /**
-    * @notice Get active validators of node operator, includes all validators not exit
-    * @return Active validators count
-    */
+     * @notice Get active validators of node operator, includes all validators not exit
+     * @return Active validators count
+     */
     function getActiveValidatorsCount() public view returns (uint256) {
         return _getUint(_ACTIVE_VALIDATORS_COUNT);
     }
 
     /**
-    * @notice Get WithdrawalCredentials
-    */
+     * @notice Get WithdrawalCredentials
+     */
     function getWithdrawalCredentials() public view returns (bytes32) {
-        address rewardsVault =  _getContractAddress("RewardsVault");
+        address rewardsVault = _getContractAddress("RewardsVault");
         return bytes32(bytes.concat("0x010000000000000000000000", bytes20(rewardsVault)));
     }
 
@@ -138,27 +134,26 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
     }
 
     /**
-    * @dev Padding memory array with zeroes up to 64 bytes on the right
-    * @param b Memory array of size 32 .. 64
-    */
+     * @dev Padding memory array with zeroes up to 64 bytes on the right
+     * @param b Memory array of size 32 .. 64
+     */
     function _pad64(bytes memory b) internal pure returns (bytes memory) {
         assert(b.length >= 32 && b.length <= 64);
-        if (64 == b.length)
-            return b;
+        if (64 == b.length) return b;
 
         bytes memory zero32 = new bytes(32);
-        assembly { mstore(add(zero32, 0x20), 0) }
+        assembly {
+            mstore(add(zero32, 0x20), 0)
+        }
 
-        if (32 == b.length)
-            return BytesLib.concat(b, zero32);
-        else
-            return BytesLib.concat(b, BytesLib.slice(zero32, 0, uint256(64) - b.length));
+        if (32 == b.length) return BytesLib.concat(b, zero32);
+        else return BytesLib.concat(b, BytesLib.slice(zero32, 0, uint256(64) - b.length));
     }
 
     /**
-    * @dev Converting value to little endian bytes and padding up to 32 bytes on the right
-    * @param value Number less than `2**64` for compatibility reasons
-    */
+     * @dev Converting value to little endian bytes and padding up to 32 bytes on the right
+     * @param value Number less than `2**64` for compatibility reasons
+     */
     function _toLittleEndian64(uint256 value) internal pure returns (uint256 result) {
         result = 0;
         uint256 tempValue = value;
@@ -167,20 +162,20 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
             tempValue >>= 8;
         }
 
-        assert(0 == tempValue);    // fully converted
+        assert(0 == tempValue); // fully converted
         result <<= (24 * 8);
     }
 
     /**
-    * @dev Calculate the deposit data root and call dawn deposit contract to deposit
-    * @param dawnDeposit Deposit contract interface
-    * @param pubkey Public key to deposit
-    * @param signature Signature to deposit
-    * @param amount Deposit amount
-    * It should be 1 ETH when add a public key
-    * Instead 31 ETH when activate
-    * @param withdrawalCredentials Withdrawal credentials
-    */
+     * @dev Calculate the deposit data root and call dawn deposit contract to deposit
+     * @param dawnDeposit Deposit contract interface
+     * @param pubkey Public key to deposit
+     * @param signature Signature to deposit
+     * @param amount Deposit amount
+     * It should be 1 ETH when add a public key
+     * Instead 31 ETH when activate
+     * @param withdrawalCredentials Withdrawal credentials
+     */
     function _deposit(
         IDawnDeposit dawnDeposit,
         bytes memory pubkey,
@@ -202,8 +197,8 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
                 sha256(abi.encodePacked(_toLittleEndian64(amount), signatureRoot))
             )
         );
-//        IDepositContract(_getDepositContract()).deposit{ value: amount }(
-//            pubkey, abi.encodePacked(withdrawalCredentials), signature, depositDataRoot);
+        //        IDepositContract(_getDepositContract()).deposit{ value: amount }(
+        //            pubkey, abi.encodePacked(withdrawalCredentials), signature, depositDataRoot);
         dawnDeposit.preActivateValidator(msg.sender, pubkey, signature, depositDataRoot);
     }
 

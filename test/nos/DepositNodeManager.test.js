@@ -13,7 +13,7 @@ describe('DepositNodeManager', function () {
     await deployContracts();
     const nodeManagerAddr = await getDeployedContractAddress('DepositNodeManager');
     const DepositNodeManager = await ethers.getContractFactory('DepositNodeManager');
-    const nodeManager = await DepositNodeManager.attach(nodeManagerAddr)
+    const nodeManager = await DepositNodeManager.attach(nodeManagerAddr);
     const [owner, otherAccount] = await ethers.getSigners();
     return { nodeManager, owner, otherAccount };
   }

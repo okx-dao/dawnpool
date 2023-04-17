@@ -35,7 +35,7 @@ async function deployContracts() {
     console.log('Contract name is: ' + Contract.toString());
     switch (Contract) {
       case 'Contract':
-        // Do sth else here
+      // Do sth else here
       default:
         dawnInstance = await (await Contracts[Contract]).deploy(dawnStorage.address);
         await dawnInstance.deployed();
