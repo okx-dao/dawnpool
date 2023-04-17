@@ -4,6 +4,8 @@ This project demonstrates a basic Hardhat use case. It comes with a sample contr
 
 slither install：（option）Solidity static analysis framework.
 
+please see https://github.com/crytic/slither.
+
 Slither requires Python 3.8+. If you're not going to use one of the supported compilation frameworks, you need solc, the Solidity compiler; we recommend using solc-select to conveniently switch between solc versions.
 
 npm install -g solc
