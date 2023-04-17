@@ -12,6 +12,13 @@ pragma solidity ^0.8.17;
 */
 interface IDepositNodeOperator {
     /**
+    * @notice Emit when validator pubkey and signature added
+    * @param validatorId Validator index
+    * @param pubkey Validator public key
+    */
+    event SigningKeyAdded(uint256 indexed validatorId, bytes pubkey);
+
+    /**
     * @notice Get node operator address
     * @return Node operator address
     */
@@ -46,5 +53,10 @@ interface IDepositNodeOperator {
     * @notice Get active validators of node operator, includes all validators not exit
     * @return Active validators count
     */
-    function getActiveValidatorsCount() external returns (uint256);
+    function getActiveValidatorsCount() external view returns (uint256);
+
+    /**
+    * @notice Get WithdrawalCredentials
+    */
+    function getWithdrawalCredentials() external view returns (bytes32);
 }

@@ -193,4 +193,5 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
         emit LogStake(msg.sender, msg.value);
         return pEthAmount;
     }
+
 }

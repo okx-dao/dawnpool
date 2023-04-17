@@ -68,4 +68,10 @@ interface IDepositNodeManager {
     * @return status Validator status
     */
     function getNodeValidator(uint256 validatorIndex) external view returns (address nodeAddress, ValidatorStatus status);
+
+    /// @notice Set minimum deposit amount, may be changed by DAO
+    function setMinOperatorStakingAmount(uint256 minAmount) external;
+
+    /// @notice Get minimum deposit amount, may be changed by DAO
+    function getMinOperatorStakingAmount() external view returns(uint256);
 }
