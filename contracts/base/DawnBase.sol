@@ -37,6 +37,7 @@ abstract contract DawnBase {
     /// 构造函数初始化设置dawnStorage合约地址
     constructor(IDawnStorageInterface dawnStorageAddress) {
         _dawnStorage = IDawnStorageInterface(dawnStorageAddress);
+        _setBool(keccak256(abi.encodePacked("contract.exists", address(this))), true);
     }
 
     /// 基础方法：通过数据存储的合约名称获取合约地址（排除0x0地址）
