@@ -40,11 +40,11 @@ async function upgradeContracts() {
 }
 
 async function getDeployedContractAddress(contractName) {
-  return await dawnStorage.getAddress(keccak256(encodePacked('contract.address', contractName)))
+  return await dawnStorage.getAddress(keccak256(encodePacked('contract.address', contractName)));
 }
 
 module.exports = {
   deployContracts,
   upgradeContracts,
-  getDeployedContractAddress
+  getDeployedContractAddress,
 };
