@@ -43,7 +43,7 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
     uint64 internal constant _PUBKEY_LENGTH = 48;
     uint64 internal constant _SIGNATURE_LENGTH = 96;
     /// @dev Deposit 1 ETH when a validator pubkey is added, so that other 1 eth can earn rewards
-    uint64 internal constant _PRE_DEPOSIT_VALUE = 1 ether;
+    uint128 internal constant _PRE_DEPOSIT_VALUE = 1 ether;
     /// @dev Active validators count
     bytes32 internal constant _ACTIVE_VALIDATORS_COUNT = keccak256("DepositNodeOperator.ACTIVE_VALIDATORS_COUNT");
     /**
@@ -99,18 +99,19 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
             dawnDeposit.stake{ value: msg.value }();
         }
         uint256 operatorBalance = dawnDeposit.getEtherByPEth(IERC20(address(dawnDeposit)).balanceOf(address(this)));
+        IDepositNodeManager nodeManager = IDepositNodeManager(_getDepositNodeManager());
         uint256 nextActiveValidatorsCount = getActiveValidatorsCount() + count;
-        uint256 requiredAmount = _getMinOperatorStakingAmount() * nextActiveValidatorsCount;
+        uint256 requiredAmount = nodeManager.getMinOperatorStakingAmount() * nextActiveValidatorsCount;
         require(operatorBalance >= requiredAmount, "Not enough deposits!");
-        startIndex = IDepositNodeManager(_getDepositNodeManager()).registerValidators(msg.sender, count);
-        dawnDeposit.stake{ value: msg.value }();
-        bytes32 withdrawalCredentials = _getWithdrawalCredentials();
+        startIndex = nodeManager.registerValidators(msg.sender, count);
+        bytes32 withdrawalCredentials = getWithdrawalCredentials();
         for(uint256 i = 0; i < count; ++i) {
             bytes memory pubkey = BytesLib.slice(pubkeys, i * _PUBKEY_LENGTH, _PUBKEY_LENGTH);
             bytes memory signature = BytesLib.slice(signatures, i * _SIGNATURE_LENGTH, _SIGNATURE_LENGTH);
             bytes memory signingKey = BytesLib.concat(pubkey, signature);
             _setBytes(_getStorageKeyByValidatorIndex(startIndex + i), signingKey);
             _deposit(dawnDeposit, pubkey, signature, _PRE_DEPOSIT_VALUE, withdrawalCredentials);
+            emit SigningKeyAdded(startIndex + i, pubkey);
         }
         _setUint(_ACTIVE_VALIDATORS_COUNT, nextActiveValidatorsCount);
     }
@@ -119,18 +120,21 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
     * @notice Get active validators of node operator, includes all validators not exit
     * @return Active validators count
     */
-    function getActiveValidatorsCount() public returns (uint256) {
+    function getActiveValidatorsCount() public view returns (uint256) {
         return _getUint(_ACTIVE_VALIDATORS_COUNT);
     }
 
-    /// @dev Get the storage key of the validator signingKey
-    function _getStorageKeyByValidatorIndex(uint256 index) internal view returns (bytes32) {
-        return keccak256(abi.encodePacked("DepositNodeOperator.signingKey", index));
+    /**
+    * @notice Get WithdrawalCredentials
+    */
+    function getWithdrawalCredentials() public view returns (bytes32) {
+        address rewardsVault =  _getContractAddress("RewardsVault");
+        return bytes32(bytes.concat("0x010000000000000000000000", bytes20(rewardsVault)));
     }
 
-    /// @dev Get minimum deposit amount, may be changed by DAO
-    function _getMinOperatorStakingAmount() internal view returns (uint256) {
-        return 2 ether; // TODO where to get
+    /// @dev Get the storage key of the validator signingKey
+    function _getStorageKeyByValidatorIndex(uint256 index) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked("DepositNodeOperator.signingKey", index));
     }
 
     /**
@@ -211,11 +215,6 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
     /// @dev Get DepositNodeManager contract address
     function _getDepositNodeManager() internal view returns (address) {
         return _getContractAddressUnsafe("DepositNodeManager");
-    }
-
-    /// @dev Get WithdrawalCredentials
-    function _getWithdrawalCredentials() internal view returns (bytes32) {
-        return _getBytes32("WithdrawalCredentials"); // TODO confirm
     }
 
     /// @dev Get the operator storage key

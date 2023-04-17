@@ -17,6 +17,8 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
     bytes32 constant internal _NEXT_VALIDATOR_ID = keccak256("DepositNodeManager.NEXT_VALIDATOR_ID");
     /// @dev Available validator pubkeys count
     bytes32 constant internal _AVAILABLE_VALIDATOR_COUNT = keccak256("DepositNodeManager.AVAILABLE_VALIDATOR_COUNT");
+    bytes32 constant internal _MIN_OPERATOR_STAKING_AMOUNT = keccak256("DepositNodeManager.MIN_OPERATOR_STAKING_AMOUNT");
+    bytes32 constant internal _OPERATOR_CREATION_SALT = keccak256("DepositNodeManager.OPERATOR_CREATION_SALT");
 
     /**
     * @dev Constructor
@@ -32,7 +34,19 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
     function registerNodeOperator() external returns (address) {
         bytes32 operatorStorageKey = _getStorageKeyByOperatorAddress(msg.sender);
         require(_getAddress(operatorStorageKey) == address(0), "Operator already exist!");
-        DepositNodeOperator nodeAddress = new DepositNodeOperator(msg.sender, _dawnStorage);
+        // Calculate address and set access
+        address predictedAddress = address(uint160(uint(keccak256(abi.encodePacked(
+                bytes1(0xff),
+                address(this),
+                _OPERATOR_CREATION_SALT,
+                keccak256(abi.encodePacked(
+                    type(DepositNodeOperator).creationCode,
+                    abi.encode(msg.sender, _dawnStorage)
+                ))
+            )))));
+        _setBool(keccak256(abi.encodePacked("contract.exists", predictedAddress)), true);
+        DepositNodeOperator nodeAddress = new DepositNodeOperator{ salt: _OPERATOR_CREATION_SALT }(msg.sender, _dawnStorage);
+        require(predictedAddress == address(nodeAddress), "Inconsistent predicted address!");
         _setAddress(operatorStorageKey, address(nodeAddress));
         _setBool(operatorStorageKey, true);
         emit NodeOperatorRegistered(msg.sender, address(nodeAddress));
@@ -96,19 +110,23 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
         status = ValidatorStatus(_getUint(validatorStorageKey));
     }
 
-    /// @dev Get minimum deposit amount, may be changed by DAO
-    function _getMinOperatorDepositAmount() internal view returns (uint256){
-        // TODO
-        return 2 ether;
+    /// @notice Set minimum deposit amount, may be changed by DAO
+    function setMinOperatorStakingAmount(uint256 minAmount) external onlyGuardian {
+        _setUint(_MIN_OPERATOR_STAKING_AMOUNT, minAmount);
+    }
+
+    /// @notice Get minimum deposit amount, may be changed by DAO
+    function getMinOperatorStakingAmount() external view returns(uint256) {
+        return _getUint(_MIN_OPERATOR_STAKING_AMOUNT);
     }
 
     /// @dev Get the storage key of the operator
-    function _getStorageKeyByOperatorAddress(address operator) internal view returns (bytes32) {
+    function _getStorageKeyByOperatorAddress(address operator) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked("DepositNodeManager.operator", operator));
     }
 
     /// @dev Get the storage key of the validator
-    function _getStorageKeyByValidatorIndex(uint256 index) internal view returns (bytes32) {
+    function _getStorageKeyByValidatorIndex(uint256 index) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked("DepositNodeManager.validatorIndex", index));
     }
 

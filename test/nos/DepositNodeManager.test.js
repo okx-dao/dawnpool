@@ -2,6 +2,7 @@ const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
 const { anyValue } = require('@nomicfoundation/hardhat-chai-matchers/withArgs');
 const { expect } = require('chai');
 const { ethers } = require('hardhat');
+const { deployContracts, getDeployedContractAddress } = require('../utils/deployContracts');
 
 describe('DepositNodeManager', function () {
   // We define a fixture to reuse the same setup in every test.
@@ -9,9 +10,11 @@ describe('DepositNodeManager', function () {
   // and reset Hardhat Network to that snapshot in every test.
   async function deployDepositNodeManager() {
     // Contracts are deployed using the first signer/account by default
-    const [owner, otherAccount] = await ethers.getSigners();
+    await deployContracts();
+    const nodeManagerAddr = await getDeployedContractAddress('DepositNodeManager');
     const DepositNodeManager = await ethers.getContractFactory('DepositNodeManager');
-    const nodeManager = await DepositNodeManager.deploy();
+    const nodeManager = await DepositNodeManager.attach(nodeManagerAddr)
+    const [owner, otherAccount] = await ethers.getSigners();
     return { nodeManager, owner, otherAccount };
   }
 
@@ -34,7 +37,16 @@ describe('DepositNodeManager', function () {
       const { nodeManager, owner } = await loadFixture(deployDepositNodeManager);
       await nodeManager.registerNodeOperator();
       const { isActive } = await nodeManager.getNodeOperator(owner.address);
-      expect(isActive).to.equal('1');
+      expect(isActive).to.equal(true);
+    });
+
+    it('Should deploy node operator contract to different addresses', async function () {
+      const { nodeManager, owner, otherAccount } = await loadFixture(deployDepositNodeManager);
+      await nodeManager.registerNodeOperator();
+      const { nodeAddress } = await nodeManager.getNodeOperator(owner.address);
+      await nodeManager.connect(otherAccount).registerNodeOperator();
+      const { nodeAddress2 } = await nodeManager.getNodeOperator(otherAccount.address);
+      expect(nodeAddress).to.not.equal(nodeAddress2);
     });
 
     it('Should have correct node operator contract owner', async function () {
@@ -52,10 +64,10 @@ describe('DepositNodeManager', function () {
     });
 
     it('Should emit an event on register node operator', async function () {
-      const { nodeManager } = await loadFixture(deployDepositNodeManager);
+      const { nodeManager, owner } = await loadFixture(deployDepositNodeManager);
       await expect(nodeManager.registerNodeOperator())
         .to.emit(nodeManager, 'NodeOperatorRegistered')
-        .withArgs(anyValue); // We accept any value as `when` arg
+        .withArgs(owner.address, anyValue); // We accept any value as `when` arg
     });
   });
 });
