@@ -1,15 +1,15 @@
-const { artifacts, contract, ethers, web3 } = require('hardhat');
-const { BN } = require('bn.js');
-const chai = require('chai');
 const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
-const { keccak256, encodePacked } = require('web3-utils');
+const { ethers } = require('hardhat');
+const chai = require('chai');
+const Web3 = require('web3');
+const RPC_ENDPOINT = 'http://localhost:8545';
 
-const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
-
-describe('DawnDepositTest', function () {
+const { send, ether } = require('@openzeppelin/test-helpers');
+describe('DawnDemoTest', function () {
   // We define a fixture to reuse the same setup in every test.
   // We use loadFixture to run this setup once, snapshot that state,
   // and reset Hardhat Network to that snapshot in every test.
+
   async function deployDawnDepositFixture() {
     // Contracts are deployed using the first signer/account by default
 
@@ -25,32 +25,47 @@ describe('DawnDepositTest', function () {
     return { dawnDeposit, owner, otherAccount };
   }
 
-  describe('stakeTest', function () {
+  describe('stakeWeb3DemoTest', function () {
+    const provider = new Web3.providers.HttpProvider(RPC_ENDPOINT);
+    const web3 = new Web3(provider);
     it('Should stake success', async function () {
       const { dawnDeposit, owner } = await loadFixture(deployDawnDepositFixture);
 
+      await web3.eth.sendTransaction({
+        from: owner.address,
+        to: dawnDeposit.address,
+        value: web3.utils.toWei('10', 'ether'),
+      });
       // stake 0
       try {
         await dawnDeposit.stake({ from: owner.address, value: 0 });
       } catch (e) {
+        console.log('stake 0');
         chai.assert.match(e, /STAKE_ZERO_ETHER/);
       }
-
-      // try {
-      //     await web3.eth.sendTransaction({ to: dawnDeposit.address, from: owner.address, value: 0 })
-      // } catch (e) {
-      //     chai.assert.match(e, /STAKE_ZERO_ETHER/)
-      //     console.log(e)
-      // }
 
       // stake 1
       await dawnDeposit.stake({ from: owner.address, value: 1 });
       await chai.assert.equal(await dawnDeposit.balanceOf(owner.address), 1);
-
-      // await web3.eth.sendTransaction({ to: dawnDeposit.address, from: owner.address, value: 1 })
-      // await chai.assert.equal(await dawnDeposit.balanceOf(owner.address), 2)
     });
   });
 
-  // describe("")
+  describe('stakeHelpersDemoTest', function () {
+    it('Should stake success', async function () {
+      const { dawnDeposit, owner } = await loadFixture(deployDawnDepositFixture);
+
+      await send.ether(owner.address, dawnDeposit.address, ether('10'));
+      // stake 0
+      try {
+        await dawnDeposit.stake({ from: owner.address, value: 0 });
+      } catch (e) {
+        console.log('stake 0');
+        chai.assert.match(e, /STAKE_ZERO_ETHER/);
+      }
+
+      // stake 1
+      await dawnDeposit.stake({ from: owner.address, value: 1 });
+      await chai.assert.equal(await dawnDeposit.balanceOf(owner.address), 1);
+    });
+  });
 });

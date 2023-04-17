@@ -13,8 +13,8 @@ contract RewardsVault is DawnBase, IRewardsVault {
     constructor(IDawnStorageInterface dawnStorageAddress) DawnBase(dawnStorageAddress) {}
 
     function withdrawRewards(uint256 availableRewards) external {
-        require(msg.sender == getContractAddress("DawnDeposit"), "only call by DawnDeposit");
+        require(msg.sender == _getContractAddress("DawnDeposit"), "only call by DawnDeposit");
         require(address(this).balance >= availableRewards, "insufficient balance");
-        IDawnDeposit(getContractAddress("DawnDeposit")).receiveRewards{value: availableRewards}();
+        IDawnDeposit(_getContractAddress("DawnDeposit")).receiveRewards{value: availableRewards}();
     }
 }
