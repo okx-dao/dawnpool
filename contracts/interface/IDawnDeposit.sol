@@ -21,6 +21,15 @@ interface IDawnDeposit {
     // receive pETH from Insurance, and burn
     function receiveFromInsurance(uint256 pEthAmount) external;
 
+    // calculate the amount of pETH backing an amount of ETH
+    function getEtherByPEth(uint256 pEthAmount) external view returns (uint256);
+
+    // calculate the amount of ETH backing an amount of pETH
+    function getPEthByEther(uint256 ethAmount) external view returns (uint256);
+
+    // get DawnPool protocol total value locked
+    function getTotalPooledEther() external view returns (uint256);
+
     // deposit 31 ETH to activate validator
     function activateValidator(
         address operator,
