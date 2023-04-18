@@ -39,9 +39,9 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
         _stake();
     }
 
-    fallback() external payable {
-        _stake();
-    }
+//    fallback() external payable {
+//        _stake();
+//    }
 
     // user stake ETH to DawnPool returns pETH
     function stake() external payable returns (uint256) {
@@ -166,12 +166,12 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
 
     // transfer pETH as rewards to DawnInsurance
     function _transferToInsurance(uint256 rewardsPEth) internal {
-        transfer(_getContractAddress(_INSURANCE_CONTRACT_NAME), rewardsPEth);
+        _mint(_getContractAddress(_INSURANCE_CONTRACT_NAME), rewardsPEth);
     }
 
     // transfer pETH as rewards to DawnTreasury
     function _transferToTreasury(uint256 rewardsPEth) internal {
-        transfer(_getContractAddress(_TREASURY_CONTRACT_NAME), rewardsPEth);
+        _mint(_getContractAddress(_TREASURY_CONTRACT_NAME), rewardsPEth);
     }
 
     // distribute pETH as rewards to NodeOperators
