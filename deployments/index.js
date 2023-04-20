@@ -24,7 +24,7 @@ async function showAccount() {
   }
 }
 
-const deployContracts = async function() {
+const deployContracts = async function () {
   console.log('****** Start deploy Contracts ******');
   await showAccount().then(() => '');
   console.log('****** Start deploy StorageContracts ******');
@@ -39,7 +39,7 @@ const deployContracts = async function() {
   for (let Contract in Contracts) {
     console.log('********************************');
     console.log('Contract name is: ' + Contract.toString());
-    if(Contracts.hasOwnProperty(Contract)) {
+    if (Contracts.hasOwnProperty(Contract)) {
       switch (Contract) {
         case 'DawnDeposit':
           dawnInstance = await (await Contracts[Contract]).deploy(dawnStorageInstance.address);
@@ -68,13 +68,13 @@ const deployContracts = async function() {
   }
   // Disable direct access to storage now
   await dawnStorageInstance.setDeployedStatus();
-  if(await dawnStorageInstance.getDeployedStatus() != true) throw 'Storage Access Not Locked Down!!';
+  if ((await dawnStorageInstance.getDeployedStatus()) != true) throw 'Storage Access Not Locked Down!!';
 
   // Log it
   console.log('\n');
   console.log('\x1b[32m%s\x1b[0m', '  Storage Direct Access For Owner Removed...');
   console.log('\n');
-}
+};
 
 async function upgradeContracts() {
   console.log('****** Start upgrade Contracts ******');

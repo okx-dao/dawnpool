@@ -76,7 +76,9 @@ describe('DepositNodeManager', function () {
         '0x957f3a659faa3cdcd21be00a05b7bbca25a41b2f2384166ca5872363c37110b3dedbab1261179338fadc4ff70b4bea57976b8dc5e9390c75d129609634fec912d3d5b2fcb5ef4badb806a68680d11df640cba696619be05896e0705c32db629b';
       const signatures =
         '0xa10eba2dbd2d8c2030b3a13b4cdd52912b324f127ba9b56ed7713d16941245b9d664610ebac541fbd58e64bc1cc598410ccf8795c418ee43d1a4a3842bcbc5fbf45da3abf742e45b98db1e00faebbf8ce477df37496eddf4a00d72905ec71a48a168068916cdc998d6c94816f914aea4b315f47ee65140c16140e989533ed8a73f8730e7a619b0ef4ecb69109bd7401813bcf3386731f8cabd41ea867c8673e2116f0e6d451c026418e565be94c8fa35725fb2cc5d5d6e465da61ceb3f50d6c2';
-      await expect(nodeOperator.addValidators(pubkeys, signatures, { value: minOperatorStakingAmount.mul(validatorCount) }))
+      await expect(
+        nodeOperator.addValidators(pubkeys, signatures, { value: minOperatorStakingAmount.mul(validatorCount) }),
+      )
         .to.emit(nodeManager, 'NodeValidatorsRegistered')
         .withArgs(nodeAddress, 0, validatorCount);
       expect(await nodeManager.getAvailableValidatorsCount()).to.equal(validatorCount);
@@ -128,15 +130,16 @@ describe('DepositNodeManager', function () {
     it('Should set min operator staking amount successfully', async function () {
       const { nodeManager } = await loadFixture(deployDepositNodeManager);
       const minAmount = ethers.utils.parseEther('1');
-      await nodeManager.setMinOperatorStakingAmount(minAmount)
+      await nodeManager.setMinOperatorStakingAmount(minAmount);
       expect(await nodeManager.getMinOperatorStakingAmount()).to.equal(minAmount);
     });
 
     it('Should revert if called without access', async function () {
       const { nodeManager, otherAccount } = await loadFixture(deployDepositNodeManager);
       const minAmount = ethers.utils.parseEther('1');
-      await expect(nodeManager.connect(otherAccount).setMinOperatorStakingAmount(minAmount))
-        .to.be.revertedWith('Account is not a temporary guardian');
+      await expect(nodeManager.connect(otherAccount).setMinOperatorStakingAmount(minAmount)).to.be.revertedWith(
+        'Account is not a temporary guardian',
+      );
     });
-  })
+  });
 });
