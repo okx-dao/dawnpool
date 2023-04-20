@@ -23,14 +23,19 @@ async function deployContracts() {
     switch (Contract) {
       case 'Contract':
       // Do sth else here
+        break;
       default:
         dawnInstance = await (await Contracts[Contract]).deploy(dawnStorage.address);
         await dawnInstance.deployed();
         break;
     }
     await dawnStorage.setAddress(keccak256(encodePacked('contract.address', Contract)), dawnInstance.address);
-    storageAddr = await dawnStorage.getAddress(keccak256(encodePacked('contract.address', Contract)));
+    await dawnStorage.setBool(keccak256(encodePacked('contract.exists', dawnInstance.address)), true);
   }
+  // 初始化 DepositNodeManager 参数
+  storageAddr = await dawnStorage.getAddress(keccak256(encodePacked('contract.address', 'DepositNodeManager')));
+  const depositNodeManager = await ethers.getContractAt('IDepositNodeManager', storageAddr);
+  await depositNodeManager.setMinOperatorStakingAmount(ethers.utils.parseEther('2'));
   await dawnStorage.setDeployedStatus();
   return dawnStorage;
 }
