@@ -56,6 +56,12 @@ interface IDepositNodeOperator {
     function getActiveValidatorsCount() external view returns (uint256);
 
     /**
+    * @notice Get validating validators of node operator, only VALIDATING
+    * @return Active validators count
+    */
+    function getValidatingValidatorsCount() external view returns (uint256);
+
+    /**
     * @notice Get WithdrawalCredentials
     */
     function getWithdrawalCredentials() external view returns (bytes32);

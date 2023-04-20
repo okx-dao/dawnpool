@@ -44,14 +44,14 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
     uint64 internal constant _SIGNATURE_LENGTH = 96;
     /// @dev Deposit 1 ETH when a validator pubkey is added, so that other 1 eth can earn rewards
     uint128 internal constant _PRE_DEPOSIT_VALUE = 1 ether;
-    /// @dev Active validators count
-    bytes32 internal constant _ACTIVE_VALIDATORS_COUNT = keccak256("DepositNodeOperator.ACTIVE_VALIDATORS_COUNT");
+
     /**
     * @dev Constructor
     * @param operator Address of node operator
     * @param dawnStorage Storage address
     */
     constructor(address operator, IDawnStorageInterface dawnStorage) DawnBase(dawnStorage){
+        require(operator != address(0), "Operator address cannot be 0x0!");
         _setAddress(_getOperatorStorageKey(), operator);
     }
 
@@ -113,15 +113,23 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
             _deposit(dawnDeposit, pubkey, signature, _PRE_DEPOSIT_VALUE, withdrawalCredentials);
             emit SigningKeyAdded(startIndex + i, pubkey);
         }
-        _setUint(_ACTIVE_VALIDATORS_COUNT, nextActiveValidatorsCount);
+        _setUint(_getActiveValidatorsCountStorageKey(), nextActiveValidatorsCount);
     }
 
     /**
-    * @notice Get active validators of node operator, includes all validators not exit
+    * @notice Get active validators of node operator, including includes all status, except exited
     * @return Active validators count
     */
     function getActiveValidatorsCount() public view returns (uint256) {
-        return _getUint(_ACTIVE_VALIDATORS_COUNT);
+        return _getUint(_getActiveValidatorsCountStorageKey());
+    }
+
+    /**
+    * @notice Get validating validators of node operator, only VALIDATING
+    * @return Active validators count
+    */
+    function getValidatingValidatorsCount() external view returns (uint256) {
+        return _getUint(_getValidatingValidatorsCountStorageKey());
     }
 
     /**
@@ -129,7 +137,7 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
     */
     function getWithdrawalCredentials() public view returns (bytes32) {
         address rewardsVault =  _getContractAddress("RewardsVault");
-        return bytes32(bytes.concat("0x010000000000000000000000", bytes20(rewardsVault)));
+        return bytes32(bytes.concat(bytes12(0x010000000000000000000000), bytes20(rewardsVault)));
     }
 
     /// @dev Get the storage key of the validator signingKey
@@ -220,5 +228,15 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
     /// @dev Get the operator storage key
     function _getOperatorStorageKey() internal view returns (bytes32) {
         return keccak256(abi.encodePacked("DepositNodeOperator.operator", address(this)));
+    }
+
+    /// @dev Get active validators count storage key
+    function _getActiveValidatorsCountStorageKey() internal view returns (bytes32) {
+        return keccak256(abi.encodePacked("DepositNodeOperator.ACTIVE_VALIDATORS_COUNT", getOperator()));
+    }
+
+    /// @dev Get validating validators count storage key, only VALIDATING status
+    function _getValidatingValidatorsCountStorageKey() internal view returns (bytes32) {
+        return keccak256(abi.encodePacked("DepositNodeOperator.VALIDATING_VALIDATORS_COUNT", getOperator()));
     }
 }
