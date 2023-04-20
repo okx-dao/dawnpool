@@ -12,8 +12,8 @@
     "lint:sol:fix": "prettier --loglevel warn --ignore-path .gitignore '{contracts,test}/**/*.sol' --write",
     "clean": "hardhat clean && rimraf build contracts/build",
     "slither": "npm run clean && slither . --detect reentrancy-eth,reentrancy-no-eth,reentrancy-unlimited-gas",
-    "deploy-contracts": "yarn compile && npx hardhat run --no-compile scripts/deploy.js",
-    "upgrade-contracts": "yarn compile && npx hardhat run --no-compile scripts/upgrade.js",
+    "deploy-contracts": "yarn compile --optimizer && npx hardhat run --no-compile scripts/deploy.js",
+    "upgrade-contracts": "yarn compile --optimizer && npx hardhat run --no-compile scripts/upgrade.js",
     "verify": "npx hardhat verify --optimizer"
   },
   "devDependencies": {
