@@ -22,7 +22,7 @@ async function deployContracts() {
   for (let Contract in Contracts) {
     switch (Contract) {
       case 'Contract':
-      // Do sth else here
+        // Do sth else here
         break;
       default:
         dawnInstance = await (await Contracts[Contract]).deploy(dawnStorage.address);
