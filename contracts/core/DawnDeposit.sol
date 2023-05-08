@@ -5,23 +5,9 @@ import "../interface/IDawnDeposit.sol";
 import "../token/DawnTokenPETH.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "../base/DawnBase.sol";
-
-interface IRewardsVault {
-    function withdrawRewards(uint256 availableRewards) external;
-}
-
-interface IDepositContract {
-    function deposit(
-        bytes calldata pubkey,
-        bytes calldata withdrawal_credentials,
-        bytes calldata signature,
-        bytes32 deposit_data_root
-    ) external payable;
-}
-
-interface IDepositNodeManager {
-    function getNodeOperator(address operator) external returns(address, bool);
-}
+import "../interface/IDepositNodeManager.sol";
+import "../interface/IRewardsVault.sol";
+import "../deposit_contract/deposit_contract.sol";
 
 contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
     using SafeMath for uint256;
@@ -121,6 +107,8 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
 
     // receive ETH rewards from RewardsVault
     function receiveRewards() external payable {
+        // update buffered ether
+        _addUint(_BUFFERED_ETHER_KEY, msg.value);
         emit LogReceiveRewards(msg.value);
     }
 
@@ -133,18 +121,18 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
         uint256 availableRewards,
         uint256 exitedValidators
     ) external {
-//        require(msg.sender == _getContractAddress(_ORACLE_CONTRACT_NAME), "only call by DawnPoolOracle");
-//        require(
-//            availableRewards <= _getContractAddress(_REWARDS_VAULT_CONTRACT_NAME).balance,
-//            "RewardsVault insufficient balance"
-//        );
-//        require(
-//            beaconBalance.add(availableRewards) >=
-//                _getUint(_BEACON_BALANCE_KEY).add(
-//                    beaconValidators.sub(_getUint(_BEACON_VALIDATORS_KEY)).mul(DEPOSIT_VALUE_PER_VALIDATOR) // todo：需要考虑质押1ETH
-//                ),
-//            "unprofitable"
-//        );
+        require(msg.sender == _getContractAddress(_ORACLE_CONTRACT_NAME), "only call by DawnPoolOracle");
+        require(
+            availableRewards <= _getContractAddress(_REWARDS_VAULT_CONTRACT_NAME).balance,
+            "RewardsVault insufficient balance"
+        );
+        require(
+            beaconBalance.add(availableRewards) >=
+                _getUint(_BEACON_ACTIVE_VALIDATOR_BALANCE_KEY).add(
+                    beaconValidators.add(exitedValidators).sub(_getUint(_BEACON_ACTIVE_VALIDATORS_KEY)).mul(DEPOSIT_VALUE_PER_VALIDATOR)
+                ),
+            "unprofitable"
+        );
 //
 //        // todo：解质押
 //        uint256 rewards = beaconBalance.add(availableRewards).sub(
