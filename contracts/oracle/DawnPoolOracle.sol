@@ -531,6 +531,7 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
         uint128 _beaconBalanceEth1,
         uint128 _beaconValidators,
         uint128 _rewardsVaultBalance,
+        uint128 _exitedValidators,
         BeaconSpec memory _beaconSpec
     )
     internal
@@ -543,8 +544,7 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
 
         // report to the dawnPool and collect stats
         IDawnDeposit dawnPool = getDawnDeposit();
-        // epochId todo
-        dawnPool.handleOracleReport(_beaconValidators, _beaconBalanceEth1, _rewardsVaultBalance);
+        dawnPool.handleOracleReport(_epochId, _beaconValidators, _beaconBalanceEth1, _rewardsVaultBalance, _exitedValidators);
         // todo
 
     }
