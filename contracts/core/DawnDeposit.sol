@@ -133,33 +133,32 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
                 ),
             "unprofitable"
         );
-//
-//        // todo：解质押
-//        uint256 rewards = beaconBalance.add(availableRewards).sub(
-//            _getUint(_BEACON_BALANCE_KEY).add(
-//                beaconValidators.sub(_getUint(_BEACON_VALIDATORS_KEY)).mul(DEPOSIT_VALUE_PER_VALIDATOR)
-//            )
-//        );
-//
-//        uint256 preTotalEther = getTotalPooledEther();
-//        uint256 preTotalPEth = totalSupply();
-//
-//        // store beacon balance and validators
-//        _setUint(_BEACON_ACTIVE_VALIDATORS_KEY, beaconValidators);
-//        _setUint(_BEACON_ACTIVE_VALIDATOR_BALANCE_KEY, beaconBalance);
-//
-//        // claim availableRewards from RewardsVault
-//        IRewardsVault(_getContractAddress(_REWARDS_VAULT_CONTRACT_NAME)).withdrawRewards(availableRewards);
-//
-//        // calculate rewardsPEth
-//        // rewardsPEth / (rewards * fee/basic) = preTotalPEth / (preTotalEther + rewards * (basic - fee)/basic)
-//        // rewardsPEth / (rewards * fee) = preTotalPEth / (preTotalEther * basic + rewards * (basic - fee))
-//        // rewardsPEth = preTotalPEth * rewards * fee / (preTotalEther * basic + rewards * (basic - fee))
-//        uint256 rewardsPEth = preTotalPEth.mul(rewards).mul(_getUint(_FEE_KEY)).div(
-//            preTotalEther.mul(_FEE_BASIC).add(rewards.mul(_FEE_BASIC.sub(_getUint(_FEE_KEY))))
-//        );
-//        // distributeRewards
-//        _distributeRewards(rewardsPEth);
+
+        uint256 rewards = beaconBalance.add(availableRewards).sub(
+            _getUint(_BEACON_ACTIVE_VALIDATOR_BALANCE_KEY).add(
+                beaconValidators.add(exitedValidators).sub(_getUint(_BEACON_ACTIVE_VALIDATORS_KEY)).mul(DEPOSIT_VALUE_PER_VALIDATOR)
+            )
+        );
+
+        uint256 preTotalEther = getTotalPooledEther();
+        uint256 preTotalPEth = totalSupply();
+
+        // store beacon balance and validators
+        _setUint(_BEACON_ACTIVE_VALIDATORS_KEY, beaconValidators);
+        _setUint(_BEACON_ACTIVE_VALIDATOR_BALANCE_KEY, beaconBalance);
+
+        // claim availableRewards from RewardsVault
+        IRewardsVault(_getContractAddress(_REWARDS_VAULT_CONTRACT_NAME)).withdrawRewards(availableRewards);
+
+        // calculate rewardsPEth
+        // rewardsPEth / (rewards * fee/basic) = preTotalPEth / (preTotalEther + rewards * (basic - fee)/basic)
+        // rewardsPEth / (rewards * fee) = preTotalPEth / (preTotalEther * basic + rewards * (basic - fee))
+        // rewardsPEth = preTotalPEth * rewards * fee / (preTotalEther * basic + rewards * (basic - fee))
+        uint256 rewardsPEth = preTotalPEth.mul(rewards).mul(_getUint(_FEE_KEY)).div(
+            preTotalEther.mul(_FEE_BASIC).add(rewards.mul(_FEE_BASIC.sub(_getUint(_FEE_KEY))))
+        );
+        // distributeRewards
+        _distributeRewards(rewardsPEth);
     }
 
 
