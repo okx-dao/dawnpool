@@ -121,7 +121,11 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
     // handle oracle report
     // 需要更新_BEACON_ACTIVE_VALIDATORS_KEY
     function handleOracleReport(
-        uint256 epochId, uint256 beaconValidators, uint256 beaconBalance, uint256 availableRewards
+        uint256 epochId,
+        uint256 beaconValidators,
+        uint256 beaconBalance,
+        uint256 availableRewards,
+        uint256 exitedValidators
     ) external {
 //        require(msg.sender == _getContractAddress(_ORACLE_CONTRACT_NAME), "only call by DawnPoolOracle");
 //        require(
