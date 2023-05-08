@@ -18,7 +18,13 @@ interface IDawnDeposit {
     function receiveRewards() external payable;
 
     // handle oracle report
-    function handleOracleReport(uint256 epochId, uint256 beaconValidators, uint256 beaconBalance, uint256 availableRewards) external;
+    function handleOracleReport(
+        uint256 epochId,
+        uint256 beaconValidators,
+        uint256 beaconBalance,
+        uint256 availableRewards,
+        uint256 exitedValidators
+    ) external;
 
     // receive pETH from Insurance, and burn
     function receiveFromInsurance(uint256 pEthAmount) external;
