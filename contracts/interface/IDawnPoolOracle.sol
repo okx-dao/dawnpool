@@ -176,7 +176,7 @@ interface IDawnPoolOracle {
     function setQuorum(uint256 _quorum) external;
 
 
-    function reportBeacon(uint256 _epochId, uint64 _beaconBalance, uint32 _beaconValidators, uint64 _rewardsVaultBalance) external;
+    function reportBeacon(uint256 _epochId, uint64 _beaconBalance, uint32 _beaconValidators, uint64 _rewardsVaultBalance, uint32 _exitedValidators) external;
 
 
 
