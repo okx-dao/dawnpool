@@ -15,16 +15,14 @@ interface IDawnDeposit {
     function activateValidator(
         address operator,
         bytes calldata pubkey,
-        bytes calldata signature,
-        bytes32 depositDataRoot
+        bytes calldata signature
     ) external;
 
     // deposit 1 ETH for NodeOperatorRegister
     function preActivateValidator(
         address operator,
         bytes calldata pubkey,
-        bytes calldata signature,
-        bytes32 depositDataRoot
+        bytes calldata signature
     ) external;
 
     function getEtherByPEth(uint256 pEthAmount) external view returns (uint256);
@@ -40,21 +38,10 @@ interface IDawnDeposit {
  * However, the "overflow" part of shares can be claimed with validator rewards
  */
 contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
-    uint32 internal constant _PUBKEY_LENGTH = 48;
-    uint32 internal constant _SIGNATURE_LENGTH = 96;
-    uint32 internal constant _DEPOSIT_DATA_ROOT_LEN = 32;
-    uint32 internal constant __RESERVE_PARAM = 0;
+    uint64 internal constant _PUBKEY_LENGTH = 48;
+    uint64 internal constant _SIGNATURE_LENGTH = 96;
     /// @dev Deposit 1 ETH when a validator pubkey is added, so that other 1 eth can earn rewards
     uint128 internal constant _PRE_DEPOSIT_VALUE = 1 ether;
-
-    enum ValidatorStatus {
-        NOT_EXIST,
-        WAITING_ACTIVATED,
-        VALIDATING,
-        EXITING,
-        SLASHING,
-        EXITED
-    }
 
     /**
      * @dev Constructor
@@ -86,23 +73,22 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
      * @notice Add validator pubkeys and signatures
      * @dev Make sure to have enough stakes to add validators
      * @param pubkeys Public keys
-     * @param signatures Signatures
-     * @param depositDataRoots deposit data roots
+     * @param preSignatures Signatures deposit 1 ETH
+     * @param depositSignatures Signatures deposit 31 ETH
      * @return startIndex The first index of validators added
      * @return count Added validators count
      */
     function addValidators(
         bytes calldata pubkeys,
-        bytes calldata signatures,
-        bytes calldata depositDataRoots
+        bytes calldata preSignatures,
+        bytes calldata depositSignatures
     ) external payable returns (uint256 startIndex, uint256 count) {
         require(msg.sender == getOperator(), "Only operator can add validators!");
+        require(depositSignatures.length == preSignatures.length, "Inconsistent deposit signatures len!");
         require(pubkeys.length % _PUBKEY_LENGTH == 0, "Inconsistent public keys len!");
-        require(signatures.length % _SIGNATURE_LENGTH == 0, "Inconsistent signatures len!");
-        require(depositDataRoots.length % _DEPOSIT_DATA_ROOT_LEN == 0, "Inconsistent deposit data roots len!");
+        require(preSignatures.length % _SIGNATURE_LENGTH == 0, "Inconsistent signatures len!");
         count = pubkeys.length / _PUBKEY_LENGTH;
-        require(signatures.length / _SIGNATURE_LENGTH == count, "Inconsistent signatures count!");
-        require(depositDataRoots.length / _DEPOSIT_DATA_ROOT_LEN == count, "Inconsistent deposit data roots count!");
+        require(preSignatures.length / _SIGNATURE_LENGTH == count, "Inconsistent signatures count!");
         IDawnDeposit dawnDeposit = IDawnDeposit(_getDawnDeposit());
         if (msg.value > 0) {
             dawnDeposit.stake{value: msg.value}();
@@ -115,11 +101,12 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
         startIndex = nodeManager.registerValidators(msg.sender, count);
         for (uint256 i = 0; i < count; ++i) {
             bytes memory pubkey = pubkeys[i * _PUBKEY_LENGTH: i * _PUBKEY_LENGTH + _PUBKEY_LENGTH];
-            bytes memory signature = signatures[i * _SIGNATURE_LENGTH: i * _SIGNATURE_LENGTH + _SIGNATURE_LENGTH];
-            bytes32 depositDataRoot = bytes32(depositDataRoots[i * _DEPOSIT_DATA_ROOT_LEN: i * _DEPOSIT_DATA_ROOT_LEN + _DEPOSIT_DATA_ROOT_LEN]);
-            require(_getBool(_getPublicKeyStorageKey(pubkey)) == false, "Public key has already exist!");
-            _setBool(_getPublicKeyStorageKey(pubkey), true);
-            dawnDeposit.preActivateValidator(msg.sender, pubkey, signature, depositDataRoot);
+            bytes memory preSignature = preSignatures[i * _SIGNATURE_LENGTH: i * _SIGNATURE_LENGTH + _SIGNATURE_LENGTH];
+            bytes memory depositSignature = depositSignatures[i * _SIGNATURE_LENGTH: i * _SIGNATURE_LENGTH + _SIGNATURE_LENGTH];
+            _setBytes(_getPubkeyStorageKeyByValidatorIndex(startIndex + i), pubkey);
+            _setBytes(_getSignatureStorageKeyByValidatorIndex(startIndex + i), depositSignature);
+//            _setUint(_getPubkeyIDStorageKeyByPubkey(pubkey), startIndex + i);
+            dawnDeposit.preActivateValidator(msg.sender, pubkey, preSignature);
             emit SigningKeyAdded(startIndex + i, pubkey);
         }
         _setUint(_getActiveValidatorsCountStorageKey(), nextActiveValidatorsCount);
@@ -149,6 +136,21 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
         return bytes32(bytes.concat(bytes12(0x010000000000000000000000), bytes20(rewardsVault)));
     }
 
+    /// @dev Get the storage key of the validator pubkey
+    function _getPubkeyStorageKeyByValidatorIndex(uint256 index) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked("DepositNodeOperator.pubkey", index));
+    }
+
+    /// @dev Get the storage key of the validator signature
+    function _getSignatureStorageKeyByValidatorIndex(uint256 index) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked("DepositNodeOperator.signature", index));
+    }
+
+//    /// @dev Get the storage key of the validator pubkey
+//    function _getPubkeyIDStorageKeyByPubkey(bytes memory pubkey) internal pure returns (bytes32) {
+//        return keccak256(abi.encodePacked("DepositNodeOperator.pubkeyID", pubkey));
+//    }
+
     /// @dev Get address of dawn deposit contract
     function _getDawnDeposit() internal view returns (address) {
         return _getContractAddressUnsafe("DawnDeposit");
@@ -172,10 +174,5 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
     /// @dev Get validating validators count storage key, only VALIDATING status
     function _getValidatingValidatorsCountStorageKey() internal view returns (bytes32) {
         return keccak256(abi.encodePacked("DepositNodeOperator.VALIDATING_VALIDATORS_COUNT", getOperator()));
-    }
-
-    /// @dev Get public key storage key
-    function _getPublicKeyStorageKey(bytes memory pubkey) internal pure returns (bytes32) {
-        return keccak256(abi.encodePacked("DepositNodeOperator.PUBLIC_KEY", pubkey));
     }
 }

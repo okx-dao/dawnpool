@@ -5,6 +5,7 @@ import "../interface/IDawnDeposit.sol";
 import "../token/DawnTokenPETH.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "../base/DawnBase.sol";
+import "../interface/IDepositContract.sol";
 
 interface IRewardsVault {
     function withdrawRewards(uint256 availableRewards) external;
@@ -71,13 +72,53 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
         bytes32 depositDataRoot
     ) external {}
 
+    function _toLittleEndian64(uint256 value) internal pure returns (uint256 result) {
+        result = 0;
+        uint256 tempValue = value;
+        for (uint256 i = 0; i < 8; ++i) {
+            result = (result << 8) | (tempValue & 0xFF);
+            tempValue >>= 8;
+        }
+
+        assert(0 == tempValue); // fully converted
+        result <<= (24 * 8);
+    }
+
+    function _getWithdrawalCredentials() internal view returns (bytes32) {
+        address rewardsVault = _getContractAddress("RewardsVault");
+        return bytes32(bytes.concat(bytes12(0x010000000000000000000000), bytes20(rewardsVault)));
+    }
+
+    function _getDepositContract() internal view returns (address) {
+        return _getContractAddress("DepositContract");
+    }
+
     // deposit 1 ETH for NodeOperatorRegister
     function preActivateValidator(
         address operator,
         bytes calldata pubkey,
-        bytes calldata signature,
-        bytes32 depositDataRoot
-    ) external {}
+        bytes calldata signature
+    ) external {
+        uint256 preDepositAmount = 1 ether;
+        bytes32 withdrawalCredentials =  _getWithdrawalCredentials();
+        uint256 depositAmount = preDepositAmount / 1 gwei;
+        // Compute deposit data root (`DepositData` hash tree root) according to deposit_contract.sol
+        bytes32 pubkeyRoot = sha256(abi.encodePacked(pubkey, bytes16(0)));
+        bytes32 signatureRoot = sha256(
+            abi.encodePacked(
+                sha256(abi.encodePacked(signature[:64])),
+                sha256(abi.encodePacked(signature[64:], bytes32(0)))
+            )
+        );
+        bytes32 depositDataRoot = sha256(
+            abi.encodePacked(
+                sha256(abi.encodePacked(pubkeyRoot, withdrawalCredentials)),
+                sha256(abi.encodePacked(_toLittleEndian64(depositAmount), signatureRoot))
+            )
+        );
+        IDepositContract(_getDepositContract()).deposit{ value: preDepositAmount }(
+            pubkey, abi.encodePacked(withdrawalCredentials), signature, depositDataRoot);
+    }
 
     // receive ETH rewards from RewardsVault
     function receiveRewards() external payable {

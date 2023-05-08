@@ -33,7 +33,6 @@ interface IDawnDeposit {
     function preActivateValidator(
         address operator,
         bytes calldata pubkey,
-        bytes calldata signature,
-        bytes32 depositDataRoot
+        bytes calldata signature
     ) external;
 }
