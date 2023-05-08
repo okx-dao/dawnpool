@@ -61,7 +61,7 @@ async function deployContracts() {
   }
   // 初始化 DepositNodeManager 参数
   storageAddr = await dawnStorage.getAddress(keccak256(encodePacked('contract.address', 'DepositNodeManager')));
-  const depositNodeManager = await ethers.getContractAt('IDepositNodeManager', storageAddr);
+  const depositNodeManager = await ethers.getContractAt('DepositNodeManager', storageAddr);
   await depositNodeManager.setMinOperatorStakingAmount(ethers.utils.parseEther('2'));
   const { depositContractAddr } = await getChainInfo();
   await dawnStorage.setAddress(keccak256(encodePacked('contract.address', 'DepositContract')), depositContractAddr);

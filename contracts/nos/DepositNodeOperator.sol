@@ -7,26 +7,7 @@ import "../interface/IDepositNodeManager.sol";
 import "../base/DawnBase.sol";
 import "../interface/IDepositContract.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-
-interface IDawnDeposit {
-    function stake() external payable returns (uint256);
-
-    // deposit 31 ETH to activate validator
-    function activateValidator(
-        address operator,
-        bytes calldata pubkey,
-        bytes calldata signature
-    ) external;
-
-    // deposit 1 ETH for NodeOperatorRegister
-    function preActivateValidator(
-        address operator,
-        bytes calldata pubkey,
-        bytes calldata signature
-    ) external;
-
-    function getEtherByPEth(uint256 pEthAmount) external view returns (uint256);
-}
+import "../interface/IDawnDeposit.sol";
 
 /**
  * @title Node operator contract
