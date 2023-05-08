@@ -34,13 +34,15 @@ interface IDepositNodeOperator {
      * @notice Add validator pubkeys and signatures
      * @dev Make sure to have enough stakes to add validators
      * @param pubkeys Public keys
-     * @param signatures Signatures
+     * @param preSignatures Signatures deposit 1 ETH
+     * @param depositSignatures Signatures deposit 31 ETH
      * @return startIndex The first index of validators added
      * @return count Added validators count
      */
     function addValidators(
         bytes calldata pubkeys,
-        bytes calldata signatures
+        bytes calldata preSignatures,
+        bytes calldata depositSignatures
     ) external payable returns (uint256 startIndex, uint256 count);
 
     /**
