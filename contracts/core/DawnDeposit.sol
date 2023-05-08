@@ -64,7 +64,7 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
         return _stake();
     }
 
-    // user unstake pETH from DawnPool returns ETH
+    // user unstake pETH from DawnPool returns ETH todo
     function unstake(uint pEthAmount) external returns (uint256) {
         return pEthAmount;
     }
@@ -85,6 +85,7 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
         bytes calldata pubkey,
         bytes calldata signature
     ) external onlyActiveNodeOperator(operator) {
+        require(address(this).balance >= POST_DEPOSIT_VALUE, "buffer ether not enough");
         bytes32 withdrawalCredentials =  _getWithdrawalCredentials();
         _doDeposit(pubkey, withdrawalCredentials, signature, POST_DEPOSIT_VALUE);
 
@@ -92,6 +93,8 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
         _addUint(_DEPOSITED_VALIDATORS_KEY, 1);
         // update pre deposit validators
         _subUint(_PRE_DEPOSIT_VALIDATORS_KEY, 1);
+        // update buffered ether
+        _subUint(_BUFFERED_ETHER_KEY, POST_DEPOSIT_VALUE);
 
         // emit event
         emit LogActivateValidator(operator, pubkey, POST_DEPOSIT_VALUE);
@@ -103,11 +106,14 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
         bytes calldata pubkey,
         bytes calldata signature
     ) external onlyActiveNodeOperator(operator) {
+        require(address(this).balance >= PRE_DEPOSIT_VALUE, "buffer ether not enough");
         bytes32 withdrawalCredentials =  _getWithdrawalCredentials();
         _doDeposit(pubkey, withdrawalCredentials, signature, PRE_DEPOSIT_VALUE);
 
         // update pre deposit validators
         _addUint(_PRE_DEPOSIT_VALIDATORS_KEY, 1);
+        // update buffered ether
+        _subUint(_BUFFERED_ETHER_KEY, PRE_DEPOSIT_VALUE);
 
         // emit event
         emit LogPreActivateValidator(operator, pubkey, PRE_DEPOSIT_VALUE);
