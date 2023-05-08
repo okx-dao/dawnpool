@@ -361,13 +361,7 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
             if (isQuorum) {
                 (uint64 beaconBalance, uint32 beaconValidators) = report.decode();
                 //触发新的验证操作，其参数包括预期的 epoch ID、当前贡献总量、验证节点数量和 Beacon chain 规范信息
-                _push(
-                    _getUint(_EXPECTED_EPOCH_ID_POSITION),
-                    DENOMINATION_OFFSET * uint128(beaconBalance),
-                    beaconValidators,
-                    DENOMINATION_OFFSET, //todo
-                    _getBeaconSpec()
-                );
+
             }
         }
     }
@@ -379,7 +373,7 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
      * @param _beaconValidators Number of validators visible in this epoch
      * @param _rewardsVaultBalance 奖励池金额
      */
-    function reportBeacon(uint256 _epochId, uint64 _beaconBalance, uint32 _beaconValidators, uint64 _rewardsVaultBalance) external {
+    function reportBeacon(uint256 _epochId, uint64 _beaconBalance, uint32 _beaconValidators, uint64 _rewardsVaultBalance,uint32 _exitedValidators) external {
         BeaconSpec memory beaconSpec = _getBeaconSpec();
         uint256 expectedEpoch = _getUint(_EXPECTED_EPOCH_ID_POSITION);
         //确保传入的_epochId大于等于预期的 epoch ID，以避免提交过时的验证报告
@@ -419,7 +413,7 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
         if (i < currentReportVariants.length) {
             // 判断该 variant 的计数器是否已达到要求的数量.达到，则会通过调用 _push() 更新 dawnpool 合约的 validator 列表
             if (currentReportVariants[i].getCount() + 1 >= quorum) {
-                _push(_epochId, beaconBalanceEth1, _beaconValidators, _rewardsVaultBalance, beaconSpec);
+                _push(_epochId, beaconBalanceEth1, _beaconValidators, _rewardsVaultBalance, _exitedValidators, beaconSpec);
             } else {
                 // 增加对应 variant 的报告计数器
                 ++currentReportVariants[i];
@@ -427,7 +421,7 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
         } else {
             // 只需要一个验证报告即可，则直接调用 _push()
             if (quorum == 1) {
-                _push(_epochId, beaconBalanceEth1, _beaconValidators, _rewardsVaultBalance, beaconSpec);
+                _push(_epochId, beaconBalanceEth1, _beaconValidators, _rewardsVaultBalance, _exitedValidators, beaconSpec);
             } else {
                 //创建一个新的 variant 并将其添加到 currentReportVariants 数组中。
                 currentReportVariants.push(report + 1);
@@ -531,6 +525,7 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
         uint128 _beaconBalanceEth1,
         uint128 _beaconValidators,
         uint128 _rewardsVaultBalance,
+        uint128 _exitedValidators,
         BeaconSpec memory _beaconSpec
     )
     internal
@@ -543,8 +538,7 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
 
         // report to the dawnPool and collect stats
         IDawnDeposit dawnPool = getDawnDeposit();
-        // epochId todo
-        dawnPool.handleOracleReport(_beaconValidators, _beaconBalanceEth1, _rewardsVaultBalance);
+        dawnPool.handleOracleReport(_epochId, _beaconValidators, _beaconBalanceEth1, _rewardsVaultBalance, _exitedValidators);
         // todo
 
     }
