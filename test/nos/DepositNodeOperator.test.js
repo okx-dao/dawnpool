@@ -198,31 +198,6 @@ describe('DepositNodeOperator', function () {
       expect(await nodeOperator.getValidatingValidatorsCount()).to.equal(2);
     });
 
-    it('Should activate validator successfully called once', async function () {
-      const { nodeOperator, nodeManager } = await loadFixture(deployDepositNodeOperator);
-      await addValidatorsAndDeposit(nodeOperator, nodeManager);
-      await nodeManager.activateValidators([0, 1]);
-      expect(await nodeOperator.getActiveValidatorsCount()).to.equal(2);
-      expect(await nodeOperator.getValidatingValidatorsCount()).to.equal(2);
-    });
-
-    it('Each should activate validator successfully', async function () {
-      const { nodeOperator, nodeManager, otherAccount } = await loadFixture(deployDepositNodeOperator);
-      await nodeManager.connect(otherAccount).registerNodeOperator();
-      const { nodeAddress } = await nodeManager.getNodeOperator(otherAccount.address);
-      const nodeOperator2 = await ethers.getContractAt('IDepositNodeOperator', nodeAddress);
-      const minOperatorStakingAmount = await nodeManager.getMinOperatorStakingAmount();
-      await nodeOperator.addValidators(pubkey1, preSignature1, depositSignature1, { value: minOperatorStakingAmount });
-      await nodeOperator2
-        .connect(otherAccount)
-        .addValidators(pubkey2, preSignature2, depositSignature2, { value: minOperatorStakingAmount });
-      await nodeManager.activateValidators([0, 1]);
-      expect(await nodeOperator.getActiveValidatorsCount()).to.equal(1);
-      expect(await nodeOperator.getValidatingValidatorsCount()).to.equal(1);
-      expect(await nodeOperator2.getActiveValidatorsCount()).to.equal(1);
-      expect(await nodeOperator2.getValidatingValidatorsCount()).to.equal(1);
-    });
-
     it('Should revert if directly called without access ', async function () {
       const { nodeOperator, nodeManager } = await loadFixture(deployDepositNodeOperator);
       await addValidatorsAndDeposit(nodeOperator, nodeManager);

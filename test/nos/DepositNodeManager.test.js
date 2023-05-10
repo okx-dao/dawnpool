@@ -251,7 +251,7 @@ describe('DepositNodeManager', function () {
     it('Should revert if activate pubkey not exist', async function () {
       const { nodeManager, owner } = await loadFixture(deployDepositNodeManager);
       await addValidatorsAndDeposit(nodeManager, owner, pubkey1, preSignature1, depositSignature1);
-      await expect(nodeManager.activateValidators([1])).to.be.revertedWith("Validator status isn't waiting activated!");
+      await expect(nodeManager.activateValidators([0, 1])).to.be.revertedWith("Validator status isn't waiting activated!");
     });
 
     it('Should revert if activate pubkey repeatedly', async function () {
