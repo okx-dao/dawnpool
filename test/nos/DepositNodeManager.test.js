@@ -158,9 +158,11 @@ describe('DepositNodeManager', function () {
     });
 
     it('Should set min operator staking amount successfully', async function () {
-      const { nodeManager } = await loadFixture(deployDepositNodeManager);
+      const { nodeManager, owner } = await loadFixture(deployDepositNodeManager);
       const minAmount = ethers.utils.parseEther('1');
-      await nodeManager.setMinOperatorStakingAmount(minAmount);
+      await expect(nodeManager.setMinOperatorStakingAmount(minAmount))
+        .to.emit(nodeManager, 'MinOperatorStakingAmountSet')
+        .withArgs(owner.address, ethers.utils.parseEther('2'), minAmount);
       expect(await nodeManager.getMinOperatorStakingAmount()).to.equal(minAmount);
     });
 
@@ -180,11 +182,9 @@ describe('DepositNodeManager', function () {
       const nodeOperator = await ethers.getContractAt('IDepositNodeOperator', nodeAddress);
       const validatorCount = 2;
       const minOperatorStakingAmount = await nodeManager.getMinOperatorStakingAmount();
-      await nodeOperator
-        .connect(account)
-        .addValidators(pubkeys, preSignatures, depositSignatures, {
-          value: minOperatorStakingAmount.mul(validatorCount),
-        });
+      await nodeOperator.connect(account).addValidators(pubkeys, preSignatures, depositSignatures, {
+        value: minOperatorStakingAmount.mul(validatorCount),
+      });
       return nodeOperator;
     }
 

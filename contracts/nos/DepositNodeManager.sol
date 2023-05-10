@@ -20,6 +20,7 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
         keccak256("DepositNodeManager.MIN_OPERATOR_STAKING_AMOUNT");
     bytes32 internal constant _OPERATOR_CREATION_SALT = keccak256("DepositNodeManager.OPERATOR_CREATION_SALT");
     bytes32 internal constant _ACTIVATED_VALIDATOR_COUNT = keccak256("DepositNodeManager.ACTIVATED_VALIDATOR_COUNT");
+    bytes32 internal constant _TOTAL_REWARDS_PETH = keccak256("DepositNodeManager.TOTAL_REWARDS_PETH");
     /**
      * @dev Constructor
      * @param dawnStorage Storage address
@@ -151,12 +152,13 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
 
     }
 
-    function distributeNodeOperatorRewards(uint256 pethAmount) external onlyGuardian {
-
+    function distributeNodeOperatorRewards(uint256 pethAmount) external onlyLatestContract("DawnDeposit", msg.sender) {
+//        require(IERC20(_getContractAddressUnsafe("DawnDeposit")).balanceOf(address(this)))
     }
 
     /// @notice Set minimum deposit amount, may be changed by DAO
     function setMinOperatorStakingAmount(uint256 minAmount) external onlyGuardian {
+        emit MinOperatorStakingAmountSet(msg.sender, _getUint(_MIN_OPERATOR_STAKING_AMOUNT), minAmount);
         _setUint(_MIN_OPERATOR_STAKING_AMOUNT, minAmount);
     }
 

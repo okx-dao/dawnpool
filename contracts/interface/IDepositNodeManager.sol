@@ -12,6 +12,13 @@ interface IDepositNodeManager {
     event NodeOperatorRegistered(address indexed operator, address indexed nodeAddress);
 
     /**
+     * @notice Emit when staking amount is set
+     * @param preAmount Previous amount before set
+     * @param curAmount Current amount set
+     */
+    event MinOperatorStakingAmountSet(address indexed from, uint256 preAmount, uint256 curAmount);
+
+    /**
      * @notice Emit when validator pubkey and signature added
      * @param validatorId Validator index
      * @param operator Operator address
