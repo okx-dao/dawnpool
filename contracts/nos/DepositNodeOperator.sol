@@ -95,11 +95,13 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
         if (msg.value > 0) {
             dawnDeposit.stake{value: msg.value}();
         }
-        uint256 operatorBalance = dawnDeposit.getEtherByPEth(IERC20(address(dawnDeposit)).balanceOf(address(this)));
         IDepositNodeManager nodeManager = IDepositNodeManager(_getDepositNodeManager());
-        uint256 nextActiveValidatorsCount = getActiveValidatorsCount() + count;
-        uint256 requiredAmount = nodeManager.getMinOperatorStakingAmount() * nextActiveValidatorsCount;
-        require(operatorBalance >= requiredAmount, "Not enough deposits!");
+        {
+            uint256 operatorBalance = dawnDeposit.getEtherByPEth(IERC20(address(dawnDeposit)).balanceOf(address(this)));
+            uint256 nextActiveValidatorsCount = getActiveValidatorsCount() + count;
+            uint256 requiredAmount = nodeManager.getMinOperatorStakingAmount() * nextActiveValidatorsCount;
+            require(operatorBalance >= requiredAmount, "Not enough deposits!");
+        }
         startIndex = nodeManager.registerValidators(msg.sender, count);
         bytes32 withdrawalCredentials = getWithdrawalCredentials();
         for (uint256 i = 0; i < count; ++i) {
@@ -111,7 +113,7 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
             _deposit(dawnDeposit, pubkey, preSignature, _PRE_DEPOSIT_VALUE, withdrawalCredentials);
             emit SigningKeyAdded(startIndex + i, pubkey);
         }
-        _setUint(_getActiveValidatorsCountStorageKey(), nextActiveValidatorsCount);
+//        _setUint(_getActiveValidatorsCountStorageKey(), nextActiveValidatorsCount);
     }
 
     /**
