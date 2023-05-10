@@ -13,15 +13,13 @@ import "../base/DawnBase.sol";
  * @notice Dawn group members manage their node operators by this contract
  */
 contract DepositNodeManager is IDepositNodeManager, DawnBase {
-    uint256 internal constant _DEPOSIT_BASE = 32 ether;
     /// @dev Next validator index. Added one by one
     bytes32 internal constant _NEXT_VALIDATOR_ID = keccak256("DepositNodeManager.NEXT_VALIDATOR_ID");
     /// @dev Available validator pubkeys count
-    bytes32 internal constant _AVAILABLE_VALIDATOR_COUNT = keccak256("DepositNodeManager.AVAILABLE_VALIDATOR_COUNT");
     bytes32 internal constant _MIN_OPERATOR_STAKING_AMOUNT =
         keccak256("DepositNodeManager.MIN_OPERATOR_STAKING_AMOUNT");
     bytes32 internal constant _OPERATOR_CREATION_SALT = keccak256("DepositNodeManager.OPERATOR_CREATION_SALT");
-
+    bytes32 internal constant _ACTIVATED_VALIDATOR_COUNT = keccak256("DepositNodeManager.ACTIVATED_VALIDATOR_COUNT");
     /**
      * @dev Constructor
      * @param dawnStorage Storage address
@@ -80,50 +78,81 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
     }
 
     /**
-     * @notice Get available validator pubkeys count
-     * @return Available validator pubkeys count
-     * Only validators signed pre-exit msg can really get funds and be activated
-     */
-    function getAvailableValidatorsCount() public view returns (uint256) {
-        return _getUint(_AVAILABLE_VALIDATOR_COUNT);
-    }
-
-    /**
      * @notice Node operators register validators and get operator index in return
      * @dev Function called when operators add pubkeys
      * @param operator Node operator address, for access control
-     * @param count Node operator count request to register
+     * @param pubkey Public key request to register
      * @return The first index of validators registered
      */
-    function registerValidators(address operator, uint256 count) external returns (uint256) {
+    function registerValidator(address operator, bytes calldata pubkey) external returns (uint256) {
         (address nodeAddress, bool isActive) = getNodeOperator(operator);
         require(msg.sender == nodeAddress, "Only node operator can register validators!");
         require(isActive, "Node operator is inactive!");
-        uint256 startIndex = _getUint(_NEXT_VALIDATOR_ID);
-        bytes32 validatorStorageKey;
-        for (uint i = 0; i < count; ++i) {
-            validatorStorageKey = _getStorageKeyByValidatorIndex(startIndex + i);
-            _setAddress(validatorStorageKey, msg.sender);
-            _setUint(validatorStorageKey, uint(ValidatorStatus.WAITING_ACTIVATED));
-        }
-        _setUint(_NEXT_VALIDATOR_ID, startIndex + count);
-        _addUint(_AVAILABLE_VALIDATOR_COUNT, count);
-        emit NodeValidatorsRegistered(nodeAddress, startIndex, count);
-        return startIndex;
+        uint256 index = _getUint(_NEXT_VALIDATOR_ID);
+        bytes32 validatorStorageKey = _getStorageKeyByValidatorIndex(index);
+        _setAddress(validatorStorageKey, operator);
+        _setUint(validatorStorageKey, uint(ValidatorStatus.WAITING_ACTIVATED));
+        _setBytes(validatorStorageKey, pubkey);
+        _addUint(_NEXT_VALIDATOR_ID, 1);
+        emit SigningKeyAdded(index, operator, pubkey);
+        return index;
     }
 
     /**
      * @notice Get contract and status of validator by index
-     * @param validatorIndex Index of validator
-     * @return nodeAddress Node operator contract address the validator belongs to
+     * @param index Index of validator
+     * @return operator Operator address the validator belongs to
+     * @return pubkey Public key
      * @return status Validator status
      */
     function getNodeValidator(
-        uint256 validatorIndex
-    ) external view returns (address nodeAddress, ValidatorStatus status) {
-        bytes32 validatorStorageKey = _getStorageKeyByValidatorIndex(validatorIndex);
-        nodeAddress = _getAddress(validatorStorageKey);
+        uint256 index
+    ) external view returns (address operator, bytes memory pubkey, ValidatorStatus status) {
+        bytes32 validatorStorageKey = _getStorageKeyByValidatorIndex(index);
+        operator = _getAddress(validatorStorageKey);
+        pubkey = _getBytes(validatorStorageKey);
         status = ValidatorStatus(_getUint(validatorStorageKey));
+    }
+
+    /**
+     * @notice Activate validators by index
+     * @param indexes Index array of validators to be activated
+     */
+    function activateValidators(uint256[] calldata indexes) external onlyGuardian {
+        bytes32 storageKey;
+        address operator;
+        uint256 index;
+        for(uint256 i = 0; i < indexes.length; ++i){
+            index = indexes[i];
+            storageKey = _getStorageKeyByValidatorIndex(index);
+            require(_getUint(storageKey) == uint256(ValidatorStatus.WAITING_ACTIVATED),
+                "Validator status isn't waiting activated!");
+            bytes memory pubkey = _getBytes(storageKey);
+            operator = _getAddress(storageKey);
+            DepositNodeOperator(_getAddress(_getStorageKeyByOperatorAddress(operator))).activateValidator(index, pubkey);
+            _setUint(storageKey, uint256(ValidatorStatus.VALIDATING));
+            _addUint(_getValidatingValidatorsCountStorageKey(operator), 1);
+            emit SigningKeyActivated(index, operator, pubkey);
+        }
+        _addUint(_ACTIVATED_VALIDATOR_COUNT, indexes.length);
+    }
+
+    /// @notice Get total validators count including all status
+    function getTotalValidatorsCount() external view returns (uint256) {
+        return _getUint(_NEXT_VALIDATOR_ID);
+    }
+
+    /// @notice Get total activated validators count only including VALIDATING status
+    function getTotalActivatedValidatorsCount() external view returns (uint256) {
+        return _getUint(_ACTIVATED_VALIDATOR_COUNT);
+    }
+
+    function setValidatorUnsafe(uint256 index, uint256 slashAmount) external onlyGuardian {
+
+    }
+
+    function distributeNodeOperatorRewards(uint256 pethAmount) external onlyGuardian {
+
     }
 
     /// @notice Set minimum deposit amount, may be changed by DAO
@@ -144,5 +173,9 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
     /// @dev Get the storage key of the validator
     function _getStorageKeyByValidatorIndex(uint256 index) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked("DepositNodeManager.validatorIndex", index));
+    }
+
+    function _getValidatingValidatorsCountStorageKey(address operatorAddress) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked("DepositNodeManager.validatingValidatorsCount", operatorAddress));
     }
 }

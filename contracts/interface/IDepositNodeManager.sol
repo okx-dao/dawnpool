@@ -10,6 +10,7 @@ interface IDepositNodeManager {
      * @param nodeAddress Contract address of node operator
      */
     event NodeOperatorRegistered(address indexed operator, address indexed nodeAddress);
+
     /**
      * @notice Emit when validator pubkey and signature added
      * @param validatorId Validator index
@@ -79,10 +80,16 @@ interface IDepositNodeManager {
     function getMinOperatorStakingAmount() external view returns (uint256);
 
     /**
-     * @notice Activate validators by index  map(index, operator)
-     * @param indexes Index array of validators
+     * @notice Activate validators by index
+     * @param indexes Index array of validators to be activated
      */
     function activateValidators(uint256[] calldata indexes) external;
+
+    /// @notice Get total validators count including all status
+    function getTotalValidatorsCount() external view returns (uint256);
+
+    /// @notice Get total activated validators count only including VALIDATING status
+    function getTotalActivatedValidatorsCount() external view returns (uint256);
 
     function setValidatorUnsafe(uint256 index, uint256 slashAmount) external;
 

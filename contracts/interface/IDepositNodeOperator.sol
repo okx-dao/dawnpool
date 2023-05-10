@@ -11,12 +11,6 @@ pragma solidity ^0.8.17;
  * However, the "overflow" part of shares can be claimed with validator rewards
  */
 interface IDepositNodeOperator {
-    /**
-     * @notice Emit when validator pubkey and signature added
-     * @param validatorId Validator index
-     * @param pubkey Validator public key
-     */
-    event SigningKeyAdded(uint256 indexed validatorId, bytes pubkey);
 
     /**
      * @notice Get node operator address
@@ -58,7 +52,9 @@ interface IDepositNodeOperator {
     function getValidatingValidatorsCount() external view returns (uint256);
 
     /**
-     * @notice Get WithdrawalCredentials
+     * @notice Activate a validator
+     * @param index Validator index
+     * @param pubkey Validator public key
      */
-    function getWithdrawalCredentials() external view returns (bytes32);
+    function activateValidator(uint256 index, bytes calldata pubkey) external;
 }

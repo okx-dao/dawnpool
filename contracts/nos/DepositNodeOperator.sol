@@ -79,18 +79,31 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
         uint256 nextActiveValidatorsCount = getActiveValidatorsCount() + count;
         uint256 requiredAmount = nodeManager.getMinOperatorStakingAmount() * nextActiveValidatorsCount;
         require(operatorBalance >= requiredAmount, "Not enough deposits!");
-        startIndex = nodeManager.registerValidators(msg.sender, count);
+        uint256 index;
         for (uint256 i = 0; i < count; ++i) {
             bytes memory pubkey = pubkeys[i * _PUBKEY_LENGTH: i * _PUBKEY_LENGTH + _PUBKEY_LENGTH];
             bytes memory preSignature = preSignatures[i * _SIGNATURE_LENGTH: i * _SIGNATURE_LENGTH + _SIGNATURE_LENGTH];
             bytes memory depositSignature = depositSignatures[i * _SIGNATURE_LENGTH: i * _SIGNATURE_LENGTH + _SIGNATURE_LENGTH];
-            _setBytes(_getPubkeyStorageKeyByValidatorIndex(startIndex + i), pubkey);
-            _setBytes(_getSignatureStorageKeyByValidatorIndex(startIndex + i), depositSignature);
-//            _setUint(_getPubkeyIDStorageKeyByPubkey(pubkey), startIndex + i);
             dawnDeposit.preActivateValidator(msg.sender, pubkey, preSignature);
-            emit SigningKeyAdded(startIndex + i, pubkey);
+            index = nodeManager.registerValidator(msg.sender, pubkey);
+            _setBytes(_getSignatureStorageKeyByValidatorIndex(index), depositSignature);
         }
         _setUint(_getActiveValidatorsCountStorageKey(), nextActiveValidatorsCount);
+        startIndex = index + 1 - count;
+    }
+
+    /**
+     * @notice Activate a validator
+     * @param index Validator index
+     * @param pubkey Validator public key
+     */
+    function activateValidator(uint256 index, bytes calldata pubkey) external onlyLatestContract("DepositNodeManager", msg.sender) {
+        require(pubkey.length == _PUBKEY_LENGTH, "Pubkey stored is invalid!");
+        bytes32 sigStorageKey = _getSignatureStorageKeyByValidatorIndex(index);
+        bytes memory signature = _getBytes(sigStorageKey);
+        require(signature.length == _SIGNATURE_LENGTH, "Signature stored is invalid!");
+        IDawnDeposit(_getDawnDeposit()).activateValidator(getOperator(), pubkey, signature);
+        _deleteBytes(sigStorageKey);
     }
 
     /**
@@ -106,31 +119,13 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
      * @return Active validators count
      */
     function getValidatingValidatorsCount() external view returns (uint256) {
-        return _getUint(_getValidatingValidatorsCountStorageKey());
-    }
-
-    /**
-     * @notice Get WithdrawalCredentials
-     */
-    function getWithdrawalCredentials() public view returns (bytes32) {
-        address rewardsVault = _getContractAddress("RewardsVault");
-        return bytes32(bytes.concat(bytes12(0x010000000000000000000000), bytes20(rewardsVault)));
-    }
-
-    /// @dev Get the storage key of the validator pubkey
-    function _getPubkeyStorageKeyByValidatorIndex(uint256 index) internal pure returns (bytes32) {
-        return keccak256(abi.encodePacked("DepositNodeOperator.pubkey", index));
+        return _getUint(keccak256(abi.encodePacked("DepositNodeManager.validatingValidatorsCount", getOperator())));
     }
 
     /// @dev Get the storage key of the validator signature
     function _getSignatureStorageKeyByValidatorIndex(uint256 index) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked("DepositNodeOperator.signature", index));
     }
-
-//    /// @dev Get the storage key of the validator pubkey
-//    function _getPubkeyIDStorageKeyByPubkey(bytes memory pubkey) internal pure returns (bytes32) {
-//        return keccak256(abi.encodePacked("DepositNodeOperator.pubkeyID", pubkey));
-//    }
 
     /// @dev Get address of dawn deposit contract
     function _getDawnDeposit() internal view returns (address) {
@@ -152,8 +147,4 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
         return keccak256(abi.encodePacked("DepositNodeOperator.ACTIVE_VALIDATORS_COUNT", getOperator()));
     }
 
-    /// @dev Get validating validators count storage key, only VALIDATING status
-    function _getValidatingValidatorsCountStorageKey() internal view returns (bytes32) {
-        return keccak256(abi.encodePacked("DepositNodeOperator.VALIDATING_VALIDATORS_COUNT", getOperator()));
-    }
 }
