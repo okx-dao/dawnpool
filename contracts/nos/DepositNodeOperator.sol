@@ -76,19 +76,21 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
      * @notice Add validator pubkeys and signatures
      * @dev Make sure to have enough stakes to add validators
      * @param pubkeys Public keys
-     * @param signatures Signatures
+     * @param preSignatures Signatures
+     * @param depositSignatures Signatures
      * @return startIndex The first index of validators added
      * @return count Added validators count
      */
     function addValidators(
         bytes calldata pubkeys,
-        bytes calldata signatures
+        bytes calldata preSignatures,
+        bytes calldata depositSignatures
     ) external payable returns (uint256 startIndex, uint256 count) {
         require(msg.sender == getOperator(), "Only operator can add validators!");
         require(pubkeys.length % _PUBKEY_LENGTH == 0, "Inconsistent public keys len!");
-        require(signatures.length % _SIGNATURE_LENGTH == 0, "Inconsistent signatures len!");
+        require(preSignatures.length % _SIGNATURE_LENGTH == 0, "Inconsistent signatures len!");
         count = pubkeys.length / _PUBKEY_LENGTH;
-        require(signatures.length / _SIGNATURE_LENGTH == count, "Inconsistent signatures count!");
+        require(preSignatures.length / _SIGNATURE_LENGTH == count, "Inconsistent signatures count!");
         IDawnDeposit dawnDeposit = IDawnDeposit(_getDawnDeposit());
         if (msg.value > 0) {
             dawnDeposit.stake{value: msg.value}();
@@ -102,10 +104,11 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
         bytes32 withdrawalCredentials = getWithdrawalCredentials();
         for (uint256 i = 0; i < count; ++i) {
             bytes memory pubkey = BytesLib.slice(pubkeys, i * _PUBKEY_LENGTH, _PUBKEY_LENGTH);
-            bytes memory signature = BytesLib.slice(signatures, i * _SIGNATURE_LENGTH, _SIGNATURE_LENGTH);
-            bytes memory signingKey = BytesLib.concat(pubkey, signature);
+            bytes memory preSignature = BytesLib.slice(preSignatures, i * _SIGNATURE_LENGTH, _SIGNATURE_LENGTH);
+            bytes memory depositSignature = BytesLib.slice(depositSignatures, i * _SIGNATURE_LENGTH, _SIGNATURE_LENGTH);
+            bytes memory signingKey = BytesLib.concat(pubkey, depositSignature);
             _setBytes(_getStorageKeyByValidatorIndex(startIndex + i), signingKey);
-            _deposit(dawnDeposit, pubkey, signature, _PRE_DEPOSIT_VALUE, withdrawalCredentials);
+            _deposit(dawnDeposit, pubkey, preSignature, _PRE_DEPOSIT_VALUE, withdrawalCredentials);
             emit SigningKeyAdded(startIndex + i, pubkey);
         }
         _setUint(_getActiveValidatorsCountStorageKey(), nextActiveValidatorsCount);
