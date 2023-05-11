@@ -12,11 +12,17 @@ interface IDepositNodeManager {
     event NodeOperatorRegistered(address indexed operator, address indexed nodeAddress);
 
     /**
-     * @notice Emit when staking amount is set
-     * @param preAmount Previous amount before set
-     * @param curAmount Current amount set
+     * @notice Emit when node operator withdraw address is set
+     * @param operator Address of node operator
+     * @param withdrawAddress Withdraw address
      */
-    event MinOperatorStakingAmountSet(address indexed from, uint256 preAmount, uint256 curAmount);
+    event WithdrawAddressSet(address indexed operator, address withdrawAddress);
+
+    /**
+     * @notice Emit when staking amount is set
+     * @param amount Current amount set
+     */
+    event MinOperatorStakingAmountSet(address indexed from, uint256 amount);
 
     /**
      * @notice Emit when validator pubkey and signature added
@@ -33,6 +39,21 @@ interface IDepositNodeManager {
      * @param pubkey Validator public key
      */
     event SigningKeyActivated(uint256 indexed validatorId, address indexed operator, bytes indexed pubkey);
+
+    /**
+     * @notice Emit when receive node operator rewards
+     * @param pethAmount Received PETH amount
+     * @param rewardsPerValidator Rewards amount a validator can be distributed
+     */
+    event NodeOperatorRewardsReceived(uint256 pethAmount, uint256 rewardsPerValidator);
+
+    /**
+     * @notice Emit when distribute rewards to the node operator
+     * @param operator Operator address
+     * @param pethAmount Rewards amount distributed to the operator
+     * @param to Rewards distributed to, generally is operator's node contract
+     */
+    event NodeOperatorRewardsDistributed(address indexed operator, uint256 pethAmount, address to);
 
     /**
      * @notice Validator status, should be WAITING_ACTIVATED -> VALIDATING -> EXITING -> EXITED
@@ -52,7 +73,7 @@ interface IDepositNodeManager {
      * @notice Register an node operator and deploy a node operator contract for request address
      * @return Deployed node operator contract address, and set it active
      */
-    function registerNodeOperator() external returns (address);
+    function registerNodeOperator(address withdrawAddress) external returns (address);
 
     /**
      * @notice Get the node operator contract address and status
@@ -100,5 +121,15 @@ interface IDepositNodeManager {
 
     function setValidatorUnsafe(uint256 index, uint256 slashAmount) external;
 
+    /**
+     * @notice Distribute node operator rewards PETH
+     * @param pethAmount distributed amount
+     */
     function distributeNodeOperatorRewards(uint256 pethAmount) external;
+
+    /// @notice Get the operator withdraw address
+    function getWithdrawAddress(address operator) external view returns (address);
+
+    /// @notice Set the operator withdraw address
+    function setWithdrawAddress(address withdrawAddress) external;
 }

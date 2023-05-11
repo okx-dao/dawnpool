@@ -14,8 +14,8 @@ describe('DepositNodeOperator', function () {
     const nodeManagerAddr = await getDeployedContractAddress('DepositNodeManager');
     const DepositNodeManager = await ethers.getContractFactory('DepositNodeManager');
     const nodeManager = await DepositNodeManager.attach(nodeManagerAddr);
-    await nodeManager.registerNodeOperator();
     const [owner, otherAccount] = await ethers.getSigners();
+    await nodeManager.registerNodeOperator(owner.address);
     const { nodeAddress } = await nodeManager.getNodeOperator(owner.address);
     const nodeOperator = await ethers.getContractAt('IDepositNodeOperator', nodeAddress);
     const dawnDepositAddr = await getDeployedContractAddress('DawnDeposit');
@@ -53,7 +53,7 @@ describe('DepositNodeOperator', function () {
 
     it('Each should have correct node operator contract owner', async function () {
       const { nodeOperator, nodeManager, owner, otherAccount } = await loadFixture(deployDepositNodeOperator);
-      await nodeManager.connect(otherAccount).registerNodeOperator();
+      await nodeManager.connect(otherAccount).registerNodeOperator(otherAccount.address);
       const { nodeAddress } = await nodeManager.getNodeOperator(otherAccount.address);
       const nodeOperator2 = await ethers.getContractAt('IDepositNodeOperator', nodeAddress);
       expect(await nodeOperator.getOperator()).to.equal(owner.address);
@@ -99,7 +99,7 @@ describe('DepositNodeOperator', function () {
 
     it('Each should add validators successfully', async function () {
       const { nodeOperator, nodeManager, otherAccount } = await loadFixture(deployDepositNodeOperator);
-      await nodeManager.connect(otherAccount).registerNodeOperator();
+      await nodeManager.connect(otherAccount).registerNodeOperator(otherAccount.address);
       const { nodeAddress } = await nodeManager.getNodeOperator(otherAccount.address);
       const nodeOperator2 = await ethers.getContractAt('IDepositNodeOperator', nodeAddress);
       const minOperatorStakingAmount = await nodeManager.getMinOperatorStakingAmount();

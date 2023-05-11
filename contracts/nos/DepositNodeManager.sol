@@ -21,6 +21,9 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
     bytes32 internal constant _OPERATOR_CREATION_SALT = keccak256("DepositNodeManager.OPERATOR_CREATION_SALT");
     bytes32 internal constant _ACTIVATED_VALIDATOR_COUNT = keccak256("DepositNodeManager.ACTIVATED_VALIDATOR_COUNT");
     bytes32 internal constant _TOTAL_REWARDS_PETH = keccak256("DepositNodeManager.TOTAL_REWARDS_PETH");
+    bytes32 internal constant _REWARDS_PETH_PER_VALIDATOR = keccak256("DepositNodeManager.REWARDS_PETH_PER_VALIDATOR");
+    string internal constant _DAWN_DEPOSIT_CONTRACT_NAME = "DawnDeposit";
+
     /**
      * @dev Constructor
      * @param dawnStorage Storage address
@@ -31,7 +34,8 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
      * @notice Register an node operator and deploy a node operator contract for request address
      * @return Deployed node operator contract address, and set it active
      */
-    function registerNodeOperator() external returns (address) {
+    function registerNodeOperator(address withdrawAddress) external returns (address) {
+        require(withdrawAddress != address(0), "Withdraw address can not be 0!");
         bytes32 operatorStorageKey = _getStorageKeyByOperatorAddress(msg.sender);
         require(_getAddress(operatorStorageKey) == address(0), "Operator already exist!");
         // Calculate address and set access
@@ -62,7 +66,10 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
         require(predictedAddress == address(nodeAddress), "Inconsistent predicted address!");
         _setAddress(operatorStorageKey, address(nodeAddress));
         _setBool(operatorStorageKey, true);
+        _setUint(_getClaimedRewardsPerValidatorStorageKey(msg.sender), type(uint256).max); // init operator claimed rewards
         emit NodeOperatorRegistered(msg.sender, address(nodeAddress));
+        _setAddress(_getWithdrawAddressStorageKey(msg.sender), withdrawAddress);
+        emit WithdrawAddressSet(msg.sender, withdrawAddress);
         return address(nodeAddress);
     }
 
@@ -122,6 +129,7 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
     function activateValidators(uint256[] calldata indexes) external onlyGuardian {
         bytes32 storageKey;
         address operator;
+        address nodeAddress;
         uint256 index;
         for(uint256 i = 0; i < indexes.length; ++i){
             index = indexes[i];
@@ -130,7 +138,9 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
                 "Validator status isn't waiting activated!");
             bytes memory pubkey = _getBytes(storageKey);
             operator = _getAddress(storageKey);
-            DepositNodeOperator(_getAddress(_getStorageKeyByOperatorAddress(operator))).activateValidator(index, pubkey);
+            nodeAddress = _getAddress(_getStorageKeyByOperatorAddress(operator));
+            DepositNodeOperator(nodeAddress).activateValidator(index, pubkey);
+            _updateRewards(operator);
             _setUint(storageKey, uint256(ValidatorStatus.VALIDATING));
             _addUint(_getValidatingValidatorsCountStorageKey(operator), 1);
             emit SigningKeyActivated(index, operator, pubkey);
@@ -152,19 +162,44 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
 
     }
 
-    function distributeNodeOperatorRewards(uint256 pethAmount) external onlyLatestContract("DawnDeposit", msg.sender) {
-//        require(IERC20(_getContractAddressUnsafe("DawnDeposit")).balanceOf(address(this)))
+    /**
+     * @notice Distribute node operator rewards PETH
+     * @param pethAmount distributed amount
+     */
+    function distributeNodeOperatorRewards(uint256 pethAmount) external onlyLatestContract(_DAWN_DEPOSIT_CONTRACT_NAME, msg.sender) {
+        require(pethAmount > 0, "Can not distribute 0 rewards!");
+        uint256 bufferedRewards = _getUint(_TOTAL_REWARDS_PETH);
+        uint256 currentPETHBalance = IERC20(_getContractAddressUnsafe(_DAWN_DEPOSIT_CONTRACT_NAME)).balanceOf(address(this));
+        require(currentPETHBalance >= bufferedRewards + pethAmount, "Not receive enough rewards!");
+        uint256 rewardsAddedPerValidator = pethAmount / _getUint(_ACTIVATED_VALIDATOR_COUNT);
+        _addUint(_REWARDS_PETH_PER_VALIDATOR, rewardsAddedPerValidator);
+        _addUint(_TOTAL_REWARDS_PETH, pethAmount);
+        emit NodeOperatorRewardsReceived(pethAmount, rewardsAddedPerValidator);
     }
 
     /// @notice Set minimum deposit amount, may be changed by DAO
     function setMinOperatorStakingAmount(uint256 minAmount) external onlyGuardian {
-        emit MinOperatorStakingAmountSet(msg.sender, _getUint(_MIN_OPERATOR_STAKING_AMOUNT), minAmount);
+        emit MinOperatorStakingAmountSet(msg.sender, minAmount);
         _setUint(_MIN_OPERATOR_STAKING_AMOUNT, minAmount);
     }
 
     /// @notice Get minimum deposit amount, may be changed by DAO
     function getMinOperatorStakingAmount() external view returns (uint256) {
         return _getUint(_MIN_OPERATOR_STAKING_AMOUNT);
+    }
+
+    /// @notice Get the operator withdraw address
+    function getWithdrawAddress(address operator) public view returns (address) {
+        return _getAddress(_getWithdrawAddressStorageKey(operator));
+    }
+
+    /// @notice Set the operator withdraw address
+    function setWithdrawAddress(address withdrawAddress) external {
+        require(withdrawAddress != address(0), "Withdraw address can not be 0x!");
+        address nodeAddress = _getAddress(_getStorageKeyByOperatorAddress(msg.sender));
+        require(nodeAddress != address(0), "Node operator is not exist!");
+        _setAddress(_getWithdrawAddressStorageKey(msg.sender), withdrawAddress);
+        emit WithdrawAddressSet(msg.sender, withdrawAddress);
     }
 
     /// @dev Get the storage key of the operator
@@ -177,7 +212,39 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
         return keccak256(abi.encodePacked("DepositNodeManager.validatorIndex", index));
     }
 
-    function _getValidatingValidatorsCountStorageKey(address operatorAddress) internal pure returns (bytes32) {
-        return keccak256(abi.encodePacked("DepositNodeManager.validatingValidatorsCount", operatorAddress));
+    /// @dev Get the storage key of the node operator's validating validators count
+    function _getValidatingValidatorsCountStorageKey(address operator) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked("DepositNodeManager.validatingValidatorsCount", operator));
+    }
+
+    /// @dev Get the storage key of the node operator's claimed rewards per validator
+    function _getClaimedRewardsPerValidatorStorageKey(address operator) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked("DepositNodeManager.claimedRewardsPerValidator", operator));
+    }
+
+    /// @dev Update the node operator's rewards
+    /// This function must be called before the node operator's validating validators count is changed
+    function _updateRewards(address operator) internal {
+        bytes32 claimedRewardsStorageKey = _getClaimedRewardsPerValidatorStorageKey(operator);
+        uint256 claimedRewardsPerValidator = _getUint(claimedRewardsStorageKey);
+        uint256 rewardsPerValidator = _getUint(_REWARDS_PETH_PER_VALIDATOR);
+        if(claimedRewardsPerValidator < rewardsPerValidator) {
+            uint256 claimableRewards =
+                (rewardsPerValidator - claimedRewardsPerValidator)
+                * _getUint(_getValidatingValidatorsCountStorageKey(operator))
+                / _getUint(_ACTIVATED_VALIDATOR_COUNT);
+            address to = getWithdrawAddress(operator);
+            IERC20(_getContractAddressUnsafe(_DAWN_DEPOSIT_CONTRACT_NAME)).transfer(to, claimableRewards);
+            _subUint(_TOTAL_REWARDS_PETH, claimableRewards);
+            emit NodeOperatorRewardsDistributed(operator, claimableRewards, to);
+        }
+        if(claimedRewardsPerValidator != rewardsPerValidator) {
+            _setUint(claimedRewardsStorageKey, rewardsPerValidator);
+        }
+    }
+
+    /// @dev Get the storage key of the operator withdraw address
+    function _getWithdrawAddressStorageKey(address operator) internal pure returns (bytes32) {
+        return sha256(abi.encodePacked("DepositNodeManager.operatorWithdrawAddress", operator));
     }
 }

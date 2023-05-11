@@ -122,6 +122,10 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
         return _getUint(keccak256(abi.encodePacked("DepositNodeManager.validatingValidatorsCount", getOperator())));
     }
 
+    function claimRewards() external {
+
+    }
+
     /// @dev Get the storage key of the validator signature
     function _getSignatureStorageKeyByValidatorIndex(uint256 index) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked("DepositNodeOperator.signature", index));

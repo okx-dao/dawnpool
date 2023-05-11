@@ -47,32 +47,87 @@ describe('DepositNodeManager', function () {
   describe('RegisterNodeOperator', function () {
     it('Should deploy a node operator contract', async function () {
       const { nodeManager, owner } = await loadFixture(deployDepositNodeManager);
-      await nodeManager.registerNodeOperator();
+      await nodeManager.registerNodeOperator(owner.address);
       const { nodeAddress, isActive } = await nodeManager.getNodeOperator(owner.address);
       expect(nodeAddress).to.not.equal(ethers.constants.AddressZero);
       expect(isActive).to.equal(true);
+      expect(await nodeManager.getWithdrawAddress(owner.address)).to.equal(owner.address);
     });
 
     it('Should deploy node operator contract to different addresses', async function () {
       const { nodeManager, owner, otherAccount } = await loadFixture(deployDepositNodeManager);
-      await nodeManager.registerNodeOperator();
+      await nodeManager.registerNodeOperator(owner.address);
       const { nodeAddress } = await nodeManager.getNodeOperator(owner.address);
-      await nodeManager.connect(otherAccount).registerNodeOperator();
+      await nodeManager.connect(otherAccount).registerNodeOperator(otherAccount.address);
       const { nodeAddress2 } = await nodeManager.getNodeOperator(otherAccount.address);
       expect(nodeAddress).to.not.equal(nodeAddress2);
+      expect(await nodeManager.getWithdrawAddress(owner.address)).to.equal(owner.address);
+      expect(await nodeManager.getWithdrawAddress(otherAccount.address)).to.equal(otherAccount.address);
     });
 
     it('Should revert if register repeatedly', async function () {
-      const { nodeManager } = await loadFixture(deployDepositNodeManager);
-      await nodeManager.registerNodeOperator();
-      await expect(nodeManager.registerNodeOperator()).to.be.revertedWith('Operator already exist!');
+      const { nodeManager, owner } = await loadFixture(deployDepositNodeManager);
+      await nodeManager.registerNodeOperator(owner.address);
+      await expect(nodeManager.registerNodeOperator(owner.address)).to.be.revertedWith('Operator already exist!');
     });
 
-    it('Should emit an event on register node operator', async function () {
-      const { nodeManager, owner } = await loadFixture(deployDepositNodeManager);
-      await expect(nodeManager.registerNodeOperator())
+    it('Should emit events when register node operator', async function () {
+      const { nodeManager, owner, otherAccount } = await loadFixture(deployDepositNodeManager);
+      await expect(nodeManager.registerNodeOperator(owner.address))
         .to.emit(nodeManager, 'NodeOperatorRegistered')
-        .withArgs(owner.address, anyValue); // We accept any value as `when` arg
+        .withArgs(owner.address, anyValue)
+        .to.emit(nodeManager, 'WithdrawAddressSet')
+        .withArgs(owner.address, owner.address);
+      await expect(nodeManager.connect(otherAccount).registerNodeOperator(otherAccount.address))
+        .to.emit(nodeManager, 'NodeOperatorRegistered')
+        .withArgs(otherAccount.address, anyValue)
+        .to.emit(nodeManager, 'WithdrawAddressSet')
+        .withArgs(otherAccount.address, otherAccount.address);
+    });
+
+    it('Should revert if withdraw address is 0x', async function () {
+      const { nodeManager } = await loadFixture(deployDepositNodeManager);
+      await expect(nodeManager.registerNodeOperator(ethers.constants.AddressZero)).to.be.revertedWith(
+        'Withdraw address can not be 0!',
+      );
+    });
+  });
+
+  describe('SetWithdrawAddress', function () {
+    it('Should set withdraw address successfully', async function () {
+      const { nodeManager, owner, otherAccount } = await loadFixture(deployDepositNodeManager);
+      await expect(nodeManager.registerNodeOperator(owner.address));
+      await expect(nodeManager.connect(otherAccount).registerNodeOperator(otherAccount.address));
+      expect(await nodeManager.getWithdrawAddress(owner.address)).to.equal(owner.address);
+      expect(await nodeManager.getWithdrawAddress(otherAccount.address)).to.equal(otherAccount.address);
+      await expect(nodeManager.setWithdrawAddress(otherAccount.address))
+        .to.emit(nodeManager, 'WithdrawAddressSet')
+        .withArgs(owner.address, otherAccount.address);
+      await expect(nodeManager.connect(otherAccount).setWithdrawAddress(owner.address))
+        .to.emit(nodeManager, 'WithdrawAddressSet')
+        .withArgs(otherAccount.address, owner.address);
+      expect(await nodeManager.getWithdrawAddress(owner.address)).to.equal(otherAccount.address);
+      expect(await nodeManager.getWithdrawAddress(otherAccount.address)).to.equal(owner.address);
+    });
+
+    it('Should revert if operator not exist', async function () {
+      const { nodeManager, owner, otherAccount } = await loadFixture(deployDepositNodeManager);
+      await expect(nodeManager.registerNodeOperator(owner.address));
+      await expect(nodeManager.setWithdrawAddress(otherAccount.address))
+        .to.emit(nodeManager, 'WithdrawAddressSet')
+        .withArgs(owner.address, otherAccount.address);
+      expect(await nodeManager.getWithdrawAddress(owner.address)).to.equal(otherAccount.address);
+      await expect(nodeManager.connect(otherAccount).setWithdrawAddress(otherAccount.address)).to.be.revertedWith(
+        'Node operator is not exist!',
+      );
+    });
+
+    it('Should revert if withdraw address is 0x', async function () {
+      const { nodeManager, owner } = await loadFixture(deployDepositNodeManager);
+      await expect(nodeManager.registerNodeOperator(owner.address));
+      await expect(nodeManager.setWithdrawAddress(ethers.constants.AddressZero)).to.be.revertedWith(
+        'Withdraw address can not be 0x!',
+      );
     });
   });
 
@@ -86,7 +141,7 @@ describe('DepositNodeManager', function () {
 
     it('Should register validators successfully', async function () {
       const { nodeManager, owner } = await loadFixture(deployDepositNodeManager);
-      await nodeManager.registerNodeOperator();
+      await nodeManager.registerNodeOperator(owner.address);
       const { nodeAddress } = await nodeManager.getNodeOperator(owner.address);
       const nodeOperator = await ethers.getContractAt('IDepositNodeOperator', nodeAddress);
       const validatorCount = 2;
@@ -121,10 +176,10 @@ describe('DepositNodeManager', function () {
 
     it('Each should register validators successfully', async function () {
       const { nodeManager, owner, otherAccount } = await loadFixture(deployDepositNodeManager);
-      await nodeManager.registerNodeOperator();
+      await nodeManager.registerNodeOperator(owner.address);
       const nodeOperatorReturned = await nodeManager.getNodeOperator(owner.address);
       const nodeOperator = await ethers.getContractAt('IDepositNodeOperator', nodeOperatorReturned['nodeAddress']);
-      await nodeManager.connect(otherAccount).registerNodeOperator();
+      await nodeManager.connect(otherAccount).registerNodeOperator(owner.address);
       const nodeOperatorReturned2 = await nodeManager.getNodeOperator(otherAccount.address);
       const nodeOperator2 = await ethers.getContractAt('IDepositNodeOperator', nodeOperatorReturned2['nodeAddress']);
       const minOperatorStakingAmount = await nodeManager.getMinOperatorStakingAmount();
@@ -162,7 +217,7 @@ describe('DepositNodeManager', function () {
       const minAmount = ethers.utils.parseEther('1');
       await expect(nodeManager.setMinOperatorStakingAmount(minAmount))
         .to.emit(nodeManager, 'MinOperatorStakingAmountSet')
-        .withArgs(owner.address, ethers.utils.parseEther('2'), minAmount);
+        .withArgs(owner.address, minAmount);
       expect(await nodeManager.getMinOperatorStakingAmount()).to.equal(minAmount);
     });
 
@@ -177,7 +232,7 @@ describe('DepositNodeManager', function () {
 
   describe('ActivateValidators', function () {
     async function addValidatorsAndDeposit(nodeManager, account, pubkeys, preSignatures, depositSignatures) {
-      await nodeManager.connect(account).registerNodeOperator();
+      await nodeManager.connect(account).registerNodeOperator(account.address);
       const { nodeAddress } = await nodeManager.getNodeOperator(account.address);
       const nodeOperator = await ethers.getContractAt('IDepositNodeOperator', nodeAddress);
       const validatorCount = 2;
@@ -251,7 +306,9 @@ describe('DepositNodeManager', function () {
     it('Should revert if activate pubkey not exist', async function () {
       const { nodeManager, owner } = await loadFixture(deployDepositNodeManager);
       await addValidatorsAndDeposit(nodeManager, owner, pubkey1, preSignature1, depositSignature1);
-      await expect(nodeManager.activateValidators([0, 1])).to.be.revertedWith("Validator status isn't waiting activated!");
+      await expect(nodeManager.activateValidators([0, 1])).to.be.revertedWith(
+        "Validator status isn't waiting activated!",
+      );
     });
 
     it('Should revert if activate pubkey repeatedly', async function () {
