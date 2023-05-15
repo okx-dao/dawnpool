@@ -77,7 +77,7 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
         uint256 operatorBalance = dawnDeposit.getEtherByPEth(IERC20(address(dawnDeposit)).balanceOf(address(this)));
         IDepositNodeManager nodeManager = IDepositNodeManager(_getDepositNodeManager());
         uint256 nextActiveValidatorsCount = getActiveValidatorsCount() + count;
-        uint256 requiredAmount = nodeManager.getMinOperatorStakingAmount() * nextActiveValidatorsCount;
+        uint256 requiredAmount = _getMinOperatorStakingAmount() * nextActiveValidatorsCount;
         require(operatorBalance >= requiredAmount, "Not enough deposits!");
         uint256 index;
         for (uint256 i = 0; i < count; ++i) {
@@ -122,8 +122,22 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
         return _getUint(keccak256(abi.encodePacked("DepositNodeManager.validatingValidatorsCount", getOperator())));
     }
 
-    function claimRewards() external {
+    function getClaimableRewards() external view returns (uint256) {
+        return _getStakeRewards(_getDawnDeposit())
+            + IDepositNodeManager(_getDepositNodeManager()).getClaimableNodeRewards(getOperator());
+    }
 
+    function claimRewards() external {
+        address dawnDeposit = _getDawnDeposit();
+        uint256 stakeRewards = _getStakeRewards(dawnDeposit);
+        address operator = getOperator();
+        IDepositNodeManager nodeManager = IDepositNodeManager(_getDepositNodeManager());
+        if(stakeRewards > 0) {
+            address withdrawAddress = nodeManager.getWithdrawAddress(operator);
+            IERC20(dawnDeposit).transfer(withdrawAddress, stakeRewards);
+            emit NodeOperatorStakingRewardsClaimed(msg.sender, withdrawAddress, stakeRewards);
+        }
+        nodeManager.claimNodeRewards(operator);
     }
 
     /// @dev Get the storage key of the validator signature
@@ -149,6 +163,21 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
     /// @dev Get active validators count storage key
     function _getActiveValidatorsCountStorageKey() internal view returns (bytes32) {
         return keccak256(abi.encodePacked("DepositNodeOperator.ACTIVE_VALIDATORS_COUNT", getOperator()));
+    }
+
+    function _getStakeRewards(address dawnDeposit) internal view returns (uint256){
+        uint256 operatorBalance = IERC20(dawnDeposit).balanceOf(address(this));
+        uint256 requiredAmount = IDawnDeposit(dawnDeposit).getPEthByEther(
+            _getMinOperatorStakingAmount() * getActiveValidatorsCount()
+        );
+        if(operatorBalance > requiredAmount) {
+            return operatorBalance - requiredAmount;
+        }
+        return 0;
+    }
+
+    function _getMinOperatorStakingAmount() internal view returns (uint256) {
+        return _getUint(keccak256("DepositNodeManager.MIN_OPERATOR_STAKING_AMOUNT"));
     }
 
 }

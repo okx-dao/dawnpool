@@ -12,6 +12,8 @@ pragma solidity ^0.8.17;
  */
 interface IDepositNodeOperator {
 
+    event NodeOperatorStakingRewardsClaimed(address indexed claimer, address indexed withdrawAddress, uint256 amount);
+
     /**
      * @notice Get node operator address
      * @return Node operator address
@@ -57,4 +59,6 @@ interface IDepositNodeOperator {
      * @param pubkey Validator public key
      */
     function activateValidator(uint256 index, bytes calldata pubkey) external;
+
+    function claimRewards() external;
 }

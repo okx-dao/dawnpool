@@ -43,17 +43,18 @@ interface IDepositNodeManager {
     /**
      * @notice Emit when receive node operator rewards
      * @param pethAmount Received PETH amount
-     * @param rewardsPerValidator Rewards amount a validator can be distributed
+     * @param rewardsAddedPerValidator Rewards amount a validator can be distributed this time
      */
-    event NodeOperatorRewardsReceived(uint256 pethAmount, uint256 rewardsPerValidator);
+    event NodeOperatorRewardsReceived(uint256 pethAmount, uint256 rewardsAddedPerValidator);
 
     /**
-     * @notice Emit when distribute rewards to the node operator
+     * @notice Emit when distribute Node rewards(commission) to the node operator
      * @param operator Operator address
-     * @param pethAmount Rewards amount distributed to the operator
-     * @param to Rewards distributed to, generally is operator's node contract
+     * @param claimer Address who call this function
+     * @param withdrawAddress Node rewards distributed to
+     * @param pethAmount Node rewards amount distributed to the operator and claimed
      */
-    event NodeOperatorRewardsDistributed(address indexed operator, uint256 pethAmount, address to);
+    event NodeOperatorNodeRewardsClaimed(address indexed operator, address indexed claimer, address indexed withdrawAddress, uint256 pethAmount);
 
     /**
      * @notice Validator status, should be WAITING_ACTIVATED -> VALIDATING -> EXITING -> EXITED
@@ -132,4 +133,10 @@ interface IDepositNodeManager {
 
     /// @notice Set the operator withdraw address
     function setWithdrawAddress(address withdrawAddress) external;
+
+    /// @notice Get the operator claimable node rewards(commission)
+    function getClaimableNodeRewards(address operator) external view returns (uint256);
+
+    /// @notice Claim the operator node rewards(commission)
+    function claimNodeRewards(address operator) external;
 }

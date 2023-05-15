@@ -202,6 +202,20 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
         emit WithdrawAddressSet(msg.sender, withdrawAddress);
     }
 
+    /// @notice Get the operator claimable node rewards(commission)
+    function getClaimableNodeRewards(address operator) external view returns (uint256) {
+        return _getClaimableNodeRewards(
+            operator,
+                _getUint(_getClaimedRewardsPerValidatorStorageKey(operator)),
+                _getUint(_REWARDS_PETH_PER_VALIDATOR)
+        );
+    }
+
+    /// @notice Claim the operator node rewards(commission)
+    function claimNodeRewards(address operator) external {
+        _updateRewards(operator);
+    }
+
     /// @dev Get the storage key of the operator
     function _getStorageKeyByOperatorAddress(address operator) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked("DepositNodeManager.operator", operator));
@@ -228,15 +242,12 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
         bytes32 claimedRewardsStorageKey = _getClaimedRewardsPerValidatorStorageKey(operator);
         uint256 claimedRewardsPerValidator = _getUint(claimedRewardsStorageKey);
         uint256 rewardsPerValidator = _getUint(_REWARDS_PETH_PER_VALIDATOR);
-        if(claimedRewardsPerValidator < rewardsPerValidator) {
-            uint256 claimableRewards =
-                (rewardsPerValidator - claimedRewardsPerValidator)
-                * _getUint(_getValidatingValidatorsCountStorageKey(operator))
-                / _getUint(_ACTIVATED_VALIDATOR_COUNT);
-            address to = getWithdrawAddress(operator);
-            IERC20(_getContractAddressUnsafe(_DAWN_DEPOSIT_CONTRACT_NAME)).transfer(to, claimableRewards);
+        uint256 claimableRewards = _getClaimableNodeRewards(operator, claimedRewardsPerValidator, rewardsPerValidator);
+        if(claimableRewards > 0) {
+            address withdrawAddress = getWithdrawAddress(operator);
+            IERC20(_getContractAddressUnsafe(_DAWN_DEPOSIT_CONTRACT_NAME)).transfer(withdrawAddress, claimableRewards);
             _subUint(_TOTAL_REWARDS_PETH, claimableRewards);
-            emit NodeOperatorRewardsDistributed(operator, claimableRewards, to);
+            emit NodeOperatorNodeRewardsClaimed(operator, msg.sender, withdrawAddress, claimableRewards);
         }
         if(claimedRewardsPerValidator != rewardsPerValidator) {
             _setUint(claimedRewardsStorageKey, rewardsPerValidator);
@@ -247,4 +258,18 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
     function _getWithdrawAddressStorageKey(address operator) internal pure returns (bytes32) {
         return sha256(abi.encodePacked("DepositNodeManager.operatorWithdrawAddress", operator));
     }
+
+    function _getClaimableNodeRewards(
+        address operator,
+        uint256 claimedRewardsPerValidator,
+        uint256 rewardsPerValidator
+    ) internal view returns (uint256) {
+        if(claimedRewardsPerValidator < rewardsPerValidator) {
+            return (rewardsPerValidator - claimedRewardsPerValidator)
+            * _getUint(_getValidatingValidatorsCountStorageKey(operator))
+            / _getUint(_ACTIVATED_VALIDATOR_COUNT);
+        }
+        return 0;
+    }
+
 }
