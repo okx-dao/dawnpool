@@ -2,7 +2,6 @@
 pragma solidity ^0.8.17;
 
 import "../interface/IDepositNodeOperator.sol";
-//import "../interface/IDawnDeposit.sol";
 import "../interface/IDepositNodeManager.sol";
 import "../base/DawnBase.sol";
 import "../interface/IDepositContract.sol";
@@ -24,13 +23,20 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
     /// @dev Deposit 1 ETH when a validator pubkey is added, so that other 1 eth can earn rewards
     uint128 internal constant _PRE_DEPOSIT_VALUE = 1 ether;
 
+    error ZeroAddress();
+    error OperatorAccessDenied();
+    error IncorrectPubkeysSignaturesLen(uint256 pubkeysLen, uint256 preSignaturesLen, uint256 depositSignaturesLen);
+    error NotEnoughDeposits(uint256 required, uint256 current);
+    error InvalidPubkeyLen(uint256 len);
+    error InvalidSignatureLen(uint256 len);
+
     /**
      * @dev Constructor
      * @param operator Address of node operator
      * @param dawnStorage Storage address
      */
     constructor(address operator, IDawnStorageInterface dawnStorage) DawnBase(dawnStorage) {
-        require(operator != address(0), "Operator address cannot be 0x0!");
+        if(operator == address(0)) revert ZeroAddress();
         _setAddress(_getOperatorStorageKey(), operator);
     }
 
@@ -64,12 +70,15 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
         bytes calldata preSignatures,
         bytes calldata depositSignatures
     ) external payable returns (uint256 startIndex, uint256 count) {
-        require(msg.sender == getOperator(), "Only operator can add validators!");
-        require(depositSignatures.length == preSignatures.length, "Inconsistent deposit signatures len!");
-        require(pubkeys.length % _PUBKEY_LENGTH == 0, "Inconsistent public keys len!");
-        require(preSignatures.length % _SIGNATURE_LENGTH == 0, "Inconsistent signatures len!");
+        if(msg.sender != getOperator()) revert OperatorAccessDenied();
         count = pubkeys.length / _PUBKEY_LENGTH;
-        require(preSignatures.length / _SIGNATURE_LENGTH == count, "Inconsistent signatures count!");
+        if(
+            depositSignatures.length != preSignatures.length
+            || pubkeys.length % _PUBKEY_LENGTH != 0
+            || preSignatures.length % _SIGNATURE_LENGTH != 0
+            || preSignatures.length / _SIGNATURE_LENGTH != count
+        )
+            revert IncorrectPubkeysSignaturesLen(pubkeys.length, preSignatures.length, depositSignatures.length);
         IDawnDeposit dawnDeposit = IDawnDeposit(_getDawnDeposit());
         if (msg.value > 0) {
             dawnDeposit.stake{value: msg.value}();
@@ -78,7 +87,7 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
         IDepositNodeManager nodeManager = IDepositNodeManager(_getDepositNodeManager());
         uint256 nextActiveValidatorsCount = getActiveValidatorsCount() + count;
         uint256 requiredAmount = _getMinOperatorStakingAmount() * nextActiveValidatorsCount;
-        require(operatorBalance >= requiredAmount, "Not enough deposits!");
+        if(operatorBalance < requiredAmount) revert NotEnoughDeposits(requiredAmount, operatorBalance);
         uint256 index;
         for (uint256 i = 0; i < count; ++i) {
             bytes memory pubkey = pubkeys[i * _PUBKEY_LENGTH: i * _PUBKEY_LENGTH + _PUBKEY_LENGTH];
@@ -98,10 +107,10 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
      * @param pubkey Validator public key
      */
     function activateValidator(uint256 index, bytes calldata pubkey) external onlyLatestContract("DepositNodeManager", msg.sender) {
-        require(pubkey.length == _PUBKEY_LENGTH, "Pubkey stored is invalid!");
+        if(pubkey.length != _PUBKEY_LENGTH) revert InvalidPubkeyLen(pubkey.length);
         bytes32 sigStorageKey = _getSignatureStorageKeyByValidatorIndex(index);
         bytes memory signature = _getBytes(sigStorageKey);
-        require(signature.length == _SIGNATURE_LENGTH, "Signature stored is invalid!");
+        if(signature.length != _SIGNATURE_LENGTH) revert InvalidSignatureLen(signature.length);
         IDawnDeposit(_getDawnDeposit()).activateValidator(getOperator(), pubkey, signature);
         _deleteBytes(sigStorageKey);
     }

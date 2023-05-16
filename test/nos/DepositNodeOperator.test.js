@@ -17,7 +17,7 @@ describe('DepositNodeOperator', function () {
     const [owner, otherAccount] = await ethers.getSigners();
     await nodeManager.registerNodeOperator(owner.address);
     const { nodeAddress } = await nodeManager.getNodeOperator(owner.address);
-    const nodeOperator = await ethers.getContractAt('IDepositNodeOperator', nodeAddress);
+    const nodeOperator = await ethers.getContractAt('DepositNodeOperator', nodeAddress);
     const dawnDepositAddr = await getDeployedContractAddress('DawnDeposit');
     const DawnDeposit = await ethers.getContractFactory('DawnDeposit');
     const dawnDeposit = await DawnDeposit.attach(dawnDepositAddr);
@@ -35,6 +35,8 @@ describe('DepositNodeOperator', function () {
     '0x82fdddec643c42aff9f6857456bfed799c108c9a8363df95ce51dc95caf1043c1d5c297ae3933a89098f5e40a77113fc0ffb271342d7bc69729128ebe0faf45f61a75a696e7f864810311c03eba7ac03107ab9ddbd73013e64e5bb690b9c2e0c';
   const depositSignature2 =
     '0xb609681c7ed74fb18d0395f252a8a3745678a4731184608c0f9df0bfdc78bbb033c95731484215b344bc3b8456958959077c7ca3b8f34142154e78eba535b2615ee0b065cbef4ea92d4a9bddd490cb351253198b7479793a308956c5e220ba7f';
+  const pubkeyLen = 48;
+  const signatureLen = 96;
 
   function removePrefix(str) {
     return str.substring(2);
@@ -124,7 +126,8 @@ describe('DepositNodeOperator', function () {
         nodeOperator.addValidators(pubkey1.substring(0, 20), preSignature1, depositSignature1, {
           value: minOperatorStakingAmount,
         }),
-      ).to.be.revertedWith('Inconsistent public keys len!');
+      ).to.be.revertedWithCustomError(nodeOperator, 'IncorrectPubkeysSignaturesLen')
+        .withArgs(9, signatureLen, signatureLen);
     });
 
     it('Should revert if signatures len is not correct', async function () {
@@ -134,7 +137,8 @@ describe('DepositNodeOperator', function () {
         nodeOperator.addValidators(pubkey1, preSignature1.substring(0, 40), depositSignature1.substring(0, 40), {
           value: minOperatorStakingAmount,
         }),
-      ).to.be.revertedWith('Inconsistent signatures len!');
+      ).to.be.revertedWithCustomError(nodeOperator, 'IncorrectPubkeysSignaturesLen')
+        .withArgs(pubkeyLen, 19, 19);
     });
 
     it('Should revert if deposit signatures len is not correct', async function () {
@@ -144,7 +148,8 @@ describe('DepositNodeOperator', function () {
         nodeOperator.addValidators(pubkey1, preSignature1, depositSignature1.substring(0, 40), {
           value: minOperatorStakingAmount,
         }),
-      ).to.be.revertedWith('Inconsistent deposit signatures len!');
+      ).to.be.revertedWithCustomError(nodeOperator, 'IncorrectPubkeysSignaturesLen')
+        .withArgs(pubkeyLen, signatureLen, 19);
     });
 
     it('Should revert if public keys and signatures length is not inconsistent', async function () {
@@ -154,7 +159,8 @@ describe('DepositNodeOperator', function () {
         nodeOperator.addValidators(pubkey1 + removePrefix(pubkey2), preSignature1, depositSignature1, {
           value: minOperatorStakingAmount,
         }),
-      ).to.be.revertedWith('Inconsistent signatures count!');
+      ).to.be.revertedWithCustomError(nodeOperator, 'IncorrectPubkeysSignaturesLen')
+        .withArgs(pubkeyLen * 2, signatureLen, signatureLen);
     });
 
     it('Should revert if any account except operator adds validators', async function () {
@@ -164,14 +170,15 @@ describe('DepositNodeOperator', function () {
         nodeOperator
           .connect(otherAccount)
           .addValidators(pubkey1, preSignature1, depositSignature1, { value: minOperatorStakingAmount }),
-      ).to.be.revertedWith('Only operator can add validators!');
+      ).to.be.revertedWithCustomError(nodeOperator, 'OperatorAccessDenied');
     });
 
     it('Should revert does not have enough stakes', async function () {
       const { nodeOperator } = await loadFixture(deployDepositNodeOperator);
-      await expect(nodeOperator.addValidators(pubkey1, preSignature1, depositSignature1)).to.be.revertedWith(
-        'Not enough deposits!',
-      );
+      await expect(nodeOperator.addValidators(pubkey1, preSignature1, depositSignature1)).to.be.revertedWithCustomError(
+        nodeOperator,
+        'NotEnoughDeposits',
+      ).withArgs(ethers.utils.parseEther('2'), 0);
     });
   });
 

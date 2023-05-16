@@ -24,6 +24,15 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
     bytes32 internal constant _REWARDS_PETH_PER_VALIDATOR = keccak256("DepositNodeManager.REWARDS_PETH_PER_VALIDATOR");
     string internal constant _DAWN_DEPOSIT_CONTRACT_NAME = "DawnDeposit";
 
+    error ZeroAddress();
+    error OperatorAlreadyExist();
+    error InconsistentPredictedAddress(address predicted, address deployed);
+    error InconsistentNodeOperatorAddress(address operator, address required, address caller);
+    error InactiveNodeOperator();
+    error InconsistentValidatorStatus(uint256 index, uint256 required, uint256 current);
+    error NotReceiveEnoughRewards(uint256 required, uint256 current);
+    error NotExistOperator();
+
     /**
      * @dev Constructor
      * @param dawnStorage Storage address
@@ -35,9 +44,9 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
      * @return Deployed node operator contract address, and set it active
      */
     function registerNodeOperator(address withdrawAddress) external returns (address) {
-        require(withdrawAddress != address(0), "Withdraw address can not be 0!");
+        if(withdrawAddress == address(0)) revert ZeroAddress();
         bytes32 operatorStorageKey = _getStorageKeyByOperatorAddress(msg.sender);
-        require(_getAddress(operatorStorageKey) == address(0), "Operator already exist!");
+        if(_getAddress(operatorStorageKey) != address(0)) revert OperatorAlreadyExist();
         // Calculate address and set access
         address predictedAddress = address(
             uint160(
@@ -63,7 +72,7 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
             msg.sender,
             _dawnStorage
         );
-        require(predictedAddress == address(nodeAddress), "Inconsistent predicted address!");
+        if(predictedAddress != address(nodeAddress)) revert InconsistentPredictedAddress(predictedAddress, address(nodeAddress));
         _setAddress(operatorStorageKey, address(nodeAddress));
         _setBool(operatorStorageKey, true);
         _setUint(_getClaimedRewardsPerValidatorStorageKey(msg.sender), type(uint256).max); // init operator claimed rewards
@@ -94,8 +103,8 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
      */
     function registerValidator(address operator, bytes calldata pubkey) external returns (uint256) {
         (address nodeAddress, bool isActive) = getNodeOperator(operator);
-        require(msg.sender == nodeAddress, "Only node operator can register validators!");
-        require(isActive, "Node operator is inactive!");
+        if(msg.sender != nodeAddress) revert InconsistentNodeOperatorAddress(operator, nodeAddress, msg.sender);
+        if(!isActive) revert InactiveNodeOperator();
         uint256 index = _getUint(_NEXT_VALIDATOR_ID);
         bytes32 validatorStorageKey = _getStorageKeyByValidatorIndex(index);
         _setAddress(validatorStorageKey, operator);
@@ -134,8 +143,8 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
         for(uint256 i = 0; i < indexes.length; ++i){
             index = indexes[i];
             storageKey = _getStorageKeyByValidatorIndex(index);
-            require(_getUint(storageKey) == uint256(ValidatorStatus.WAITING_ACTIVATED),
-                "Validator status isn't waiting activated!");
+            if(_getUint(storageKey) != uint256(ValidatorStatus.WAITING_ACTIVATED))
+                revert InconsistentValidatorStatus(index, uint256(ValidatorStatus.WAITING_ACTIVATED), _getUint(storageKey));
             bytes memory pubkey = _getBytes(storageKey);
             operator = _getAddress(storageKey);
             nodeAddress = _getAddress(_getStorageKeyByOperatorAddress(operator));
@@ -167,10 +176,10 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
      * @param pethAmount distributed amount
      */
     function distributeNodeOperatorRewards(uint256 pethAmount) external onlyLatestContract(_DAWN_DEPOSIT_CONTRACT_NAME, msg.sender) {
-        require(pethAmount > 0, "Can not distribute 0 rewards!");
         uint256 bufferedRewards = _getUint(_TOTAL_REWARDS_PETH);
         uint256 currentPETHBalance = IERC20(_getContractAddressUnsafe(_DAWN_DEPOSIT_CONTRACT_NAME)).balanceOf(address(this));
-        require(currentPETHBalance >= bufferedRewards + pethAmount, "Not receive enough rewards!");
+        if(currentPETHBalance < bufferedRewards + pethAmount)
+            revert NotReceiveEnoughRewards(bufferedRewards + pethAmount, currentPETHBalance);
         uint256 rewardsAddedPerValidator = pethAmount / _getUint(_ACTIVATED_VALIDATOR_COUNT);
         _addUint(_REWARDS_PETH_PER_VALIDATOR, rewardsAddedPerValidator);
         _addUint(_TOTAL_REWARDS_PETH, pethAmount);
@@ -195,9 +204,9 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
 
     /// @notice Set the operator withdraw address
     function setWithdrawAddress(address withdrawAddress) external {
-        require(withdrawAddress != address(0), "Withdraw address can not be 0x!");
+        if(withdrawAddress == address(0)) revert ZeroAddress();
         address nodeAddress = _getAddress(_getStorageKeyByOperatorAddress(msg.sender));
-        require(nodeAddress != address(0), "Node operator is not exist!");
+        if(nodeAddress == address(0)) revert NotExistOperator();
         _setAddress(_getWithdrawAddressStorageKey(msg.sender), withdrawAddress);
         emit WithdrawAddressSet(msg.sender, withdrawAddress);
     }

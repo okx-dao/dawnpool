@@ -68,7 +68,7 @@ describe('DepositNodeManager', function () {
     it('Should revert if register repeatedly', async function () {
       const { nodeManager, owner } = await loadFixture(deployDepositNodeManager);
       await nodeManager.registerNodeOperator(owner.address);
-      await expect(nodeManager.registerNodeOperator(owner.address)).to.be.revertedWith('Operator already exist!');
+      await expect(nodeManager.registerNodeOperator(owner.address)).to.be.revertedWithCustomError(nodeManager , "OperatorAlreadyExist");
     });
 
     it('Should emit events when register node operator', async function () {
@@ -87,8 +87,9 @@ describe('DepositNodeManager', function () {
 
     it('Should revert if withdraw address is 0x', async function () {
       const { nodeManager } = await loadFixture(deployDepositNodeManager);
-      await expect(nodeManager.registerNodeOperator(ethers.constants.AddressZero)).to.be.revertedWith(
-        'Withdraw address can not be 0!',
+      await expect(nodeManager.registerNodeOperator(ethers.constants.AddressZero)).to.be.revertedWithCustomError(
+        nodeManager,
+        'ZeroAddress'
       );
     });
   });
@@ -117,26 +118,29 @@ describe('DepositNodeManager', function () {
         .to.emit(nodeManager, 'WithdrawAddressSet')
         .withArgs(owner.address, otherAccount.address);
       expect(await nodeManager.getWithdrawAddress(owner.address)).to.equal(otherAccount.address);
-      await expect(nodeManager.connect(otherAccount).setWithdrawAddress(otherAccount.address)).to.be.revertedWith(
-        'Node operator is not exist!',
+      await expect(nodeManager.connect(otherAccount).setWithdrawAddress(otherAccount.address)).to.be.revertedWithCustomError(
+        nodeManager,
+        'NotExistOperator'
       );
     });
 
     it('Should revert if withdraw address is 0x', async function () {
       const { nodeManager, owner } = await loadFixture(deployDepositNodeManager);
       await expect(nodeManager.registerNodeOperator(owner.address));
-      await expect(nodeManager.setWithdrawAddress(ethers.constants.AddressZero)).to.be.revertedWith(
-        'Withdraw address can not be 0x!',
+      await expect(nodeManager.setWithdrawAddress(ethers.constants.AddressZero)).to.be.revertedWithCustomError(
+        nodeManager,
+        'ZeroAddress'
       );
     });
   });
 
-  describe('RegisterValidators', function () {
+  describe('RegisterValidator', function () {
     it('Should revert if directly called without access', async function () {
       const { nodeManager, owner } = await loadFixture(deployDepositNodeManager);
-      await expect(nodeManager.registerValidator(owner.address, pubkey1)).to.be.revertedWith(
-        'Only node operator can register validators!',
-      );
+      await expect(nodeManager.registerValidator(owner.address, pubkey1)).to.be.revertedWithCustomError(
+        nodeManager,
+        'InconsistentNodeOperatorAddress'
+      ).withArgs(owner.address, ethers.constants.AddressZero, owner.address);
     });
 
     it('Should register validators successfully', async function () {
@@ -306,16 +310,20 @@ describe('DepositNodeManager', function () {
     it('Should revert if activate pubkey not exist', async function () {
       const { nodeManager, owner } = await loadFixture(deployDepositNodeManager);
       await addValidatorsAndDeposit(nodeManager, owner, pubkey1, preSignature1, depositSignature1);
-      await expect(nodeManager.activateValidators([0, 1])).to.be.revertedWith(
-        "Validator status isn't waiting activated!",
-      );
+      await expect(nodeManager.activateValidators([0, 1])).to.be.revertedWithCustomError(
+        nodeManager,
+        'InconsistentValidatorStatus'
+      ).withArgs(1, 1, 0);
     });
 
     it('Should revert if activate pubkey repeatedly', async function () {
       const { nodeManager, owner } = await loadFixture(deployDepositNodeManager);
       await addValidatorsAndDeposit(nodeManager, owner, pubkey1, preSignature1, depositSignature1);
       await nodeManager.activateValidators([0]);
-      await expect(nodeManager.activateValidators([0])).to.be.revertedWith("Validator status isn't waiting activated!");
+      await expect(nodeManager.activateValidators([0])).to.be.revertedWithCustomError(
+        nodeManager,
+        "InconsistentValidatorStatus"
+      ).withArgs(0, 1, 2);
     });
   });
 });
