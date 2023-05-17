@@ -1,7 +1,7 @@
 {
   "name": "hardhat-project",
   "scripts": {
-    "compile": "hardhat compile",
+    "compile": "hardhat compile --optimizer",
     "test": "hardhat test",
     "coverage": "NODE_OPTIONS=\"--max-old-space-size=4096\" hardhat coverage",
     "lint": "npm run lint:js && npm run lint:sol",
