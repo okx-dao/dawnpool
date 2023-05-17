@@ -60,5 +60,13 @@ interface IDepositNodeOperator {
      */
     function activateValidator(uint256 index, bytes calldata pubkey) external;
 
+    /// @notice Claim the operator staking and node rewards
     function claimRewards() external;
+
+    /**
+     * @notice Change validators status before operator exit his validators
+     * @param indexes Validators indexes will exit
+     * @dev Node operator can exit his validators anytime, but need to change contract validator status first
+     */
+    function voluntaryExitValidators(uint256[] calldata indexes) external;
 }

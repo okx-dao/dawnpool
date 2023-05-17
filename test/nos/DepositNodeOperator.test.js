@@ -126,7 +126,8 @@ describe('DepositNodeOperator', function () {
         nodeOperator.addValidators(pubkey1.substring(0, 20), preSignature1, depositSignature1, {
           value: minOperatorStakingAmount,
         }),
-      ).to.be.revertedWithCustomError(nodeOperator, 'IncorrectPubkeysSignaturesLen')
+      )
+        .to.be.revertedWithCustomError(nodeOperator, 'IncorrectPubkeysSignaturesLen')
         .withArgs(9, signatureLen, signatureLen);
     });
 
@@ -137,7 +138,8 @@ describe('DepositNodeOperator', function () {
         nodeOperator.addValidators(pubkey1, preSignature1.substring(0, 40), depositSignature1.substring(0, 40), {
           value: minOperatorStakingAmount,
         }),
-      ).to.be.revertedWithCustomError(nodeOperator, 'IncorrectPubkeysSignaturesLen')
+      )
+        .to.be.revertedWithCustomError(nodeOperator, 'IncorrectPubkeysSignaturesLen')
         .withArgs(pubkeyLen, 19, 19);
     });
 
@@ -148,7 +150,8 @@ describe('DepositNodeOperator', function () {
         nodeOperator.addValidators(pubkey1, preSignature1, depositSignature1.substring(0, 40), {
           value: minOperatorStakingAmount,
         }),
-      ).to.be.revertedWithCustomError(nodeOperator, 'IncorrectPubkeysSignaturesLen')
+      )
+        .to.be.revertedWithCustomError(nodeOperator, 'IncorrectPubkeysSignaturesLen')
         .withArgs(pubkeyLen, signatureLen, 19);
     });
 
@@ -159,7 +162,8 @@ describe('DepositNodeOperator', function () {
         nodeOperator.addValidators(pubkey1 + removePrefix(pubkey2), preSignature1, depositSignature1, {
           value: minOperatorStakingAmount,
         }),
-      ).to.be.revertedWithCustomError(nodeOperator, 'IncorrectPubkeysSignaturesLen')
+      )
+        .to.be.revertedWithCustomError(nodeOperator, 'IncorrectPubkeysSignaturesLen')
         .withArgs(pubkeyLen * 2, signatureLen, signatureLen);
     });
 
@@ -175,10 +179,9 @@ describe('DepositNodeOperator', function () {
 
     it('Should revert does not have enough stakes', async function () {
       const { nodeOperator } = await loadFixture(deployDepositNodeOperator);
-      await expect(nodeOperator.addValidators(pubkey1, preSignature1, depositSignature1)).to.be.revertedWithCustomError(
-        nodeOperator,
-        'NotEnoughDeposits',
-      ).withArgs(ethers.utils.parseEther('2'), 0);
+      await expect(nodeOperator.addValidators(pubkey1, preSignature1, depositSignature1))
+        .to.be.revertedWithCustomError(nodeOperator, 'NotEnoughDeposits')
+        .withArgs(ethers.utils.parseEther('2'), 0);
     });
   });
 

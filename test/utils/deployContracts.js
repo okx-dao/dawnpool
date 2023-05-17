@@ -11,6 +11,7 @@ const Contracts = {
   RewardsVault: ethers.getContractFactory('RewardsVault'),
   // Node operator manager
   DepositNodeManager: ethers.getContractFactory('DepositNodeManager'),
+  DepositNodeOperatorDeployer: ethers.getContractFactory('DepositNodeOperatorDeployer'),
 };
 
 let dawnStorage;

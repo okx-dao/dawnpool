@@ -41,6 +41,14 @@ interface IDepositNodeManager {
     event SigningKeyActivated(uint256 indexed validatorId, address indexed operator, bytes indexed pubkey);
 
     /**
+     * @notice Emit when validator request to exit
+     * @param validatorId Validator index
+     * @param operator Operator address
+     * @param pubkey Validator public key
+     */
+    event SigningKeyExiting(uint256 indexed validatorId, address indexed operator, bytes indexed pubkey);
+
+    /**
      * @notice Emit when receive node operator rewards
      * @param pethAmount Received PETH amount
      * @param rewardsAddedPerValidator Rewards amount a validator can be distributed this time
@@ -139,4 +147,26 @@ interface IDepositNodeManager {
 
     /// @notice Claim the operator node rewards(commission)
     function claimNodeRewards(address operator) external;
+
+    /**
+     * @notice Change validators status before exit
+     * @param count Validators count to change status
+     * @dev Validators should exit firstly who joined at the earliest(least index)
+     */
+    function requestToExitValidators(uint256 count) external;
+
+    /**
+     * @notice Change validators status before operator exit his validators
+     * @param operator Node operator address
+     * @param indexes Validators indexes will exit
+     * @dev Node operator can exit his validators anytime, but need to change contract validator status first
+     */
+    function operatorRequestToExitValidators(address operator, uint256[] calldata indexes) external;
+
+    /**
+     * @notice Change validators status before force operator exit
+     * @param index Validators index will exit
+     * @param slashAmount Amount will be slashed
+     */
+    function setValidatorExiting(uint256 index, uint256 slashAmount) external;
 }

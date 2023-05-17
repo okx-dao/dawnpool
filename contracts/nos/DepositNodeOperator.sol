@@ -136,6 +136,7 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
             + IDepositNodeManager(_getDepositNodeManager()).getClaimableNodeRewards(getOperator());
     }
 
+    /// @notice Claim the operator staking and node rewards
     function claimRewards() external {
         address dawnDeposit = _getDawnDeposit();
         uint256 stakeRewards = _getStakeRewards(dawnDeposit);
@@ -147,6 +148,17 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
             emit NodeOperatorStakingRewardsClaimed(msg.sender, withdrawAddress, stakeRewards);
         }
         nodeManager.claimNodeRewards(operator);
+    }
+
+    /**
+     * @notice Change validators status before operator exit his validators
+     * @param indexes Validators indexes will exit
+     * @dev Node operator can exit his validators anytime, but need to change contract validator status first
+     */
+    function voluntaryExitValidators(uint256[] calldata indexes) external {
+        address operator = getOperator();
+        if(msg.sender != operator) revert OperatorAccessDenied();
+        IDepositNodeManager(_getDepositNodeManager()).operatorRequestToExitValidators(operator, indexes);
     }
 
     /// @dev Get the storage key of the validator signature

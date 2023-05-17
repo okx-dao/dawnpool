@@ -2,10 +2,11 @@
 pragma solidity ^0.8.17;
 
 import "../interface/IDepositNodeManager.sol";
-import "./DepositNodeOperator.sol";
+import "../interface/IDepositNodeOperatorDeployer.sol";
+import "../interface/IDepositNodeOperator.sol";
 import "../base/DawnBase.sol";
-
-//import "../interface/IDawnDeposit.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "../interface/IDawnDeposit.sol";
 
 /**
  * @title Dawn node operator manager contract
@@ -18,20 +19,20 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
     /// @dev Available validator pubkeys count
     bytes32 internal constant _MIN_OPERATOR_STAKING_AMOUNT =
         keccak256("DepositNodeManager.MIN_OPERATOR_STAKING_AMOUNT");
-    bytes32 internal constant _OPERATOR_CREATION_SALT = keccak256("DepositNodeManager.OPERATOR_CREATION_SALT");
     bytes32 internal constant _ACTIVATED_VALIDATOR_COUNT = keccak256("DepositNodeManager.ACTIVATED_VALIDATOR_COUNT");
     bytes32 internal constant _TOTAL_REWARDS_PETH = keccak256("DepositNodeManager.TOTAL_REWARDS_PETH");
     bytes32 internal constant _REWARDS_PETH_PER_VALIDATOR = keccak256("DepositNodeManager.REWARDS_PETH_PER_VALIDATOR");
     string internal constant _DAWN_DEPOSIT_CONTRACT_NAME = "DawnDeposit";
+    bytes32 internal constant _NEXT_EXITING_VALIDATOR_ID = keccak256("DepositNodeManager.NEXT_EXITING_VALIDATOR_ID");
 
     error ZeroAddress();
     error OperatorAlreadyExist();
-    error InconsistentPredictedAddress(address predicted, address deployed);
     error InconsistentNodeOperatorAddress(address operator, address required, address caller);
     error InactiveNodeOperator();
     error InconsistentValidatorStatus(uint256 index, uint256 required, uint256 current);
     error NotReceiveEnoughRewards(uint256 required, uint256 current);
     error NotExistOperator();
+    error InconsistentValidatorOperator(uint256 index, address required, address current);
 
     /**
      * @dev Constructor
@@ -47,39 +48,16 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
         if(withdrawAddress == address(0)) revert ZeroAddress();
         bytes32 operatorStorageKey = _getStorageKeyByOperatorAddress(msg.sender);
         if(_getAddress(operatorStorageKey) != address(0)) revert OperatorAlreadyExist();
-        // Calculate address and set access
-        address predictedAddress = address(
-            uint160(
-                uint(
-                    keccak256(
-                        abi.encodePacked(
-                            bytes1(0xff),
-                            address(this),
-                            _OPERATOR_CREATION_SALT,
-                            keccak256(
-                                abi.encodePacked(
-                                    type(DepositNodeOperator).creationCode,
-                                    abi.encode(msg.sender, _dawnStorage)
-                                )
-                            )
-                        )
-                    )
-                )
-            )
-        );
-        _setBool(keccak256(abi.encodePacked("contract.exists", predictedAddress)), true);
-        DepositNodeOperator nodeAddress = new DepositNodeOperator{salt: _OPERATOR_CREATION_SALT}(
-            msg.sender,
-            _dawnStorage
-        );
-        if(predictedAddress != address(nodeAddress)) revert InconsistentPredictedAddress(predictedAddress, address(nodeAddress));
-        _setAddress(operatorStorageKey, address(nodeAddress));
+        address nodeAddress = IDepositNodeOperatorDeployer(
+            _getContractAddressUnsafe("DepositNodeOperatorDeployer")
+        ).deployDepositNodeOperator(msg.sender);
+        _setAddress(operatorStorageKey, nodeAddress);
         _setBool(operatorStorageKey, true);
         _setUint(_getClaimedRewardsPerValidatorStorageKey(msg.sender), type(uint256).max); // init operator claimed rewards
-        emit NodeOperatorRegistered(msg.sender, address(nodeAddress));
+        emit NodeOperatorRegistered(msg.sender, nodeAddress);
         _setAddress(_getWithdrawAddressStorageKey(msg.sender), withdrawAddress);
         emit WithdrawAddressSet(msg.sender, withdrawAddress);
-        return address(nodeAddress);
+        return nodeAddress;
     }
 
     /**
@@ -148,7 +126,7 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
             bytes memory pubkey = _getBytes(storageKey);
             operator = _getAddress(storageKey);
             nodeAddress = _getAddress(_getStorageKeyByOperatorAddress(operator));
-            DepositNodeOperator(nodeAddress).activateValidator(index, pubkey);
+            IDepositNodeOperator(nodeAddress).activateValidator(index, pubkey);
             _updateRewards(operator);
             _setUint(storageKey, uint256(ValidatorStatus.VALIDATING));
             _addUint(_getValidatingValidatorsCountStorageKey(operator), 1);
@@ -225,6 +203,66 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
         _updateRewards(operator);
     }
 
+    /**
+     * @notice Change validators status before exit
+     * @param count Validators count to change status
+     * @dev Validators should exit firstly who joined at the earliest(least index)
+     */
+    function requestToExitValidators(uint256 count) external onlyLatestContract(_DAWN_DEPOSIT_CONTRACT_NAME, msg.sender) {
+        bytes32 validatorStorageKey;
+        uint256 index = _getUint(_NEXT_EXITING_VALIDATOR_ID);
+        uint256 nextValidatorId = _getUint(_NEXT_VALIDATOR_ID);
+        uint256 exitingCount = 0;
+        while(exitingCount < count && index < nextValidatorId) {
+            validatorStorageKey = _getStorageKeyByValidatorIndex(index);
+            if(_getUint(validatorStorageKey) != uint256(ValidatorStatus.VALIDATING))
+            {
+                ++index;
+                continue;
+            }
+            _exitingOneValidator(index);
+            ++index;
+            ++exitingCount;
+        }
+        _setUint(_NEXT_EXITING_VALIDATOR_ID, index);
+        _subUint(_ACTIVATED_VALIDATOR_COUNT, exitingCount);
+    }
+
+    /**
+     * @notice Change validators status before operator exit his validators
+     * @param operator Node operator address
+     * @param indexes Validators indexes will exit
+     * @dev Node operator can exit his validators anytime, but need to change contract validator status first
+     */
+    function operatorRequestToExitValidators(address operator, uint256[] calldata indexes) external {
+        address nodeAddress = _getAddress(_getStorageKeyByOperatorAddress(operator));
+        if(msg.sender != nodeAddress) revert InconsistentNodeOperatorAddress(operator, nodeAddress, msg.sender);
+        _updateRewards(operator);
+        uint256 index;
+        bytes32 validatorStorageKey;
+        uint256 addedExitingCount;
+        for(uint256 i = 0; i < indexes.length; ++i) {
+            index = indexes[i];
+            validatorStorageKey = _getStorageKeyByValidatorIndex(index);
+            if(_getAddress(validatorStorageKey) != operator) revert InconsistentValidatorOperator(index, _getAddress(validatorStorageKey), operator);
+            if(_getUint(validatorStorageKey) != uint256(ValidatorStatus.VALIDATING)) continue;
+            _setUint(validatorStorageKey, uint256(ValidatorStatus.EXITING));
+            emit SigningKeyExiting(index, operator, _getBytes(validatorStorageKey));
+            ++addedExitingCount;
+        }
+        _subUint(_getValidatingValidatorsCountStorageKey(operator), addedExitingCount);
+        _subUint(_ACTIVATED_VALIDATOR_COUNT, addedExitingCount);
+    }
+
+    /**
+     * @notice Change validators status before force operator exit
+     * @param index Validators index will exit
+     * @param slashAmount Amount will be slashed
+     */
+    function setValidatorExiting(uint256 index, uint256 slashAmount) external {
+//        _setUint(_getStorageKeyByValidatorIndex(index), uint256(ValidatorStatus.EXITING));
+    }
+
     /// @dev Get the storage key of the operator
     function _getStorageKeyByOperatorAddress(address operator) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked("DepositNodeManager.operator", operator));
@@ -275,10 +313,18 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
     ) internal view returns (uint256) {
         if(claimedRewardsPerValidator < rewardsPerValidator) {
             return (rewardsPerValidator - claimedRewardsPerValidator)
-            * _getUint(_getValidatingValidatorsCountStorageKey(operator))
-            / _getUint(_ACTIVATED_VALIDATOR_COUNT);
+            * _getUint(_getValidatingValidatorsCountStorageKey(operator));
         }
         return 0;
+    }
+
+    function _exitingOneValidator(uint256 index) internal {
+        bytes32 validatorStorageKey = _getStorageKeyByValidatorIndex(index);
+        address operator = _getAddress(validatorStorageKey);
+        _updateRewards(operator);
+        _setUint(validatorStorageKey, uint256(ValidatorStatus.EXITING));
+        _subUint(_getValidatingValidatorsCountStorageKey(operator), 1);
+        emit SigningKeyExiting(index, operator, _getBytes(validatorStorageKey));
     }
 
 }
