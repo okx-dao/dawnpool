@@ -30,7 +30,7 @@ interface IDepositNodeManager {
      * @param operator Operator address
      * @param pubkey Validator public key
      */
-    event SigningKeyAdded(uint256 indexed validatorId, address indexed operator, bytes indexed pubkey);
+    event SigningKeyAdded(uint256 indexed validatorId, address indexed operator, bytes pubkey);
 
     /**
      * @notice Emit when validator activated
@@ -38,7 +38,7 @@ interface IDepositNodeManager {
      * @param operator Operator address
      * @param pubkey Validator public key
      */
-    event SigningKeyActivated(uint256 indexed validatorId, address indexed operator, bytes indexed pubkey);
+    event SigningKeyActivated(uint256 indexed validatorId, address indexed operator, bytes pubkey);
 
     /**
      * @notice Emit when validator request to exit
@@ -46,7 +46,7 @@ interface IDepositNodeManager {
      * @param operator Operator address
      * @param pubkey Validator public key
      */
-    event SigningKeyExiting(uint256 indexed validatorId, address indexed operator, bytes indexed pubkey);
+    event SigningKeyExiting(uint256 indexed validatorId, address indexed operator, bytes pubkey);
 
     /**
      * @notice Emit when receive node operator rewards
@@ -110,6 +110,16 @@ interface IDepositNodeManager {
      */
     function getNodeValidator(uint256 index) external view returns (address operator, bytes memory pubkey, ValidatorStatus status);
 
+    /**
+     * @notice Get contract and status of validator by index
+     * @param startIndex Start index of validators request to get
+     * @param amount Amount of validators request to get, 0 means all
+     * @return operators Operators addresses the validators belong to
+     * @return pubkeys Public keys
+     * @return statuses Validator statuses
+     */
+    function getNodeValidators(uint256 startIndex, uint256 amount) external view returns (address[] memory operators, bytes[] memory pubkeys, ValidatorStatus[] memory statuses);
+
     /// @notice Set minimum deposit amount, may be changed by DAO
     function setMinOperatorStakingAmount(uint256 minAmount) external;
 
@@ -151,9 +161,10 @@ interface IDepositNodeManager {
     /**
      * @notice Change validators status before exit
      * @param count Validators count to change status
+     * @return indexes Exiting validators indexes
      * @dev Validators should exit firstly who joined at the earliest(least index)
      */
-    function requestToExitValidators(uint256 count) external;
+    function updateValidatorsExiting(uint256 count) external returns (uint256[] memory indexes);
 
     /**
      * @notice Change validators status before operator exit his validators

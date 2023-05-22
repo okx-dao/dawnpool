@@ -102,11 +102,36 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
      */
     function getNodeValidator(
         uint256 index
-    ) external view returns (address operator, bytes memory pubkey, ValidatorStatus status) {
+    ) public view returns (address operator, bytes memory pubkey, ValidatorStatus status) {
         bytes32 validatorStorageKey = _getStorageKeyByValidatorIndex(index);
         operator = _getAddress(validatorStorageKey);
         pubkey = _getBytes(validatorStorageKey);
         status = ValidatorStatus(_getUint(validatorStorageKey));
+    }
+
+    /**
+     * @notice Get contract and status of validator by index
+     * @param startIndex Start index of validators request to get
+     * @param amount Amount of validators request to get, 0 means all
+     * @return operators Operators addresses the validators belong to
+     * @return pubkeys Public keys
+     * @return statuses Validator statuses
+     */
+    function getNodeValidators(uint256 startIndex, uint256 amount) external view returns (address[] memory operators, bytes[] memory pubkeys, ValidatorStatus[] memory statuses) {
+        uint256 endIndex = _getUint(_NEXT_VALIDATOR_ID);
+        if(startIndex >= endIndex) return (operators, pubkeys, statuses);
+        if(amount != 0 && startIndex + amount < endIndex) {
+            endIndex = startIndex + amount;
+        }
+        uint256 count = endIndex - startIndex;
+        operators = new address[](count);
+        pubkeys = new bytes[](count);
+        statuses = new ValidatorStatus[](count);
+        uint256 arrIndex = 0;
+        for(uint256 index = startIndex; index < endIndex; ++index) {
+            (operators[arrIndex], pubkeys[arrIndex], statuses[arrIndex]) = getNodeValidator(index);
+            ++arrIndex;
+        }
     }
 
     /**
@@ -208,11 +233,12 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
      * @param count Validators count to change status
      * @dev Validators should exit firstly who joined at the earliest(least index)
      */
-    function requestToExitValidators(uint256 count) external onlyLatestContract(_DAWN_DEPOSIT_CONTRACT_NAME, msg.sender) {
+    function updateValidatorsExiting(uint256 count) external onlyLatestContract(_DAWN_DEPOSIT_CONTRACT_NAME, msg.sender) returns (uint256[] memory indexes){
         bytes32 validatorStorageKey;
         uint256 index = _getUint(_NEXT_EXITING_VALIDATOR_ID);
         uint256 nextValidatorId = _getUint(_NEXT_VALIDATOR_ID);
         uint256 exitingCount = 0;
+        uint256[] memory temp = new uint256[](count);
         while(exitingCount < count && index < nextValidatorId) {
             validatorStorageKey = _getStorageKeyByValidatorIndex(index);
             if(_getUint(validatorStorageKey) != uint256(ValidatorStatus.VALIDATING))
@@ -221,8 +247,13 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
                 continue;
             }
             _exitingOneValidator(index);
+            temp[exitingCount] = index;
             ++index;
             ++exitingCount;
+        }
+        indexes = new uint256[](exitingCount);
+        for(uint256 i = 0; i < exitingCount; ++i) {
+            indexes[i] = temp[i];
         }
         _setUint(_NEXT_EXITING_VALIDATOR_ID, index);
         _subUint(_ACTIVATED_VALIDATOR_COUNT, exitingCount);
