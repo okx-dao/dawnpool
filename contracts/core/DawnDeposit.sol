@@ -284,6 +284,10 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
             pubkey, abi.encodePacked(withdrawalCredentials), signature, depositDataRoot);
     }
 
+    function getWithdrawalCredentials() external view returns (bytes32) {
+        return _getWithdrawalCredentials();
+    }
+
     function _getWithdrawalCredentials() internal view returns (bytes32) {
         address rewardsVault = _getContractAddress(_REWARDS_VAULT_CONTRACT_NAME);
         return bytes32(bytes.concat(bytes12(0x010000000000000000000000), bytes20(rewardsVault)));
