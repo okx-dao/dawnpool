@@ -161,6 +161,15 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
         _distributeRewards(rewardsPEth);
     }
 
+    function getBeaconStat() external view returns (uint256 depositedValidators, uint256 beaconValidators, uint256 beaconBalance) {
+        depositedValidators = _getUint(_DEPOSITED_VALIDATORS_KEY);
+        beaconValidators = _getUint(_BEACON_ACTIVE_VALIDATORS_KEY);
+        beaconBalance = _getUint(_BEACON_ACTIVE_VALIDATOR_BALANCE_KEY);
+    }
+
+    function getBufferedEther() external view returns (uint256) {
+        return _getUint(_BUFFERED_ETHER_KEY);
+    }
 
     // ***************** public function *****************
 
