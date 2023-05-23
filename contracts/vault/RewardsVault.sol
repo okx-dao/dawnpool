@@ -14,4 +14,6 @@ contract RewardsVault is DawnBase, IRewardsVault {
         require(address(this).balance >= availableRewards, "insufficient balance");
         IDawnDeposit(_getContractAddress("DawnDeposit")).receiveRewards{value: availableRewards}();
     }
+
+    receive() external payable { }
 }
