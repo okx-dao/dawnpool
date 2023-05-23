@@ -107,7 +107,7 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
             _setUint(validatorStorageKey, uint(ValidatorStatus.WAITING_ACTIVATED));
         }
         _setUint(_NEXT_VALIDATOR_ID, startIndex + count);
-        _setUint(_AVAILABLE_VALIDATOR_COUNT, _getUint(_AVAILABLE_VALIDATOR_COUNT) + count);
+        _addUint(_AVAILABLE_VALIDATOR_COUNT, count);
         emit NodeValidatorsRegistered(nodeAddress, startIndex, count);
         return startIndex;
     }

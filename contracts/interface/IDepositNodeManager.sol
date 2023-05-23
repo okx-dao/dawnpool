@@ -19,13 +19,13 @@ interface IDepositNodeManager {
     event NodeValidatorsRegistered(address indexed nodeAddress, uint256 startIndex, uint256 count);
 
     /**
-     * @notice Validator status, should be WAITING_ACTIVATED -> ACTIVE -> EXITING -> EXITED
+     * @notice Validator status, should be WAITING_ACTIVATED -> VALIDATING -> EXITING -> EXITED
      * Get SLASHING status when operator do sth bad
      */
     enum ValidatorStatus {
         NOT_EXIST,
         WAITING_ACTIVATED,
-        ACTIVE,
+        VALIDATING,
         EXITING,
         SLASHING,
         EXITED
