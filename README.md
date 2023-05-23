@@ -27,16 +27,20 @@ You would have to define the `initialize` function for the contracts that don't 
    ```shell script
    yarn install
    ```
-2. Compile optimized contracts:
+2. Compile optimized contracts: ( default --optimizer )
 
    ```shell script
-   yarn compile --optimizer
+   yarn compile
    ```
    
 3. Update network parameters in `hardhat.config.js`. Learn more at [Hardhat config options](https://hardhat.org/config/).  
 
 4. Deploy DawnPool contracts to the selected network:
 
+   Copy [example.env](example.env) to .env file
+   config .env var: NETWORK_URL and NETWORK_API_KEY
+   replace hardhat.config.js file goerli -> accounts -> mnemonic
+   
    ```shell script
    yarn deploy-contracts --network goerli
    ```
