@@ -390,9 +390,9 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
         uint128 beaconBalanceEth1 = DENOMINATION_OFFSET * uint128(_beaconBalance);
         emit BeaconReported(_epochId, beaconBalanceEth1, _beaconValidators, _rewardsVaultBalance, msg.sender);
 
-        // 获取调用者在 dawnpool 合约中的成员 ID, 以确保调用者是 dawnpool 合约的授权成员之一
-        uint256 index = _getMemberId(msg.sender);
-        require(index != MEMBER_NOT_FOUND, "MEMBER_NOT_FOUND");
+        // 获取调用者在 dawnpool 合约中的成员 ID, 以确保调用者是 dawnpool 合约的授权成员之一 todo 二期再做
+//        uint256 index = _getMemberId(msg.sender);
+//        require(index != MEMBER_NOT_FOUND, "MEMBER_NOT_FOUND");
         // 获取当前所有已提交验证报告的位表示，将其存储到变量 bitMask 中
         uint256 bitMask = _getUint(_REPORTS_BITMASK_POSITION);
         // 定义一个掩码变量 mask，将其设置为 1 左移 index 位，这样 mask 就表示了调用者可以使用的位，即第 index 位。
@@ -525,7 +525,9 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
         uint128 _beaconBalanceEth1,
         uint128 _beaconValidators,
         uint128 _rewardsVaultBalance,
-        uint128 _exitedValidators,
+        uint128 _exitedValidators, //已经退出的验证者的数量
+        // uint256 lastRequestIdToBeFulfilled,
+        // uint256 etherToLockOnWithdrawalQueue,
         BeaconSpec memory _beaconSpec
     )
     internal
