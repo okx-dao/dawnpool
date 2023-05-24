@@ -312,9 +312,9 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
 
     /**
      * 向 dawnpool 合约中添加新的 Oracle 成员
-     * todo onlyGuardian
+     * todo
      */
-    function addOracleMember(address _member) external {
+    function addOracleMember(address _member) external onlyGuardian{
         require(address(0) != _member, "BAD_ARGUMENT");
         require(MEMBER_NOT_FOUND == _getMemberId(_member), "MEMBER_EXISTS");
         require(members.length < MAX_MEMBERS, "TOO_MANY_MEMBERS");
@@ -345,9 +345,9 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
 
     /**
      * @notice 设置 dawnpool 合约中的最低投票数量，即 quorum 值
-     * auth(MANAGE_QUORUM) todo onlyGuardian
+     * auth(MANAGE_QUORUM) todo
      */
-    function setQuorum(uint256 _quorum) external  {
+    function setQuorum(uint256 _quorum) external  onlyGuardian{
         require(0 != _quorum, "QUORUM_WONT_BE_MADE");
 
         uint256 oldQuorum = _getUint(_QUORUM_POSITION);
