@@ -533,7 +533,7 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
     internal
     {
         // 发布为一个 Completed 事件，表示前一个 Epoch 已完成
-        emit Completed(_epochId, _beaconBalanceEth1, _beaconValidators, _rewardsVaultBalance);
+        emit Completed(_epochId, _beaconBalanceEth1, _beaconValidators, _rewardsVaultBalance, _exitedValidators);
 
         // 清除上一次未成功的验证报告并将预期的 epoch ID 更新为 _epochId。
         _clearReportingAndAdvanceTo(_epochId + _beaconSpec.epochsPerFrame);
