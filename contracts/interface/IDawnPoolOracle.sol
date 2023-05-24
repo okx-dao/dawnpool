@@ -26,7 +26,8 @@ interface IDawnPoolOracle {
         uint256 epochId,
         uint128 beaconBalance,
         uint128 beaconValidators,
-        uint128 _rewardsVaultBalance
+        uint128 rewardsVaultBalance,
+        uint128 exitedValidators
     );
 
     /**
