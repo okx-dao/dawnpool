@@ -127,7 +127,7 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
             "RewardsVault insufficient balance"
         );
         require(
-            beaconBalance.add(availableRewards) >=
+            beaconBalance.add(availableRewards) >
                 _getUint(_BEACON_ACTIVE_VALIDATOR_BALANCE_KEY).add(
                     beaconValidators.add(exitedValidators).sub(_getUint(_BEACON_ACTIVE_VALIDATORS_KEY)).mul(DEPOSIT_VALUE_PER_VALIDATOR)
                 ),
@@ -148,7 +148,9 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
         _setUint(_BEACON_ACTIVE_VALIDATOR_BALANCE_KEY, beaconBalance);
 
         // claim availableRewards from RewardsVault
-        IRewardsVault(_getContractAddress(_REWARDS_VAULT_CONTRACT_NAME)).withdrawRewards(availableRewards);
+        if (availableRewards > 0) {
+            IRewardsVault(_getContractAddress(_REWARDS_VAULT_CONTRACT_NAME)).withdrawRewards(availableRewards);
+        }
 
         // calculate rewardsPEth
         // rewardsPEth / (rewards * fee/basic) = preTotalPEth / (preTotalEther + rewards * (basic - fee)/basic)
