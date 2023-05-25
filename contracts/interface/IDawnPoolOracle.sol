@@ -145,14 +145,13 @@ interface IDawnPoolOracle {
 
     /**
      * @notice Initialize the contract (version 3 for now) from scratch
-     * @param _dawnpool Address of dawnpool contract
      * @param _epochsPerFrame Number of epochs per frame
      * @param _slotsPerEpoch Number of slots per epoch
      * @param _secondsPerSlot Number of seconds per slot
      * @param _genesisTime Genesis time
      */
     function initialize(
-        address _dawnpool,
+//        address _dawnpool,
         uint64 _epochsPerFrame,
         uint64 _slotsPerEpoch,
         uint64 _secondsPerSlot,

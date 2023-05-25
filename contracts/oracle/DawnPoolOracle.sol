@@ -38,7 +38,7 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
     bytes32 internal constant _QUORUM_POSITION = keccak256("DawnPoolOracle.QUORUM_POSITION");
 
     /// Address of the dawnpool contract
-    bytes32 internal constant _DAWNPOOL_POSITION = keccak256("DawnPoolOracle.DAWNPOOL_POSITION");
+//    bytes32 internal constant _DAWNPOOL_POSITION = keccak256("DawnPoolOracle.DAWNPOOL_POSITION");
 
 
     /// Storage for the actual beacon chain specification
@@ -78,7 +78,8 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
  * @notice Return the DawnPool contract address
      */
     function getDawnDeposit() public view returns (IDawnDeposit) {
-        return IDawnDeposit(_getAddress(_DAWNPOOL_POSITION));
+
+        return IDawnDeposit(_getContractAddress("DawnDeposit"));
     }
 
 
@@ -260,7 +261,6 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
     /**
      * @notice Initialize the contract (version 3 for now) from scratch
      * @dev For details see https://github.com/lidofinance/lido-improvement-proposals/blob/develop/LIPS/lip-10.md
-     * @param _dawnpool Address of dawnpool contract
      * @param _epochsPerFrame Number of epochs per frame
      * @param _slotsPerEpoch Number of slots per epoch
      * @param _secondsPerSlot Number of seconds per slot
@@ -268,7 +268,6 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
      * onlyGuardian todo
      */
     function initialize(
-        address _dawnpool,
         uint64 _epochsPerFrame,
         uint64 _slotsPerEpoch,
         uint64 _secondsPerSlot,
@@ -290,8 +289,9 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
             _genesisTime
         );
 
-        // dawnpool 智能合约的地址
-        _setAddress(_DAWNPOOL_POSITION,_dawnpool);
+        // dawnpool 智能合约的地址 todo
+//        _setAddress(_DAWNPOOL_POSITION,_dawnpool);
+
 
         //Quorum 值用于对 dawnpool DAO 委员会成员进行投票,将其初始化为 1，表示只需要一个委员会成员的投票即可生效
         _setUint(_QUORUM_POSITION, 1);
@@ -579,12 +579,18 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
         return (_getTime() - _beaconSpec.genesisTime) / (_beaconSpec.slotsPerEpoch * _beaconSpec.secondsPerSlot);
     }
 
+
     /**
      *  首先通过 _epochId 除以 _beaconSpec.epochsPerFrame 来计算出该 Epoch 所处的 Frame 编号，然后将其乘以 _beaconSpec.epochsPerFrame，即可得到该 Frame 的第一个 Epoch ID
      * @notice Epoch 所属的 Frame 的第一个 Epoch ID
      */
     function _getFrameFirstEpochId(uint256 _epochId, BeaconSpec memory _beaconSpec) internal pure returns (uint256) {
         return _epochId / _beaconSpec.epochsPerFrame * _beaconSpec.epochsPerFrame;
+    }
+
+    function getFrameFirstEpochId() external view returns (uint256) {
+        BeaconSpec memory beaconSpec = _getBeaconSpec();
+        return _getFrameFirstEpochId(_getCurrentEpochId(beaconSpec),beaconSpec);
     }
 
     /**
