@@ -9,6 +9,10 @@ import "../interface/IDepositNodeManager.sol";
 import "../interface/IRewardsVault.sol";
 import "../deposit_contract/deposit_contract.sol";
 
+interface NodeManager {
+    function distributeNodeOperatorRewards(uint256 pethAmount) external;
+}
+
 contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
     using SafeMath for uint256;
 
@@ -231,7 +235,9 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
 
     // distribute pETH as rewards to NodeOperators
     function _distributeNodeOperatorRewards(uint256 rewardsPEth) internal {
-        // todo
+        address nodeManagerAddr = _getContractAddress(_NODE_OPERATOR_REGISTER_CONTRACT_NAME);
+        _mint(nodeManagerAddr, rewardsPEth);
+        NodeManager(nodeManagerAddr).distributeNodeOperatorRewards(rewardsPEth);
     }
 
     function _stake() internal returns (uint256) {
