@@ -3,7 +3,6 @@ const { anyValue } = require('@nomicfoundation/hardhat-chai-matchers/withArgs');
 const { expect } = require('chai');
 const { ethers } = require('hardhat');
 const { deployContracts, getDeployedContractAddress } = require('../utils/deployContracts');
-const { SignerWithAddress } = require('@nomiclabs/hardhat-ethers/signers');
 
 describe('DepositNodeManager', function () {
   // We define a fixture to reuse the same setup in every test.
@@ -237,13 +236,7 @@ describe('DepositNodeManager', function () {
   });
 
   describe('ActivateValidators', function () {
-    async function addValidatorsAndDeposit(
-      nodeManager: any,
-      account: SignerWithAddress,
-      pubkeys: string,
-      preSignatures: string,
-      depositSignatures: string,
-    ) {
+    async function addValidatorsAndDeposit(nodeManager, account, pubkeys, preSignatures, depositSignatures) {
       await nodeManager.connect(account).registerNodeOperator(account.address);
       const { nodeAddress } = await nodeManager.getNodeOperator(account.address);
       const nodeOperator = await ethers.getContractAt('IDepositNodeOperator', nodeAddress);
