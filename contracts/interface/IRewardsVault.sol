@@ -2,5 +2,7 @@
 pragma solidity ^0.8.17;
 
 interface IRewardsVault {
+    event LogETHReceived(uint256 amount);
+
     function withdrawRewards(uint256 availableRewards) external;
 }

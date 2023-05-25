@@ -15,5 +15,7 @@ contract RewardsVault is DawnBase, IRewardsVault {
         IDawnDeposit(_getContractAddress("DawnDeposit")).receiveRewards{value: availableRewards}();
     }
 
-    receive() external payable { }
+    receive() external payable {
+        emit LogETHReceived(msg.value);
+    }
 }
