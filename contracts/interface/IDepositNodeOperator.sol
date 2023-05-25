@@ -60,6 +60,9 @@ interface IDepositNodeOperator {
      */
     function activateValidator(uint256 index, bytes calldata pubkey) external;
 
+    /// @notice Get the operator claimable staking and node rewards
+    function getClaimableRewards() external view returns (uint256);
+
     /// @notice Claim the operator staking and node rewards
     function claimRewards() external;
 

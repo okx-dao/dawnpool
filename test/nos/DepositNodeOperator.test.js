@@ -86,11 +86,9 @@ describe('DepositNodeOperator', function () {
       const pubkeys = pubkey1 + removePrefix(pubkey2);
       const preSignatures = preSignature1 + removePrefix(preSignature2);
       const depositSignatures = depositSignature1 + removePrefix(depositSignature2);
-      await expect(
-        nodeOperator.addValidators(pubkeys, preSignatures, depositSignatures, {
-          value: BigNumber.from(minOperatorStakingAmount).mul(2),
-        }),
-      );
+      await nodeOperator.addValidators(pubkeys, preSignatures, depositSignatures, {
+        value: BigNumber.from(minOperatorStakingAmount).mul(2),
+      });
       expect(await nodeOperator.getValidatingValidatorsCount()).to.equal(0);
       const dawnDepositAddr = await getDeployedContractAddress('DawnDeposit');
       const pethERC20 = await ethers.getContractAt('IERC20', dawnDepositAddr);

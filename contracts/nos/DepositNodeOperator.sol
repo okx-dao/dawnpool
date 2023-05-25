@@ -131,6 +131,7 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
         return _getUint(keccak256(abi.encodePacked("DepositNodeManager.validatingValidatorsCount", getOperator())));
     }
 
+    /// @notice Get the operator claimable staking and node rewards
     function getClaimableRewards() external view returns (uint256) {
         return _getStakeRewards(_getDawnDeposit())
             + IDepositNodeManager(_getDepositNodeManager()).getClaimableNodeRewards(getOperator());
