@@ -26,7 +26,7 @@ async function main() {
   const dawnPoolOracle = await dawnPoolOracleFactory.deploy(dawnStorage.address);
   console.log('deploy dawnPoolOracle Contract to:', dawnPoolOracle.address)
 
-  //
+  //genesisTime goerli:1616508000 mainnet:1606824023 local:1639659600
   await dawnPoolOracle.initialize(225, 32, 12, 1616508000)
   await dawnPoolOracle.addOracleMember("0x4c3aEEE3410B92c30A5B99DDE3CaFe3Eb203A70B")
 
