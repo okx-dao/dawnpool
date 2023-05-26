@@ -43,9 +43,6 @@ describe('InteractionTest', function () {
     //getEtherByPEth、getPEthByEther
     await chai.assert.equal(await dawnDeposit.getEtherByPEth(1), 1);
     await chai.assert.equal(await dawnDeposit.getPEthByEther(1), 1);
-
-    // await expect(dawnDeposit.handleOracleReport(0, 0, 0, 0, 0)).to.be.revertedWith('unprofitable')
-
   });
 
   // Step 2: Node operator stake
@@ -94,7 +91,16 @@ describe('InteractionTest', function () {
 
   // Step 4: Handle oracle report TODO
   it('Handle oracle report', async function () {
+    const [owner, oracleMember, otherAccount] = await ethers.getSigners()
      const { dawnPoolOracle } = await getDeployedContracts();
+
+    const epochId = await dawnPoolOracle.getFrameFirstEpochId()
+    //(epochId, beaconBalance, beaconValidators, rewardsVaultBalance, exitedValidators)
+    // 无收益
+    await expect(dawnPoolOracle.reportBeacon(epochId, 0, 0, 0, 0)).to.be.revertedWith('unprofitable');
+    // 奖励库余额不够
+    await expect(dawnPoolOracle.reportBeacon(epochId, 0, 0, 1, 0)).to.be.revertedWith('RewardsVault insufficient balance');
+    await dawnPoolOracle.reportBeacon(epochId, ethers.utils.parseEther('10'), 0, 0, 0)
 
   });
 

@@ -77,7 +77,7 @@ async function deployContracts() {
   storageAddr = await dawnStorage.getAddress(keccak256(encodePacked('contract.address', 'DawnPoolOracle')));
   const dawnPoolOracle = await ethers.getContractAt('DawnPoolOracle', storageAddr);
   await dawnPoolOracle.initialize(225, 32, 12, 1639659600)
-  await dawnPoolOracle.addOracleMember(oracleMember.address)
+  await dawnPoolOracle.addOracleMember(owner.address)
   return dawnStorage;
 }
 

@@ -56,7 +56,7 @@ async function claimRewards() {
   const DepositNodeOperator = await ethers.getContractFactory('DepositNodeOperator');
   const nodeOperator = await DepositNodeOperator.attach(nodeAddress);
   const claimableRewards = await nodeOperator.getClaimableRewards();
-  assert(claimableRewards.eq(0), 'No rewards can be claimed!');
+  assert(claimableRewards.gt(0), 'No rewards can be claimed!');
   const tx = await nodeOperator.claimRewards();
   return { nodeManager, nodeOperator, dawnDeposit, claimableRewards, tx };
 }
