@@ -7,6 +7,10 @@ const DawnStorage = ethers.getContractFactory('DawnStorage');
 const Contracts = {
   // core
   DawnDeposit: ethers.getContractFactory('DawnDeposit'),
+  DawnInsurance: ethers.getContractFactory('DawnInsurance'),
+  DawnTreasury: ethers.getContractFactory('DawnTreasury'),
+  // oracle
+  DawnPoolOracle: ethers.getContractFactory('DawnPoolOracle'),
   // Vault
   RewardsVault: ethers.getContractFactory('RewardsVault'),
   // Node operator manager
@@ -67,6 +71,12 @@ async function deployContracts() {
   const { depositContractAddr } = await getChainInfo();
   await dawnStorage.setAddress(keccak256(encodePacked('contract.address', 'DepositContract')), depositContractAddr);
   await dawnStorage.setDeployedStatus();
+
+  // init oracle
+  const [owner, oracleMember, otherAccount] = await ethers.getSigners()
+  const dawnPoolOracle = await ethers.getContractAt('DawnPoolOracle', storageAddr);
+  await dawnPoolOracle.initialize(225, 32, 12, 1639659600)
+  await dawnPoolOracle.addOracleMember(oracleMember.address)
   return dawnStorage;
 }
 
