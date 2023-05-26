@@ -38,7 +38,7 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
     bytes32 internal constant _QUORUM_POSITION = keccak256("DawnPoolOracle.QUORUM_POSITION");
 
     /// Address of the dawnpool contract
-    bytes32 internal constant _DAWNPOOL_POSITION = keccak256("DawnPoolOracle.DAWNPOOL_POSITION");
+//    bytes32 internal constant _DAWNPOOL_POSITION = keccak256("DawnPoolOracle.DAWNPOOL_POSITION");
 
 
     /// Storage for the actual beacon chain specification
@@ -78,7 +78,8 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
  * @notice Return the DawnPool contract address
      */
     function getDawnDeposit() public view returns (IDawnDeposit) {
-        return IDawnDeposit(_getAddress(_DAWNPOOL_POSITION));
+
+        return IDawnDeposit(_getContractAddress("DawnDeposit"));
     }
 
 
@@ -260,7 +261,6 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
     /**
      * @notice Initialize the contract (version 3 for now) from scratch
      * @dev For details see https://github.com/lidofinance/lido-improvement-proposals/blob/develop/LIPS/lip-10.md
-     * @param _dawnpool Address of dawnpool contract
      * @param _epochsPerFrame Number of epochs per frame
      * @param _slotsPerEpoch Number of slots per epoch
      * @param _secondsPerSlot Number of seconds per slot
@@ -268,7 +268,6 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
      * onlyGuardian todo
      */
     function initialize(
-        address _dawnpool,
         uint64 _epochsPerFrame,
         uint64 _slotsPerEpoch,
         uint64 _secondsPerSlot,
@@ -290,12 +289,12 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
             _genesisTime
         );
 
-        // dawnpool 智能合约的地址
-        _setAddress(_DAWNPOOL_POSITION,_dawnpool);
+        // dawnpool 智能合约的地址 todo
+//        _setAddress(_DAWNPOOL_POSITION,_dawnpool);
+
 
         //Quorum 值用于对 dawnpool DAO 委员会成员进行投票,将其初始化为 1，表示只需要一个委员会成员的投票即可生效
         _setUint(_QUORUM_POSITION, 1);
-
         emit QuorumChanged(1);
 
         // set expected epoch to the first epoch for the next frame
@@ -305,6 +304,7 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
         _setUint(_EXPECTED_EPOCH_ID_POSITION,expectedEpoch);
         emit ExpectedEpochIdUpdated(expectedEpoch);
 
+
 //        initialized();
     }
 
@@ -312,7 +312,7 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
 
     /**
      * 向 dawnpool 合约中添加新的 Oracle 成员
-     *
+     * todo
      */
     function addOracleMember(address _member) external onlyGuardian{
         require(address(0) != _member, "BAD_ARGUMENT");
@@ -347,7 +347,7 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
      * @notice 设置 dawnpool 合约中的最低投票数量，即 quorum 值
      * auth(MANAGE_QUORUM) todo
      */
-    function setQuorum(uint256 _quorum) external onlyGuardian {
+    function setQuorum(uint256 _quorum) external  onlyGuardian{
         require(0 != _quorum, "QUORUM_WONT_BE_MADE");
 
         uint256 oldQuorum = _getUint(_QUORUM_POSITION);
@@ -390,7 +390,7 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
         uint128 beaconBalanceEth1 = DENOMINATION_OFFSET * uint128(_beaconBalance);
         emit BeaconReported(_epochId, beaconBalanceEth1, _beaconValidators, _rewardsVaultBalance, msg.sender);
 
-        // 获取调用者在 dawnpool 合约中的成员 ID, 以确保调用者是 dawnpool 合约的授权成员之一
+        // 获取调用者在 dawnpool 合约中的成员 ID, 以确保调用者是 dawnpool 合约的授权成员之一 todo 二期再做
         uint256 index = _getMemberId(msg.sender);
         require(index != MEMBER_NOT_FOUND, "MEMBER_NOT_FOUND");
         // 获取当前所有已提交验证报告的位表示，将其存储到变量 bitMask 中
@@ -525,13 +525,15 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
         uint128 _beaconBalanceEth1,
         uint128 _beaconValidators,
         uint128 _rewardsVaultBalance,
-        uint128 _exitedValidators,
+        uint128 _exitedValidators, //已经退出的验证者的数量
+        // uint256 lastRequestIdToBeFulfilled,
+        // uint256 etherToLockOnWithdrawalQueue,
         BeaconSpec memory _beaconSpec
     )
     internal
     {
         // 发布为一个 Completed 事件，表示前一个 Epoch 已完成
-        emit Completed(_epochId, _beaconBalanceEth1, _beaconValidators, _rewardsVaultBalance);
+        emit Completed(_epochId, _beaconBalanceEth1, _beaconValidators, _rewardsVaultBalance, _exitedValidators);
 
         // 清除上一次未成功的验证报告并将预期的 epoch ID 更新为 _epochId。
         _clearReportingAndAdvanceTo(_epochId + _beaconSpec.epochsPerFrame);
@@ -577,12 +579,18 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
         return (_getTime() - _beaconSpec.genesisTime) / (_beaconSpec.slotsPerEpoch * _beaconSpec.secondsPerSlot);
     }
 
+
     /**
      *  首先通过 _epochId 除以 _beaconSpec.epochsPerFrame 来计算出该 Epoch 所处的 Frame 编号，然后将其乘以 _beaconSpec.epochsPerFrame，即可得到该 Frame 的第一个 Epoch ID
      * @notice Epoch 所属的 Frame 的第一个 Epoch ID
      */
     function _getFrameFirstEpochId(uint256 _epochId, BeaconSpec memory _beaconSpec) internal pure returns (uint256) {
         return _epochId / _beaconSpec.epochsPerFrame * _beaconSpec.epochsPerFrame;
+    }
+
+    function getFrameFirstEpochId() external view returns (uint256) {
+        BeaconSpec memory beaconSpec = _getBeaconSpec();
+        return _getFrameFirstEpochId(_getCurrentEpochId(beaconSpec),beaconSpec);
     }
 
     /**
