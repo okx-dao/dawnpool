@@ -85,7 +85,7 @@ describe('InteractionTest', function () {
     const pethERC20 = await ethers.getContractAt('IERC20', dawnDeposit.address);
     const owner = await ethers.getSigner();
     const withdrawAddress = await nodeManager.getWithdrawAddress(owner.address);
-    const balanceBefore = await pethERC20.balanceOf(withdrawAddress);
+    const balanceBefore = await pethERC20.balanceOf(nodeOperator.address);
     const activeValidators = await nodeOperator.getActiveValidatorsCount();
     const minStakingAmount = (await nodeManager.getMinOperatorStakingAmount()).mul(activeValidators);
     const requiredBalance = await dawnDeposit.getPEthByEther(minStakingAmount);
