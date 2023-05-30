@@ -34,6 +34,8 @@ async function main() {
   await dawnStorage.setUint(TREASURY_FEE_KEY, 0);
   await dawnStorage.setUint(NODE_OPERATOR_FEE_KEY, 5000);
 
+  await dawnStorage.setAddress(keccak256(encodePacked('contract.address', 'DepositContract')), '0xff50ed3d0ec03aC01D4C79aAd74928BFF48a7b2b');
+
 }
 
 // We recommend this pattern to be able to use async/await everywhere
