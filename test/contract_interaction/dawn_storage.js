@@ -3,7 +3,7 @@ const { keccak256, encodePacked } = require('web3-utils');
 const { readJSON } = require('../../scripts/helpers/fs');
 const { deployContracts } = require('../utils/deployContracts');
 
-let dawnStorage, dawnDeposit, nodeManager, rewardsVault;
+let dawnStorage, dawnDeposit, nodeManager, rewardsVault, dawnPoolOracle;
 
 async function getDawnStorageAddress() {
   const chainId = await web3.eth.getChainId();
@@ -40,6 +40,7 @@ async function getDeployedContracts() {
   const DawnDeposit = await ethers.getContractFactory('DawnDeposit');
   const DepositNodeManager = await ethers.getContractFactory('DepositNodeManager');
   const RewardsVault = await ethers.getContractFactory('RewardsVault');
+  const DawnPoolOracle = await ethers.getContractFactory('DawnPoolOracle');
 
   if (!dawnStorage) {
     const dawnStorageAddr = await getDawnStorageAddress();
@@ -47,8 +48,9 @@ async function getDeployedContracts() {
     dawnDeposit = await DawnDeposit.attach(await getAddress('DawnDeposit'));
     nodeManager = await DepositNodeManager.attach(await getAddress('DepositNodeManager'));
     rewardsVault = await RewardsVault.attach(await getAddress('RewardsVault'));
+    dawnPoolOracle = await DawnPoolOracle.attach(await getAddress('DawnPoolOracle'));
   }
-  return { dawnStorage, dawnDeposit, nodeManager, rewardsVault };
+  return { dawnStorage, dawnDeposit, nodeManager, rewardsVault, dawnPoolOracle};
 }
 
 module.exports = {
