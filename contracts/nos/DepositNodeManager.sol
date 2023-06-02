@@ -28,7 +28,7 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
     error ZeroAddress();
     error OperatorAlreadyExist();
     error InconsistentNodeOperatorAddress(address operator, address required, address caller);
-    error InactiveNodeOperator();
+    error InactiveNodeOperator(address operator);
     error InconsistentValidatorStatus(uint256 index, uint256 required, uint256 current);
     error NotReceiveEnoughRewards(uint256 required, uint256 current);
     error NotExistOperator();
@@ -53,7 +53,6 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
         ).deployDepositNodeOperator(msg.sender);
         _setAddress(operatorStorageKey, nodeAddress);
         _setBool(operatorStorageKey, true);
-        _setUint(_getClaimedRewardsPerValidatorStorageKey(msg.sender), type(uint256).max); // init operator claimed rewards
         emit NodeOperatorRegistered(msg.sender, nodeAddress);
         _setAddress(_getWithdrawAddressStorageKey(msg.sender), withdrawAddress);
         emit WithdrawAddressSet(msg.sender, withdrawAddress);
@@ -82,7 +81,7 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
     function registerValidator(address operator, bytes calldata pubkey) external returns (uint256) {
         (address nodeAddress, bool isActive) = getNodeOperator(operator);
         if(msg.sender != nodeAddress) revert InconsistentNodeOperatorAddress(operator, nodeAddress, msg.sender);
-        if(!isActive) revert InactiveNodeOperator();
+        if(!isActive) revert InactiveNodeOperator(operator);
         uint256 index = _getUint(_NEXT_VALIDATOR_ID);
         bytes32 validatorStorageKey = _getStorageKeyByValidatorIndex(index);
         _setAddress(validatorStorageKey, operator);
@@ -143,6 +142,7 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
         address operator;
         address nodeAddress;
         uint256 index;
+        bool isActive;
         for(uint256 i = 0; i < indexes.length; ++i){
             index = indexes[i];
             storageKey = _getStorageKeyByValidatorIndex(index);
@@ -150,7 +150,8 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
                 revert InconsistentValidatorStatus(index, uint256(ValidatorStatus.WAITING_ACTIVATED), _getUint(storageKey));
             bytes memory pubkey = _getBytes(storageKey);
             operator = _getAddress(storageKey);
-            nodeAddress = _getAddress(_getStorageKeyByOperatorAddress(operator));
+            (nodeAddress, isActive) = getNodeOperator(operator);
+            if(!isActive) revert InactiveNodeOperator(operator);
             IDepositNodeOperator(nodeAddress).activateValidator(index, pubkey);
             _updateRewards(operator);
             _setUint(storageKey, uint256(ValidatorStatus.VALIDATING));
