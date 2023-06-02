@@ -9,6 +9,7 @@ const { ethers } = require('hardhat');
 const { anyValue } = require('@nomicfoundation/hardhat-chai-matchers/withArgs');
 const { BigNumber } = require('ethers');
 const { getDeployedContracts } = require('./dawn_storage');
+const chai = require('chai');
 
 describe('InteractionTest', function () {
   const pubkey1 = '0x957f3a659faa3cdcd21be00a05b7bbca25a41b2f2384166ca5872363c37110b3dedbab1261179338fadc4ff70b4bea57';
@@ -28,8 +29,20 @@ describe('InteractionTest', function () {
 
   // Step 1: user stake TODO
   it('User stake', async function () {
+    const owner = await ethers.getSigner();
     const { dawnDeposit } = await getDeployedContracts();
-    dawnDeposit.stake({ value: ethers.utils.parseEther('60') });
+    // test stake 0
+    await expect(dawnDeposit.stake({ from: owner.address, value: 0 })).to.be.revertedWith('STAKE_ZERO_ETHER');
+
+    // test stake > 0 （peth : eth = 1 : 1）
+    await dawnDeposit.stake({ value: ethers.utils.parseEther('60') });
+    await chai.assert.equal(await dawnDeposit.balanceOf(owner.address), ethers.utils.parseEther('60').toString());
+    //getTotalPooledEther、getBufferedEther
+    await chai.assert.equal(await dawnDeposit.getTotalPooledEther(), ethers.utils.parseEther('60').toString());
+    await chai.assert.equal(await dawnDeposit.getBufferedEther(), ethers.utils.parseEther('60').toString());
+    //getEtherByPEth、getPEthByEther
+    await chai.assert.equal(await dawnDeposit.getEtherByPEth(1), 1);
+    await chai.assert.equal(await dawnDeposit.getPEthByEther(1), 1);
   });
 
   // Step 2: Node operator stake
@@ -77,7 +90,19 @@ describe('InteractionTest', function () {
   });
 
   // Step 4: Handle oracle report TODO
-  it('Handle oracle report', async function () {});
+  it('Handle oracle report', async function () {
+    const [owner, oracleMember, otherAccount] = await ethers.getSigners()
+     const { dawnPoolOracle } = await getDeployedContracts();
+
+    const epochId = await dawnPoolOracle.getFrameFirstEpochId()
+    //(epochId, beaconBalance, beaconValidators, rewardsVaultBalance, exitedValidators)
+    // 无收益
+    await expect(dawnPoolOracle.reportBeacon(epochId, 0, 0, 0, 0)).to.be.revertedWith('unprofitable');
+    // 奖励库余额不够
+    await expect(dawnPoolOracle.reportBeacon(epochId, 0, 0, 1, 0)).to.be.revertedWith('RewardsVault insufficient balance');
+    await dawnPoolOracle.reportBeacon(epochId, ethers.utils.parseEther('10'), 0, 0, 0)
+
+  });
 
   // Step 5: Claim rewards
   it('Should claim rewards succeeded', async function () {
@@ -85,7 +110,7 @@ describe('InteractionTest', function () {
     const pethERC20 = await ethers.getContractAt('IERC20', dawnDeposit.address);
     const owner = await ethers.getSigner();
     const withdrawAddress = await nodeManager.getWithdrawAddress(owner.address);
-    const balanceBefore = await pethERC20.balanceOf(withdrawAddress);
+    const balanceBefore = await pethERC20.balanceOf(nodeOperator.address);
     const activeValidators = await nodeOperator.getActiveValidatorsCount();
     const minStakingAmount = (await nodeManager.getMinOperatorStakingAmount()).mul(activeValidators);
     const requiredBalance = await dawnDeposit.getPEthByEther(minStakingAmount);

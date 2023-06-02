@@ -3,11 +3,8 @@ pragma solidity ^0.8.17;
 
 import "../interface/IRewardsVault.sol";
 import "../base/DawnBase.sol";
+import "../interface/IDawnDeposit.sol";
 
-interface IDawnDeposit {
-    // receive ETH rewards from RewardsVault
-    function receiveRewards() external payable;
-}
 
 contract RewardsVault is DawnBase, IRewardsVault {
     constructor(IDawnStorageInterface dawnStorageAddress) DawnBase(dawnStorageAddress) {}
@@ -16,5 +13,9 @@ contract RewardsVault is DawnBase, IRewardsVault {
         require(msg.sender == _getContractAddress("DawnDeposit"), "only call by DawnDeposit");
         require(address(this).balance >= availableRewards, "insufficient balance");
         IDawnDeposit(_getContractAddress("DawnDeposit")).receiveRewards{value: availableRewards}();
+    }
+
+    receive() external payable {
+        emit LogETHReceived(msg.value);
     }
 }
