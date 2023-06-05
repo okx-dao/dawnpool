@@ -54,11 +54,6 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
         return _stake();
     }
 
-    // user unstake pETH from DawnPool returns ETH todo
-    function unstake(uint pEthAmount) external returns (uint256) {
-        return pEthAmount;
-    }
-
     // receive pETH from Insurance, and burn pETH
     function receiveFromInsurance(uint256 pEthAmount) external {
         require(msg.sender == _getContractAddress(_INSURANCE_CONTRACT_NAME), "receive not from insurance");

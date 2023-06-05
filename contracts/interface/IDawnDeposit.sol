@@ -11,9 +11,6 @@ interface IDawnDeposit {
     // user stake ETH to DawnPool returns pETH
     function stake() external payable returns (uint256);
 
-    // user unstake pETH from DawnPool returns ETH
-    function unstake(uint pEthAmount) external returns (uint256);
-
     // receive ETH rewards from RewardsVault
     function receiveRewards() external payable;
 
