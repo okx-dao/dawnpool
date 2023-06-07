@@ -5,22 +5,12 @@ import "../interface/IDawnDeposit.sol";
 import "../token/DawnTokenPETH.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "../base/DawnBase.sol";
+import "../interface/IDepositNodeManager.sol";
+import "../interface/IRewardsVault.sol";
+import "../deposit_contract/deposit_contract.sol";
 
-interface IRewardsVault {
-    function withdrawRewards(uint256 availableRewards) external;
-}
-
-interface IDepositContract {
-    function deposit(
-        bytes calldata pubkey,
-        bytes calldata withdrawal_credentials,
-        bytes calldata signature,
-        bytes32 deposit_data_root
-    ) external payable;
-}
-
-interface IDepositNodeManager {
-    function getNodeOperator(address operator) external returns(address, bool);
+interface NodeManager {
+    function distributeNodeOperatorRewards(uint256 pethAmount) external;
 }
 
 contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
@@ -121,6 +111,8 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
 
     // receive ETH rewards from RewardsVault
     function receiveRewards() external payable {
+        // update buffered ether
+        _addUint(_BUFFERED_ETHER_KEY, msg.value);
         emit LogReceiveRewards(msg.value);
     }
 
@@ -133,47 +125,57 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
         uint256 availableRewards,
         uint256 exitedValidators
     ) external {
-//        require(msg.sender == _getContractAddress(_ORACLE_CONTRACT_NAME), "only call by DawnPoolOracle");
-//        require(
-//            availableRewards <= _getContractAddress(_REWARDS_VAULT_CONTRACT_NAME).balance,
-//            "RewardsVault insufficient balance"
-//        );
-//        require(
-//            beaconBalance.add(availableRewards) >=
-//                _getUint(_BEACON_BALANCE_KEY).add(
-//                    beaconValidators.sub(_getUint(_BEACON_VALIDATORS_KEY)).mul(DEPOSIT_VALUE_PER_VALIDATOR) // todo：需要考虑质押1ETH
-//                ),
-//            "unprofitable"
-//        );
-//
-//        // todo：解质押
-//        uint256 rewards = beaconBalance.add(availableRewards).sub(
-//            _getUint(_BEACON_BALANCE_KEY).add(
-//                beaconValidators.sub(_getUint(_BEACON_VALIDATORS_KEY)).mul(DEPOSIT_VALUE_PER_VALIDATOR)
-//            )
-//        );
-//
-//        uint256 preTotalEther = getTotalPooledEther();
-//        uint256 preTotalPEth = totalSupply();
-//
-//        // store beacon balance and validators
-//        _setUint(_BEACON_ACTIVE_VALIDATORS_KEY, beaconValidators);
-//        _setUint(_BEACON_ACTIVE_VALIDATOR_BALANCE_KEY, beaconBalance);
-//
-//        // claim availableRewards from RewardsVault
-//        IRewardsVault(_getContractAddress(_REWARDS_VAULT_CONTRACT_NAME)).withdrawRewards(availableRewards);
-//
-//        // calculate rewardsPEth
-//        // rewardsPEth / (rewards * fee/basic) = preTotalPEth / (preTotalEther + rewards * (basic - fee)/basic)
-//        // rewardsPEth / (rewards * fee) = preTotalPEth / (preTotalEther * basic + rewards * (basic - fee))
-//        // rewardsPEth = preTotalPEth * rewards * fee / (preTotalEther * basic + rewards * (basic - fee))
-//        uint256 rewardsPEth = preTotalPEth.mul(rewards).mul(_getUint(_FEE_KEY)).div(
-//            preTotalEther.mul(_FEE_BASIC).add(rewards.mul(_FEE_BASIC.sub(_getUint(_FEE_KEY))))
-//        );
-//        // distributeRewards
-//        _distributeRewards(rewardsPEth);
+        require(msg.sender == _getContractAddress(_ORACLE_CONTRACT_NAME), "only call by DawnPoolOracle");
+        require(
+            availableRewards <= _getContractAddress(_REWARDS_VAULT_CONTRACT_NAME).balance,
+            "RewardsVault insufficient balance"
+        );
+        require(
+            beaconBalance.add(availableRewards) >
+                _getUint(_BEACON_ACTIVE_VALIDATOR_BALANCE_KEY).add(
+                    beaconValidators.add(exitedValidators).sub(_getUint(_BEACON_ACTIVE_VALIDATORS_KEY)).mul(DEPOSIT_VALUE_PER_VALIDATOR)
+                ),
+            "unprofitable"
+        );
+
+        uint256 rewards = beaconBalance.add(availableRewards).sub(
+            _getUint(_BEACON_ACTIVE_VALIDATOR_BALANCE_KEY).add(
+                beaconValidators.add(exitedValidators).sub(_getUint(_BEACON_ACTIVE_VALIDATORS_KEY)).mul(DEPOSIT_VALUE_PER_VALIDATOR)
+            )
+        );
+
+        uint256 preTotalEther = getTotalPooledEther();
+        uint256 preTotalPEth = totalSupply();
+
+        // store beacon balance and validators
+        _setUint(_BEACON_ACTIVE_VALIDATORS_KEY, beaconValidators);
+        _setUint(_BEACON_ACTIVE_VALIDATOR_BALANCE_KEY, beaconBalance);
+
+        // claim availableRewards from RewardsVault
+        if (availableRewards > 0) {
+            IRewardsVault(_getContractAddress(_REWARDS_VAULT_CONTRACT_NAME)).withdrawRewards(availableRewards);
+        }
+
+        // calculate rewardsPEth
+        // rewardsPEth / (rewards * fee/basic) = preTotalPEth / (preTotalEther + rewards * (basic - fee)/basic)
+        // rewardsPEth / (rewards * fee) = preTotalPEth / (preTotalEther * basic + rewards * (basic - fee))
+        // rewardsPEth = preTotalPEth * rewards * fee / (preTotalEther * basic + rewards * (basic - fee))
+        uint256 rewardsPEth = preTotalPEth.mul(rewards).mul(_getUint(_FEE_KEY)).div(
+            preTotalEther.mul(_FEE_BASIC).add(rewards.mul(_FEE_BASIC.sub(_getUint(_FEE_KEY))))
+        );
+        // distributeRewards
+        _distributeRewards(rewardsPEth);
     }
 
+    function getBeaconStat() external view returns (uint256 depositedValidators, uint256 beaconValidators, uint256 beaconBalance) {
+        depositedValidators = _getUint(_DEPOSITED_VALIDATORS_KEY);
+        beaconValidators = _getUint(_BEACON_ACTIVE_VALIDATORS_KEY);
+        beaconBalance = _getUint(_BEACON_ACTIVE_VALIDATOR_BALANCE_KEY);
+    }
+
+    function getBufferedEther() external view returns (uint256) {
+        return _getUint(_BUFFERED_ETHER_KEY);
+    }
 
     // ***************** public function *****************
 
@@ -233,7 +235,9 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
 
     // distribute pETH as rewards to NodeOperators
     function _distributeNodeOperatorRewards(uint256 rewardsPEth) internal {
-        // todo
+        address nodeManagerAddr = _getContractAddress(_NODE_OPERATOR_REGISTER_CONTRACT_NAME);
+        _mint(nodeManagerAddr, rewardsPEth);
+        NodeManager(nodeManagerAddr).distributeNodeOperatorRewards(rewardsPEth);
     }
 
     function _stake() internal returns (uint256) {
@@ -286,6 +290,10 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
         );
         IDepositContract(_getDepositContract()).deposit{ value: amount }(
             pubkey, abi.encodePacked(withdrawalCredentials), signature, depositDataRoot);
+    }
+
+    function getWithdrawalCredentials() external view returns (bytes32) {
+        return _getWithdrawalCredentials();
     }
 
     function _getWithdrawalCredentials() internal view returns (bytes32) {
