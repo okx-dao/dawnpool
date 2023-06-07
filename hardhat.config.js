@@ -98,15 +98,21 @@ module.exports = {
         count: 10,
         accountsBalance: '1000000000000000000000',
       },
-      goerli: {
-        url: NETWORK_URL + NETWORK_API_KEY,
-        chainId: 5,
-        timeout: 60000 * 10,
+    },
+    goerli: {
+      url: NETWORK_URL + NETWORK_API_KEY,
+      chainId: 5,
+      timeout: 60000 * 10,
+      accounts: {
+        mnemonic: 'that hockey memory flock solid crunch marine very fruit audit diet basic',
       },
-      mainnet: {
-        url: NETWORK_URL + NETWORK_API_KEY,
-        chainId: 1,
-        timeout: 60000 * 10,
+    },
+    mainnet: {
+      url: NETWORK_URL + NETWORK_API_KEY,
+      chainId: 1,
+      timeout: 60000 * 10,
+      accounts: {
+        mnemonic: 'that hockey memory flock solid crunch marine very fruit audit diet basic',
       },
     },
   },
