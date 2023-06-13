@@ -22,6 +22,9 @@ contract Burner is IBurner, DawnBase {
     error PEthNotEnough();
     error ZeroBurnAmount();
 
+    // constructor
+    constructor(IDawnStorageInterface dawnStorageAddress) DawnBase(dawnStorageAddress) {}
+
 
     function requestBurnPEth(address from, uint256 amount) external onlyGuardian {
         if (from == address(0)) revert ZeroAddress();
@@ -46,7 +49,7 @@ contract Burner is IBurner, DawnBase {
         emit LogRequestBurnMyPEth(amount);
     }
 
-    function submitBurnRequest(uint256 burnedPEthAmount) external {
+    function commitPEthToBurn(uint256 burnedPEthAmount) external {
         require(msg.sender == _getContractAddress(_DAWN_DEPOSIT_CONTRACT_NAME), "caller is not DawnDeposit contract");
         require(burnedPEthAmount <= _getPEthBurnRequest(), "burnedPEthAmount more than totalPEthBurnRequested");
         // update
