@@ -24,4 +24,7 @@ interface IDawnWithdraw {
     function fulfillment(uint256 lastRequestIdToBeFulfilled) external payable;
 
     function claimEther(uint256 requestId) external;
+
+    function getUnfulfilledTotalPEth() external view returns (uint256);
+    function getUnfulfilledTotalEth() external view returns (uint256);
 }

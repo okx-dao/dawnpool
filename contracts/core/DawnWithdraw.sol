@@ -110,6 +110,20 @@ contract DawnWithdraw is IDawnWithdraw, DawnBase, DawnWithdrawStorageLayout {
         emit LogClaimed(msg.sender, ethAmount);
     }
 
+    function getUnfulfilledTotalPEth() public view returns (uint256) {
+        if (lastFulfillmentRequestId == lastRequestId) {
+            return 0;
+        }
+        return withdrawRequestQueue[lastRequestId].cumulativePEth - withdrawRequestQueue[lastRequestIdToBeFulfilled].cumulativePEth;
+    }
+
+    function getUnfulfilledTotalEth() public view returns (uint256) {
+        if (lastFulfillmentRequestId == lastRequestId) {
+            return 0;
+        }
+        return withdrawRequestQueue[lastRequestId].maxCumulativeClaimableEther - withdrawRequestQueue[lastRequestIdToBeFulfilled].maxCumulativeClaimableEther;
+    }
+
     // [start, end)
     function _findCheckPointByRequestId(uint256 requestId, uint256 start, uint256 end) internal view returns(uint256 checkPointIndex) {
         require(requestId <= lastFulfillmentRequestId, "Not fulfillment");
