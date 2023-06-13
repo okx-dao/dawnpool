@@ -19,9 +19,6 @@ abstract contract DawnWithdrawStorageLayout {
         uint256 endRequestId;
     }
 
-    IDawnDeposit public immutable dawnDeposit;
-    IERC20 public immutable pEthToken;
-
     uint256 lastFulfillmentRequestId;
     uint256 lastRequestId;
     WithdrawRequest[] withdrawRequestQueue;

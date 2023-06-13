@@ -5,6 +5,9 @@ import "../interface/IDawnWithdraw.sol";
 import "../base/DawnBase.sol";
 import "./DawnWithdrawStorageLayout.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "../interface/IDawnDeposit.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract DawnWithdraw is IDawnWithdraw, DawnBase, DawnWithdrawStorageLayout {
     using SafeMath for uint256;
@@ -14,21 +17,17 @@ contract DawnWithdraw is IDawnWithdraw, DawnBase, DawnWithdrawStorageLayout {
 
 
     //    constructor
-    constructor(IDawnStorageInterface dawnStorageAddress) DawnBase(dawnStorageAddress) {
-        address depositAddr = _getContractAddress(_DAWN_DEPOSIT_CONTRACT_NAME);
-        dawnDeposit = IDawnDeposit(depositAddr);
-        pEthToken = IERC20(depositAddr);
-    }
+    constructor(IDawnStorageInterface dawnStorageAddress) DawnBase(dawnStorageAddress) { }
 
     // user call
     function requestWithdraw(uint256 pEthAmount) external returns (uint256 requestId) {
         // 请求赎回的pEthAmount不能为0
         require(pEthAmount > 0, "Zero pEth");
         // 判断msg.sender 是否有足够的 PEth
-        require(pEthToken.balanceOf(msg.sender) >= pEthAmount, "PEth not enough");
+        require(IERC20(_getContractAddress(_DAWN_DEPOSIT_CONTRACT_NAME)).balanceOf(msg.sender) >= pEthAmount, "PEth not enough");
 
         // maxClaimableEther
-        uint256 maxClaimableEther = dawnDeposit.getEtherByPEth(pEthAmount);
+        uint256 maxClaimableEther = IDawnDeposit(_getContractAddress(_DAWN_DEPOSIT_CONTRACT_NAME)).getEtherByPEth(pEthAmount);
         assert(maxClaimableEther != 0);
 
         WithdrawRequest memory lastWithdrawRequest = withdrawRequestQueue[lastRequestId];
@@ -65,9 +64,9 @@ contract DawnWithdraw is IDawnWithdraw, DawnBase, DawnWithdrawStorageLayout {
 
         // add checkpoint
         checkPoints[lastCheckpointIndex++] = CheckPoint(
-                dawnDeposit.getTotalPooledEther(),
-                pEthToken.totalSupply(),
-                lastRequestIdToBeFulfilled
+                    IDawnDeposit(_getContractAddress(_DAWN_DEPOSIT_CONTRACT_NAME)).getTotalPooledEther(),
+                    IERC20(_getContractAddress(_DAWN_DEPOSIT_CONTRACT_NAME)).totalSupply(),
+                    lastRequestIdToBeFulfilled
         );
 
         // 更新
@@ -114,14 +113,14 @@ contract DawnWithdraw is IDawnWithdraw, DawnBase, DawnWithdrawStorageLayout {
         if (lastFulfillmentRequestId == lastRequestId) {
             return 0;
         }
-        return withdrawRequestQueue[lastRequestId].cumulativePEth - withdrawRequestQueue[lastRequestIdToBeFulfilled].cumulativePEth;
+        return withdrawRequestQueue[lastRequestId].cumulativePEth - withdrawRequestQueue[lastFulfillmentRequestId].cumulativePEth;
     }
 
     function getUnfulfilledTotalEth() public view returns (uint256) {
         if (lastFulfillmentRequestId == lastRequestId) {
             return 0;
         }
-        return withdrawRequestQueue[lastRequestId].maxCumulativeClaimableEther - withdrawRequestQueue[lastRequestIdToBeFulfilled].maxCumulativeClaimableEther;
+        return withdrawRequestQueue[lastRequestId].maxCumulativeClaimableEther - withdrawRequestQueue[lastFulfillmentRequestId].maxCumulativeClaimableEther;
     }
 
     // [start, end)
