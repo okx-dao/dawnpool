@@ -142,6 +142,13 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
         uint256 preTotalEther = getTotalPooledEther();
         uint256 preTotalPEth = totalSupply();
 
+        emit LogETHRewards(
+            epochId,
+            _getUint(_BEACON_ACTIVE_VALIDATOR_BALANCE_KEY),
+            beaconBalance,
+            availableRewards
+        );
+
         // store beacon balance and validators
         _setUint(_BEACON_ACTIVE_VALIDATORS_KEY, beaconValidators);
         _setUint(_BEACON_ACTIVE_VALIDATOR_BALANCE_KEY, beaconBalance);
@@ -160,6 +167,15 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
         );
         // distributeRewards
         _distributeRewards(rewardsPEth);
+
+        emit LogTokenRebase(
+            epochId,
+            preTotalEther,
+            preTotalPEth,
+            getTotalPooledEther(),
+            totalSupply()
+        );
+
     }
 
     function getBeaconStat() external view returns (uint256 depositedValidators, uint256 beaconValidators, uint256 beaconBalance) {

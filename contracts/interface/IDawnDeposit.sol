@@ -7,6 +7,8 @@ interface IDawnDeposit {
     event LogReceiveInsurance(uint256 pEthAmount);
     event LogPreActivateValidator(address operator, bytes pubkey, uint256 amount);
     event LogActivateValidator(address operator, bytes pubkey, uint256 amount);
+    event LogETHRewards(uint256 epochId, uint256 preCLBalance, uint256 postCLBalance, uint256 rewardsVaultBalance);
+    event LogTokenRebase(uint256 epochId, uint256 preTotalEther, uint256 preTotalPEth, uint256 postTotalEther, uint256 postTotalPEth);
 
     // user stake ETH to DawnPool returns pETH
     function stake() external payable returns (uint256);
