@@ -1,39 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.17;
 
-import "./DawnDeposit.sol";
 import "../interface/IDawnWithdraw.sol";
+import "../base/DawnBase.sol";
+import "./DawnWithdrawStorageLayout.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
-contract DawnWithdraw is IDawnWithdraw, DawnBase {
+contract DawnWithdraw is IDawnWithdraw, DawnBase, DawnWithdrawStorageLayout {
     using SafeMath for uint256;
 
     // ***************** contract name *****************
     string internal constant _DAWN_DEPOSIT_CONTRACT_NAME = "DawnDeposit";
-
-    struct WithdrawRequest {
-        address owner;
-        uint256 cumulativePEth;
-        uint256 maxCumulativeClaimableEther;
-        uint256 createdTime;
-        bool claimed;
-    }
-
-    struct CheckPoint {
-        uint256 totalEther;
-        uint256 totalPEth;
-        uint256 endRequestId;
-    }
-
-    IDawnDeposit public immutable dawnDeposit;
-    IERC20 public immutable pEthToken;
-
-    uint256 lastFulfillmentRequestId;
-    uint256 lastRequestId;
-    WithdrawRequest[] withdrawRequestQueue;
-    uint256 lastCheckpointIndex;
-    CheckPoint[] checkPoints;
-
 
 
     //    constructor
