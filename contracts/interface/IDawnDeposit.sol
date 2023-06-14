@@ -24,7 +24,10 @@ interface IDawnDeposit {
         uint256 beaconValidators,
         uint256 beaconBalance,
         uint256 availableRewards,
-        uint256 exitedValidators
+        uint256 exitedValidators,
+        uint256 burnedPEthAmount,
+        uint256 lastRequestIdToBeFulfilled,
+        uint256 ethAmountToLock
     ) external;
 
     // receive pETH from Insurance, and burn

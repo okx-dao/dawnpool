@@ -9,6 +9,7 @@ import "../interface/IDepositNodeManager.sol";
 import "../interface/IRewardsVault.sol";
 import "../deposit_contract/deposit_contract.sol";
 import "../interface/IBurner.sol";
+import "../interface/IDawnWithdraw.sol";
 
 interface NodeManager {
     function distributeNodeOperatorRewards(uint256 pethAmount) external;
@@ -43,6 +44,7 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
     string internal constant _DEPOSIT_NODE_MANAGER = "DepositNodeManager";
     string internal constant _DEPOSIT_CONTRACT_NAME = "DepositContract";
     string internal constant _BURNER_CONTRACT_NAME = "Burner";
+    string internal constant _DAWN_WITHDRAW_CONTRACT_NAME = "DawnWithdraw";
 
     // constructor
     constructor(IDawnStorageInterface dawnStorageAddress) DawnTokenPETH() DawnBase(dawnStorageAddress) {}
@@ -121,7 +123,10 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
         uint256 beaconValidators,
         uint256 beaconBalance,
         uint256 availableRewards,
-        uint256 exitedValidators
+        uint256 exitedValidators,
+        uint256 burnedPEthAmount,
+        uint256 lastRequestIdToBeFulfilled,
+        uint256 ethAmountToLock
     ) external {
         require(msg.sender == _getContractAddress(_ORACLE_CONTRACT_NAME), "only call by DawnPoolOracle");
         require(
@@ -161,6 +166,12 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
             IRewardsVault(_getContractAddress(_REWARDS_VAULT_CONTRACT_NAME)).withdrawRewards(availableRewards);
         }
 
+        // process withdraw request
+        _processWithdrawRequest(lastRequestIdToBeFulfilled, ethAmountToLock);
+
+        // process burn pEth
+        _processPEthBurnRequest(burnedPEthAmount);
+
         // calculate rewardsPEth
         // rewardsPEth / (rewards * fee/basic) = preTotalPEth / (preTotalEther + rewards * (basic - fee)/basic)
         // rewardsPEth / (rewards * fee) = preTotalPEth / (preTotalEther * basic + rewards * (basic - fee))
@@ -179,6 +190,17 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
             totalSupply()
         );
 
+    }
+
+    // process withdraw request
+    function _processWithdrawRequest(uint256 lastRequestIdToBeFulfilled, uint256 ethAmountToLock) internal {
+        IDawnWithdraw(_getContractAddress(_DAWN_WITHDRAW_CONTRACT_NAME)).fulfillment{value: ethAmountToLock}(lastRequestIdToBeFulfilled);
+    }
+
+    // process burn pEth
+    function _processPEthBurnRequest(uint256 burnedPEthAmount) internal {
+        _burn(_getContractAddress(_BURNER_CONTRACT_NAME), burnedPEthAmount);
+        IBurner(_getContractAddress(_BURNER_CONTRACT_NAME)).commitPEthToBurn(burnedPEthAmount);
     }
 
     function punish(address burnAddress, uint256 pethAmountToBurn) external onlyNodeManager() {
