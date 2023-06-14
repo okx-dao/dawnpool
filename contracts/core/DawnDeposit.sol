@@ -194,6 +194,8 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
 
     // process withdraw request
     function _processWithdrawRequest(uint256 lastRequestIdToBeFulfilled, uint256 ethAmountToLock) internal {
+        // lock ETH for withdraw: transfer ETH to DawnWithdraw
+        _subUint(_BUFFERED_ETHER_KEY, ethAmountToLock);
         IDawnWithdraw(_getContractAddress(_DAWN_WITHDRAW_CONTRACT_NAME)).fulfillment{value: ethAmountToLock}(lastRequestIdToBeFulfilled);
     }
 
