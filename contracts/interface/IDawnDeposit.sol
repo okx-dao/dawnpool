@@ -9,6 +9,8 @@ interface IDawnDeposit {
     event LogActivateValidator(address operator, bytes pubkey, uint256 amount);
     event LogETHRewards(uint256 epochId, uint256 preCLBalance, uint256 postCLBalance, uint256 rewardsVaultBalance);
     event LogTokenRebase(uint256 epochId, uint256 preTotalEther, uint256 preTotalPEth, uint256 postTotalEther, uint256 postTotalPEth);
+    event LogPunish(address burnAddress, uint256 pethAmountToBurn);
+    event LogDecreaseEther(address burnAddress, uint256 ethAmountToDecrease);
 
     // user stake ETH to DawnPool returns pETH
     function stake() external payable returns (uint256);
@@ -31,6 +33,9 @@ interface IDawnDeposit {
     function getBeaconStat() external view returns (uint256 depositedValidators, uint256 beaconValidators, uint256 beaconBalance);
     function getBufferedEther() external view returns (uint256);
     function getWithdrawalCredentials() external view returns (bytes32);
+
+    function punish(address burnAddress, uint256 pethAmountToBurn) external;
+    function punish(address burnAddress, uint256 pethAmountToBurn, uint256 ethAmountToDecrease) external;
 
     // calculate the amount of pETH backing an amount of ETH
     function getEtherByPEth(uint256 pEthAmount) external view returns (uint256);
