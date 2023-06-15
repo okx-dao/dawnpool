@@ -6,24 +6,14 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "../interface/IDawnDeposit.sol";
 import "../interface/IDepositContract.sol";
 import "../interface/IDepositNodeManager.sol";
+import "../base/DawnBase.sol";
+import "../interface/util/IAddressSetStorageInterface.sol";
+import "../interface/IDawnDepositSecurityModule.sol";
 
-contract DepositSecurityModule {
+contract DawnDepositSecurityModule is DawnBase,IDawnDepositSecuritymodule {
     /**
   * Short ECDSA signature as defined in https://eips.ethereum.org/EIPS/eip-2098.
   */
-    struct Signature {
-        bytes32 r;
-        bytes32 vs;
-    }
-
-    event OwnerChanged(address newValue);
-    event PauseIntentValidityPeriodBlocksChanged(uint256 newValue);
-    event MaxDepositsChanged(uint256 newValue);
-    event MinDepositBlockDistanceChanged(uint256 newValue);
-    event GuardianQuorumChanged(uint256 newValue);
-    event GuardianAdded(address guardian);
-    event GuardianRemoved(address guardian);
-    event DepositsUnsafeValidator(uint256 indexed index, uint256 indexed slashAmount);
 
     error ZeroAddress(string field);
     error DuplicateAddress(address addr);
@@ -42,42 +32,45 @@ contract DepositSecurityModule {
 
     bytes32 public immutable ATTEST_MESSAGE_PREFIX;
     bytes32 public immutable UNSAFE_MESSAGE_PREFIX;
+    // keccak256("dawnPool.DepositSecurityModule.OWNER")
+    bytes32 public constant  OWNER_HASH=bytes32(0xc9251fa75af76049a46c72a1940af4a2dfa80228a9f60ce95cf8b12dc69459c8);
+    // keccak256("dawnPool.DepositSecurityModule.PAUSE_INTENT_VALIDITY_PERIOD_BLOCK")
+    bytes32 public constant PAUSE_INTENT_VALIDITY_PEROID_BLOCKS_HASH=bytes32(0x2e72a31c4de4682215c3b4bdfaf159f81858efb221c2576e36a9218a0f909ace);
+    // keccak256("dawnPool.DepositSecurityModule.MAX_DEPOSITS_BLOCK")
+    bytes32 public constant MAX_DEPOSITS_BLOCK_HASH = bytes32(0x5c526a55ec962481ceee5f6e29b0bf6e8f21c4afc918115a21f225aa56b40e09);
+    // keccak256("dawnPool.DepositSecurityModule.MIN_DEPOSIT_BLOCK_DISTANCE")
+    bytes32 public constant MIN_DEPOSIT_BLOCK_DISTANCE_HASH = bytes32(0xe36e3ab7618b1a09fe366e20a6f0cb9b9704c59d7f3131ac3bbb6b98f7c60098);
+    // keccak256("dawnPool.DepositSecurityModule.GUARDIAN_QUORUM")
+    bytes32 public constant GUARDIAN_QUORUM_HASH =bytes32(0x62db56b7c289e6ee0047a0bb6a603e88fa085bce071aaa0d9bf3bbde47f0ffa4) ;
+    // keccak256("dawnPool.DepositSecurityModule.DEPOSIT_SECURITY_MODULE_GUARDIAN_ADDRESS")
+    bytes32 public constant DEPOSIT_SECURITY_MODULE_GUARDIAN_ADDRESS_HASH = bytes32(0xa1f08e983736e93ab9eb200bf38d5e7f87bc8b9791bcd8802141baf806cdeada);
+    // keccak256("dawnPool.DepositSecurityModule.LAST_DEPOSIT_BLOCK_HASH")
+    bytes32 public constant LAST_DEPOSIT_BLOCK_HASH =bytes32(0xa625831c7f31baad268665cfdba1031924ca705cf0a724acc0ec51ec366fa049);
 
-    IDawnDeposit public immutable DAWN_DEPOSIT;
-    IDepositContract public immutable DEPOSIT_CONTRACT;
-    IDepositNodeManager public immutable DEPOSIT_NODE_MANAGER;
 
-    /**
-     * NB: both `maxDepositsPerBlock` and `minDepositBlockDistance` values
-     * must be harmonized with `OracleReportSanityChecker.churnValidatorsPerDayLimit`
-     * (see docs for the `OracleReportSanityChecker.setChurnValidatorsPerDayLimit` function)
-     */
-    uint256 internal maxDepositsPerBlock;
-    uint256 internal minDepositBlockDistance;
-    uint256 internal pauseIntentValidityPeriodBlocks;
+    string internal constant _DAWN_DEPOSIT_CONTRACT_NAME = "DawnDeposit";
+    string internal constant _DEPOSIT_NODE_MANAGER_CONTRACT_NAME = "DepositNodeManager";
+    IDepositNodeManager public immutable depositNodeManager;
+    IDawnDeposit public immutable dawnDeposit;
+    IDepositContract public immutable depositContract;
+    IAddressSetStorageInterface addressSetStorage ;
 
-    address internal owner;
 
-    uint256 internal quorum;
-    uint256 internal lastDepositBlock;
-    address[] internal guardians;
-    mapping(address => uint256) internal guardianIndicesOneBased; // 1-based
+
+
 
     constructor(
-        address _dawnDeposit,
+        IDawnStorageInterface _depositStorage,
         address _depositContract,
-        address _depositNodeOperatorManager,
         uint256 _maxDepositsPerBlock,
         uint256 _minDepositBlockDistance,
         uint256 _pauseIntentValidityPeriodBlocks
-    ) {
-        if (_dawnDeposit == address(0)) revert ZeroAddress("_dawnDeposit");
+    ) DawnBase(_depositStorage){
         if (_depositContract == address(0)) revert ZeroAddress ("_depositContract");
-        if (_depositNodeOperatorManager == address(0)) revert ZeroAddress ("_depositNodeOperatorManager");
 
-        DAWN_DEPOSIT = IDawnDeposit(_dawnDeposit);
-        DEPOSIT_CONTRACT = IDepositContract(_depositContract);
-        DEPOSIT_NODE_MANAGER = IDepositNodeManager(_depositNodeOperatorManager);
+        dawnDeposit = IDawnDeposit( _getContractAddress(_DAWN_DEPOSIT_CONTRACT_NAME));
+        depositContract = IDepositContract(_depositContract);
+        depositNodeManager =IDepositNodeManager( _getContractAddress(_DEPOSIT_NODE_MANAGER_CONTRACT_NAME));
 
         ATTEST_MESSAGE_PREFIX = keccak256(
             abi.encodePacked(
@@ -97,21 +90,24 @@ contract DepositSecurityModule {
             )
         );
 
+
         _setOwner(msg.sender);
         _setMaxDeposits(_maxDepositsPerBlock);
         _setMinDepositBlockDistance(_minDepositBlockDistance);
         _setPauseIntentValidityPeriodBlocks(_pauseIntentValidityPeriodBlocks);
+        addressSetStorage = IAddressSetStorageInterface(_getContractAddress("addressSetStorage"));
     }
 
-    /**
-     * Returns the owner address.
-     */
+
     function getOwner() external view returns (address) {
-        return owner;
+          return _getOwner();
+    }
+    function _getOwner() internal view returns (address){
+        return _getAddress(OWNER_HASH);
     }
 
     modifier onlyOwner() {
-        if (msg.sender != owner) revert NotAnOwner(msg.sender);
+        if (msg.sender != _getOwner()) revert NotAnOwner(msg.sender);
         _;
     }
 
@@ -124,15 +120,16 @@ contract DepositSecurityModule {
 
     function _setOwner(address _newOwner) internal {
         if (_newOwner == address(0)) revert ZeroAddress("_newOwner");
-        owner = _newOwner;
+        _setAddress(OWNER_HASH,_newOwner);
         emit OwnerChanged(_newOwner);
     }
 
-    /**
-     * Returns current `pauseIntentValidityPeriodBlocks` contract parameter (see `pauseDeposits`).
-     */
+
     function getPauseIntentValidityPeriodBlocks() external view returns (uint256) {
-        return pauseIntentValidityPeriodBlocks;
+        return _getPauseIntentValidityPeriodBlocks();
+    }
+    function _getPauseIntentValidityPeriodBlocks() internal view returns (uint256) {
+        return _getUint(PAUSE_INTENT_VALIDITY_PEROID_BLOCKS_HASH);
     }
 
     /**
@@ -144,15 +141,17 @@ contract DepositSecurityModule {
 
     function _setPauseIntentValidityPeriodBlocks(uint256 newValue) internal {
         if (newValue == 0) revert ZeroParameter("pauseIntentValidityPeriodBlocks");
-        pauseIntentValidityPeriodBlocks = newValue;
+        _setUint(PAUSE_INTENT_VALIDITY_PEROID_BLOCKS_HASH, newValue);
         emit PauseIntentValidityPeriodBlocksChanged(newValue);
     }
 
-    /**
-     * Returns `maxDepositsPerBlock` (see `depositBufferedEther`).
-     */
+
     function getMaxDeposits() external view returns (uint256) {
-        return maxDepositsPerBlock;
+        return _getMaxDeposits();
+    }
+
+    function _getMaxDeposits() internal view returns (uint256) {
+        return _getUint(MAX_DEPOSITS_BLOCK_HASH);
     }
 
     /**
@@ -166,15 +165,17 @@ contract DepositSecurityModule {
     }
 
     function _setMaxDeposits(uint256 newValue) internal {
-        maxDepositsPerBlock = newValue;
+        _setUint(MAX_DEPOSITS_BLOCK_HASH, newValue);
         emit MaxDepositsChanged(newValue);
     }
 
-    /**
-     * Returns `minDepositBlockDistance`  (see `depositBufferedEther`).
-     */
+
     function getMinDepositBlockDistance() external view returns (uint256) {
-        return minDepositBlockDistance;
+        return _getMinDepositBlockDistance();
+    }
+
+    function _getMinDepositBlockDistance() internal view returns (uint256) {
+        return _getUint(MIN_DEPOSIT_BLOCK_DISTANCE_HASH);
     }
 
     /**
@@ -189,38 +190,46 @@ contract DepositSecurityModule {
 
     function _setMinDepositBlockDistance(uint256 newValue) internal {
         if (newValue == 0) revert ZeroParameter("minDepositBlockDistance");
-        if (newValue != minDepositBlockDistance) {
-            minDepositBlockDistance = newValue;
+        if (newValue != _getMinDepositBlockDistance()) {
+            _setUint(MIN_DEPOSIT_BLOCK_DISTANCE_HASH, newValue);
             emit MinDepositBlockDistanceChanged(newValue);
         }
     }
 
-    /**
-     * Returns number of valid guardian signatures required to vet (depositRoot, nonce) pair.
-     */
     function getGuardianQuorum() external view returns (uint256) {
-        return quorum;
+        return _getGuardianQuorum();
     }
 
+    function _getGuardianQuorum() internal view returns (uint256) {
+        return _getUint(GUARDIAN_QUORUM_HASH);
+    }
     function setGuardianQuorum(uint256 newValue) external onlyOwner {
         _setGuardianQuorum(newValue);
     }
 
     function _setGuardianQuorum(uint256 newValue) internal {
         // we're intentionally allowing setting quorum value higher than the number of guardians
-        if (quorum != newValue) {
-            quorum = newValue;
+        if (_getGuardianQuorum() != newValue) {
+            _setUint(GUARDIAN_QUORUM_HASH,newValue);
             emit GuardianQuorumChanged(newValue);
         }
     }
 
-    /**
-     * Returns guardian committee member list.
-     */
-    function getGuardians() external view returns (address[] memory) {
-        return guardians;
+
+
+    function getGuardianAddress(uint256 index) external view returns (address) {
+        return _getGuardianAddress(index);
+    }
+    function _getGuardianAddress(uint256 index) internal view returns (address) {
+        return  addressSetStorage.getItem(DEPOSIT_SECURITY_MODULE_GUARDIAN_ADDRESS_HASH,index);
     }
 
+    function getGuardiansCount() external view returns (uint256) {
+        return _getGuardiansCount();
+    }
+    function _getGuardiansCount() internal view returns (uint256) {
+        return  addressSetStorage.getCount(DEPOSIT_SECURITY_MODULE_GUARDIAN_ADDRESS_HASH);
+    }
     /**
      * Checks whether the given address is a guardian.
      */
@@ -229,7 +238,7 @@ contract DepositSecurityModule {
     }
 
     function _isGuardian(address addr) internal view returns (bool) {
-        return guardianIndicesOneBased[addr] > 0;
+        return _getGuardianIndex(addr) > -1;
     }
 
     /**
@@ -240,7 +249,7 @@ contract DepositSecurityModule {
     }
 
     function _getGuardianIndex(address addr) internal view returns (int256) {
-        return int256(guardianIndicesOneBased[addr]) - 1;
+        return  addressSetStorage.getIndexOf(DEPOSIT_SECURITY_MODULE_GUARDIAN_ADDRESS_HASH,addr);
     }
 
     /**
@@ -270,8 +279,7 @@ contract DepositSecurityModule {
     function _addGuardian(address _newGuardian) internal {
         if (_newGuardian == address(0)) revert ZeroAddress("_newGuardian");
         if (_isGuardian(_newGuardian)) revert DuplicateAddress(_newGuardian);
-        guardians.push(_newGuardian);
-        guardianIndicesOneBased[_newGuardian] = guardians.length;
+        addressSetStorage.addItem(DEPOSIT_SECURITY_MODULE_GUARDIAN_ADDRESS_HASH,_newGuardian);
         emit GuardianAdded(_newGuardian);
     }
 
@@ -281,20 +289,14 @@ contract DepositSecurityModule {
      * Only callable by the owner.
      */
     function removeGuardian(address addr, uint256 newQuorum) external onlyOwner {
-        uint256 indexOneBased = guardianIndicesOneBased[addr];
-        if (indexOneBased == 0) revert NotAGuardian(addr);
+        int256 indexOneBased =  addressSetStorage.getIndexOf(DEPOSIT_SECURITY_MODULE_GUARDIAN_ADDRESS_HASH,addr);
+        if (indexOneBased < 0) revert NotAGuardian(addr);
 
-        uint256 totalGuardians = guardians.length;
-        assert(indexOneBased <= totalGuardians);
+        uint256 totalGuardians = _getGuardiansCount();
+        assert(uint256(indexOneBased) <= totalGuardians);
 
-        if (indexOneBased != totalGuardians) {
-            address addrToMove = guardians[totalGuardians - 1];
-            guardians[indexOneBased - 1] = addrToMove;
-            guardianIndicesOneBased[addrToMove] = indexOneBased;
-        }
+        addressSetStorage.removeItem(DEPOSIT_SECURITY_MODULE_GUARDIAN_ADDRESS_HASH,addr);
 
-        guardianIndicesOneBased[addr] = 0;
-        guardians.pop();
 
         _setGuardianQuorum(newQuorum);
 
@@ -339,21 +341,25 @@ contract DepositSecurityModule {
             if (guardianIndex == -1) revert InvalidSignature();
         }
 
-        if (block.number - blockNumber >  pauseIntentValidityPeriodBlocks) revert PauseIntentExpired();
+        if (block.number - blockNumber >  _getPauseIntentValidityPeriodBlocks()) revert PauseIntentExpired();
 
-        DEPOSIT_NODE_MANAGER.setValidatorUnsafe(index,slashAmount);
+        depositNodeManager.setValidatorUnsafe(index,slashAmount);
         emit DepositsUnsafeValidator(index, slashAmount);
     }
 
-
-
+    function _getLastDepositBlock()  internal view returns (uint256){
+        return _getUint(LAST_DEPOSIT_BLOCK_HASH);
+    }
+    function _setLastDepositBlock(uint256 newValue)  internal {
+        return _setUint(LAST_DEPOSIT_BLOCK_HASH,newValue);
+    }
 
     function canDeposit() external view returns (bool) {
 
-        bool isCanDeposit = DAWN_DEPOSIT.getBufferedEther() > 31000000000000000000;
+        bool isCanDeposit = dawnDeposit.getBufferedEther() > 31000000000000000000;
         return (
-            quorum > 0
-            && block.number - lastDepositBlock >= minDepositBlockDistance
+            _getGuardianQuorum() > 0
+            && block.number -  _getLastDepositBlock() >= _getMinDepositBlockDistance()
             && isCanDeposit
         );
     }
@@ -379,21 +385,20 @@ contract DepositSecurityModule {
         bytes32 blockHash,
         bytes32 depositRoot,
         uint256[] calldata indexs,
-        bytes calldata depositCalldata,
         Signature[] calldata sortedGuardianSignatures
     ) external {
-        if (quorum == 0 || sortedGuardianSignatures.length < quorum) revert DepositNoQuorum();
+        if (_getGuardianQuorum() == 0 || sortedGuardianSignatures.length < _getGuardianQuorum()) revert DepositNoQuorum();
 
-        bytes32 onchainDepositRoot = IDepositContract(DEPOSIT_CONTRACT).get_deposit_root();
+        bytes32 onchainDepositRoot = IDepositContract(depositContract).get_deposit_root();
         if (depositRoot != onchainDepositRoot) revert DepositRootChanged();
         IDepositNodeManager.ValidatorStatus temp;
         uint256 i=0;
         for(i=0;i<indexs.length ;i++){
-            (,,temp)=DEPOSIT_NODE_MANAGER.getNodeValidator(indexs[i]);
+            (,,temp)= depositNodeManager.getNodeValidator(indexs[i]);
         }
         if (temp!=IDepositNodeManager.ValidatorStatus.WAITING_ACTIVATED)  revert DepositInactiveModule();
 
-        if (block.number - lastDepositBlock < minDepositBlockDistance) revert DepositTooFrequent();
+        if (block.number - _getLastDepositBlock() < _getMinDepositBlockDistance()) revert DepositTooFrequent();
         if (blockHash == bytes32(0) || blockhash(blockNumber) != blockHash) revert DepositUnexpectedBlockHash();
 
 
@@ -401,9 +406,9 @@ contract DepositSecurityModule {
             _verifySignatures(depositRoot, blockNumber, blockHash, indexs[i], sortedGuardianSignatures);
         }
 
-        DEPOSIT_NODE_MANAGER.activateValidators(indexs);
+        depositNodeManager.activateValidators(indexs);
 
-        lastDepositBlock = blockNumber;
+        _setLastDepositBlock( blockNumber);
     }
     function _verifySignatures(
         bytes32 depositRoot,
