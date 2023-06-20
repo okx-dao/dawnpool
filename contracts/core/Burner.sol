@@ -26,15 +26,8 @@ contract Burner is IBurner, DawnBase {
     constructor(IDawnStorageInterface dawnStorageAddress) DawnBase(dawnStorageAddress) {}
 
 
-    function requestBurnPEth(address from, uint256 amount) external onlyGuardian {
-        if (from == address(0)) revert ZeroAddress();
-        if (amount == 0) revert ZeroBurnAmount();
-
-        IERC20 PEth = IERC20(_getContractAddress(_DAWN_DEPOSIT_CONTRACT_NAME));
-        if (PEth.balanceOf(from) < amount) revert PEthNotEnough();
-        PEth.transferFrom(from, address(this), amount);
+    function requestBurnPEth(address from, uint256 amount) external onlyDawnDeposit {
         _addUint(_PETH_BURN_REQUESTED, amount);
-
         emit LogRequestBurnPETH(from, amount);
     }
 
@@ -75,6 +68,11 @@ contract Burner is IBurner, DawnBase {
 
     function _getPEthBurnRequest() internal view returns (uint256) {
         return _getUint(_PETH_BURN_REQUESTED);
+    }
+
+    modifier onlyDawnDeposit() {
+        require(msg.sender == _getContractAddress(_DAWN_DEPOSIT_CONTRACT_NAME), "Only call by dawnDeposit");
+        _;
     }
 
 }

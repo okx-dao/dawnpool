@@ -46,6 +46,10 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
     string internal constant _BURNER_CONTRACT_NAME = "Burner";
     string internal constant _DAWN_WITHDRAW_CONTRACT_NAME = "DawnWithdraw";
 
+    error ZeroAddress();
+    error PEthNotEnough();
+    error ZeroBurnAmount();
+
     // constructor
     constructor(IDawnStorageInterface dawnStorageAddress) DawnTokenPETH() DawnBase(dawnStorageAddress) {}
 
@@ -118,6 +122,7 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
 
     // handle oracle report
     // 需要更新_BEACON_ACTIVE_VALIDATORS_KEY
+    // todo 结构体化参数
     function handleOracleReport(
         uint256 epochId,
         uint256 beaconValidators,
@@ -194,6 +199,7 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
 
     // process withdraw request
     function _processWithdrawRequest(uint256 lastRequestIdToBeFulfilled, uint256 ethAmountToLock) internal {
+        // todo 对ethAmountToLock合法性进行检测
         // lock ETH for withdraw: transfer ETH to DawnWithdraw
         _subUint(_BUFFERED_ETHER_KEY, ethAmountToLock);
         IDawnWithdraw(_getContractAddress(_DAWN_WITHDRAW_CONTRACT_NAME)).fulfillment{value: ethAmountToLock}(lastRequestIdToBeFulfilled);
@@ -201,23 +207,28 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
 
     // process burn pEth
     function _processPEthBurnRequest(uint256 burnedPEthAmount) internal {
+        // todo 对burnedPEthAmount合法性进行检查
         _burn(_getContractAddress(_BURNER_CONTRACT_NAME), burnedPEthAmount);
         IBurner(_getContractAddress(_BURNER_CONTRACT_NAME)).commitPEthToBurn(burnedPEthAmount);
     }
 
-    function punish(address burnAddress, uint256 pethAmountToBurn) external onlyNodeManager() {
+    function punish(address burnAddress, uint256 pethAmountToBurn) external onlyNodeManager {
         _punish(burnAddress, pethAmountToBurn);
     }
 
-    function punish(address burnAddress, uint256 pethAmountToBurn, uint256 ethAmountToDecrease) external onlyNodeManager() {
+    function punish(address burnAddress, uint256 pethAmountToBurn, uint256 ethAmountToDecrease) external onlyNodeManager {
         _punish(burnAddress, pethAmountToBurn);
         _addUint(_UNREACHABLE_ETHER_COUNT_KEY, ethAmountToDecrease);
         emit LogDecreaseEther(burnAddress, ethAmountToDecrease);
     }
 
     function _punish(address burnAddress, uint256 pethAmountToBurn) internal {
-        require(allowance(burnAddress, msg.sender) >= pethAmountToBurn, "insufficient allowance");
+        if (pethAmountToBurn == 0) revert ZeroBurnAmount();
+        if (this.balanceOf(burnAddress) < pethAmountToBurn) revert PEthNotEnough();
+
+        _transfer(burnAddress, _getContractAddress(_BURNER_CONTRACT_NAME), pethAmountToBurn);
         IBurner(_getContractAddress(_BURNER_CONTRACT_NAME)).requestBurnPEth(burnAddress, pethAmountToBurn);
+
         emit LogPunish(burnAddress, pethAmountToBurn);
     }
 
