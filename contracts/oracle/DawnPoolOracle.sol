@@ -373,7 +373,7 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
      * @param _beaconValidators Number of validators visible in this epoch
      * @param _rewardsVaultBalance 奖励池金额
      */
-    function reportBeacon(uint256 _epochId, uint64 _beaconBalance, uint32 _beaconValidators, uint64 _rewardsVaultBalance,uint32 _exitedValidators) external {
+    function reportBeacon(uint256 _epochId, uint256 _beaconBalance, uint256 _beaconValidators, uint256 _rewardsVaultBalance,uint256 _exitedValidators) external {
         BeaconSpec memory beaconSpec = _getBeaconSpec();
         uint256 expectedEpoch = _getUint(_EXPECTED_EPOCH_ID_POSITION);
         //确保传入的_epochId大于等于预期的 epoch ID，以避免提交过时的验证报告
@@ -387,10 +387,7 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
             _clearReportingAndAdvanceTo(_epochId);
         }
 
-        uint128 _beaconBalanceEth1 = DENOMINATION_OFFSET * uint128(_beaconBalance);
-        uint128 _rewardsVaultBalance1 = DENOMINATION_OFFSET * uint128(_beaconBalance);
-        // todo DENOMINATION_OFFSET * _rewardsVaultBalance
-        emit BeaconReported(_epochId, beaconBalanceEth1, _beaconValidators, rewardsVaultBalance1, msg.sender);
+        emit BeaconReported(_epochId, _beaconBalance, _beaconValidators, _rewardsVaultBalance, msg.sender);
 
         // 获取调用者在 dawnpool 合约中的成员 ID, 以确保调用者是 dawnpool 合约的授权成员之一 todo 二期再做
         uint256 index = _getMemberId(msg.sender);
@@ -415,7 +412,7 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
         if (i < currentReportVariants.length) {
             // 判断该 variant 的计数器是否已达到要求的数量.达到，则会通过调用 _push() 更新 dawnpool 合约的 validator 列表
             if (currentReportVariants[i].getCount() + 1 >= quorum) {
-                _push(_epochId, _beaconBalanceEth1, _beaconValidators, _rewardsVaultBalance1, _exitedValidators, beaconSpec);
+                _push(_epochId, _beaconBalance, _beaconValidators, _rewardsVaultBalance, _exitedValidators, beaconSpec);
             } else {
                 // 增加对应 variant 的报告计数器
                 ++currentReportVariants[i];
@@ -423,7 +420,7 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
         } else {
             // 只需要一个验证报告即可，则直接调用 _push()
             if (quorum == 1) {
-                _push(_epochId, _beaconBalanceEth1, _beaconValidators, _rewardsVaultBalance1, _exitedValidators, beaconSpec);
+                _push(_epochId, _beaconBalance, _beaconValidators, _rewardsVaultBalance, _exitedValidators, beaconSpec);
             } else {
                 //创建一个新的 variant 并将其添加到 currentReportVariants 数组中。
                 currentReportVariants.push(report + 1);
@@ -519,15 +516,15 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
     /**
      * @notice Push the given report to Lido and performs accompanying accounting
      * @param _epochId Beacon chain epoch, proven to be >= expected epoch and <= current epoch
-     * @param _beaconBalanceEth1 Validators balance in eth1 (18-digit denomination)
+     * @param _beaconValidators Validators balance in eth1 (18-digit denomination)
      * @param _beaconSpec current beacon specification data
      */
     function _push(
         uint256 _epochId,
-        uint128 _beaconBalanceEth1,
-        uint128 _beaconValidators,
-        uint128 _rewardsVaultBalance1,
-        uint128 _exitedValidators, //已经退出的验证者的数量
+        uint256 _beaconBalance,
+        uint256 _beaconValidators,
+        uint256 _rewardsVaultBalance,
+        uint256 _exitedValidators, //已经退出的验证者的数量
         // uint256 lastRequestIdToBeFulfilled,
         // uint256 etherToLockOnWithdrawalQueue,
         BeaconSpec memory _beaconSpec
@@ -535,14 +532,14 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
     internal
     {
         // 发布为一个 Completed 事件，表示前一个 Epoch 已完成
-        emit Completed(_epochId, _beaconBalanceEth1, _beaconValidators, _rewardsVaultBalance1, _exitedValidators);
+        emit Completed(_epochId, _beaconBalance, _beaconValidators, _rewardsVaultBalance, _exitedValidators);
 
         // 清除上一次未成功的验证报告并将预期的 epoch ID 更新为 _epochId。
         _clearReportingAndAdvanceTo(_epochId + _beaconSpec.epochsPerFrame);
 
         // report to the dawnPool and collect stats
         IDawnDeposit dawnPool = getDawnDeposit();
-        dawnPool.handleOracleReport(_epochId, _beaconValidators, _beaconBalanceEth1, _rewardsVaultBalance1, _exitedValidators);
+        dawnPool.handleOracleReport(_epochId, _beaconValidators, _beaconBalance, _rewardsVaultBalance, _exitedValidators);
         // todo
 
     }
