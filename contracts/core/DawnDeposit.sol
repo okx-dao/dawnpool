@@ -134,6 +134,7 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
         uint256 ethAmountToLock
     ) external {
         require(msg.sender == _getContractAddress(_ORACLE_CONTRACT_NAME), "only call by DawnPoolOracle");
+        require(beaconValidators + exitedValidators <= _getUint(_DEPOSITED_VALIDATORS_KEY), "invalid params: beaconValidators, exitedValidators");
         require(
             availableRewards <= _getContractAddress(_REWARDS_VAULT_CONTRACT_NAME).balance,
             "RewardsVault insufficient balance"
@@ -165,6 +166,8 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
         // store beacon balance and validators
         _setUint(_BEACON_ACTIVE_VALIDATORS_KEY, beaconValidators);
         _setUint(_BEACON_ACTIVE_VALIDATOR_BALANCE_KEY, beaconBalance);
+        // update deposited validators
+        _subUint(_DEPOSITED_VALIDATORS_KEY, exitedValidators);
 
         // claim availableRewards from RewardsVault
         if (availableRewards > 0) {
