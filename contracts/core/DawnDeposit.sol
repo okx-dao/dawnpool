@@ -49,6 +49,7 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
     error ZeroAddress();
     error PEthNotEnough();
     error ZeroBurnAmount();
+    error ErrorBurnedPEthAmount(uint256 burnedPEthAmount, uint256 burnerBalance);
 
     // constructor
     constructor(IDawnStorageInterface dawnStorageAddress) DawnTokenPETH() DawnBase(dawnStorageAddress) {}
@@ -210,9 +211,10 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
 
     // process burn pEth
     function _processPEthBurnRequest(uint256 burnedPEthAmount) internal {
-        // todo 对burnedPEthAmount合法性进行检查
-        _burn(_getContractAddress(_BURNER_CONTRACT_NAME), burnedPEthAmount);
-        IBurner(_getContractAddress(_BURNER_CONTRACT_NAME)).commitPEthToBurn(burnedPEthAmount);
+        address burnerAddr = _getContractAddress(_BURNER_CONTRACT_NAME);
+        if (burnedPEthAmount < balanceOf(burnerAddr)) revert ErrorBurnedPEthAmount(burnedPEthAmount, balanceOf(burnerAddr));
+        _burn(burnerAddr, burnedPEthAmount);
+        IBurner(burnerAddr).commitPEthToBurn(burnedPEthAmount);
     }
 
     function punish(address burnAddress, uint256 pethAmountToBurn) external onlyNodeManager {
