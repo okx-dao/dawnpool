@@ -33,7 +33,7 @@ interface IDawnDeposit {
     // receive pETH from Insurance, and burn
     function receiveFromInsurance(uint256 pEthAmount) external;
 
-    function getBeaconStat() external view returns (uint256 depositedValidators, uint256 beaconValidators, uint256 beaconBalance);
+    function getBeaconStat() external view returns (uint256 preDepositValidators, uint256 depositedValidators, uint256 beaconValidators, uint256 beaconBalance);
     function getBufferedEther() external view returns (uint256);
     function getWithdrawalCredentials() external view returns (bytes32);
 

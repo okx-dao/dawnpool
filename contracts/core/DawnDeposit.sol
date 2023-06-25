@@ -235,7 +235,8 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
         emit LogPunish(burnAddress, pethAmountToBurn);
     }
 
-    function getBeaconStat() external view returns (uint256 depositedValidators, uint256 beaconValidators, uint256 beaconBalance) {
+    function getBeaconStat() external view returns (uint256 preDepositValidators, uint256 depositedValidators, uint256 beaconValidators, uint256 beaconBalance) {
+        preDepositValidators = _getUint(_PRE_DEPOSIT_VALIDATORS_KEY);
         depositedValidators = _getUint(_DEPOSITED_VALIDATORS_KEY);
         beaconValidators = _getUint(_BEACON_ACTIVE_VALIDATORS_KEY);
         beaconBalance = _getUint(_BEACON_ACTIVE_VALIDATOR_BALANCE_KEY);
