@@ -12,6 +12,11 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 contract DawnWithdraw is IDawnWithdraw, DawnBase, DawnWithdrawStorageLayout {
     using SafeMath for uint256;
 
+
+    bytes32 internal constant _LAST_FULFILLMENT_REQUEST_ID_KEY = keccak256("dawnWithdraw.lastFulfillmentRequestId");
+    bytes32 internal constant _LAST_REQUEST_ID_KEY = keccak256("dawnWithdraw.lastRequestId");
+    bytes32 internal constant _LAST_CHECKPOINT_INDEX_KEY = keccak256("dawnWithdraw.lastCheckpointIndex");
+
     // ***************** contract name *****************
     string internal constant _DAWN_DEPOSIT_CONTRACT_NAME = "DawnDeposit";
 
@@ -30,6 +35,7 @@ contract DawnWithdraw is IDawnWithdraw, DawnBase, DawnWithdrawStorageLayout {
         uint256 maxClaimableEther = IDawnDeposit(_getContractAddress(_DAWN_DEPOSIT_CONTRACT_NAME)).getEtherByPEth(pEthAmount);
         assert(maxClaimableEther != 0);
 
+        uint256 lastRequestId = _getUint(_LAST_REQUEST_ID_KEY);
         WithdrawRequest memory lastWithdrawRequest = withdrawRequestQueue[lastRequestId];
 
         // 创建WithdrawRequest并存到队列中
@@ -40,8 +46,10 @@ contract DawnWithdraw is IDawnWithdraw, DawnBase, DawnWithdrawStorageLayout {
             block.timestamp,
             false
         );
-        requestId = ++lastRequestId;
-        withdrawRequestQueue[requestId] = withdrawRequest;
+        withdrawRequestQueue[lastRequestId + 1] = withdrawRequest;
+
+        // update lastRequestId
+        _addUint(_LAST_REQUEST_ID_KEY, 1);
 
         // 触发创建赎回请求的事件
         emit LogWithdrawalRequested(requestId, msg.sender, pEthAmount, maxClaimableEther);
@@ -49,7 +57,8 @@ contract DawnWithdraw is IDawnWithdraw, DawnBase, DawnWithdrawStorageLayout {
 
     // DawnPool
     function fulfillment(uint256 lastRequestIdToBeFulfilled) external payable onlyAllowDawnDeposit {
-
+        uint256 lastRequestId = _getUint(_LAST_REQUEST_ID_KEY);
+        uint256 lastFulfillmentRequestId = _getUint(_LAST_FULFILLMENT_REQUEST_ID_KEY);
         require(lastRequestIdToBeFulfilled <= lastRequestId, "Invalid requestId");
         require(lastRequestIdToBeFulfilled > lastFulfillmentRequestId, "Already fulfillment");
 
@@ -62,17 +71,19 @@ contract DawnWithdraw is IDawnWithdraw, DawnBase, DawnWithdrawStorageLayout {
             revert TooMuchEtherToLocked(msg.value, endRequest.maxCumulativeClaimableEther - startRequest.maxCumulativeClaimableEther);
         }
 
+        uint256 lastCheckpointIndex = _getUint(_LAST_CHECKPOINT_INDEX_KEY);
         // add checkpoint
-        checkPoints[lastCheckpointIndex++] = CheckPoint(
+        checkPoints[lastCheckpointIndex] = CheckPoint(
                     IDawnDeposit(_getContractAddress(_DAWN_DEPOSIT_CONTRACT_NAME)).getTotalPooledEther(),
                     IERC20(_getContractAddress(_DAWN_DEPOSIT_CONTRACT_NAME)).totalSupply(),
                     lastRequestIdToBeFulfilled
         );
 
         // 更新
-        lastFulfillmentRequestId = lastRequestIdToBeFulfilled;
+        _addUint(_LAST_CHECKPOINT_INDEX_KEY, 1);
+        _setUint(_LAST_FULFILLMENT_REQUEST_ID_KEY, lastRequestIdToBeFulfilled);
 
-        emit LogFulfillment(msg.value, lastRequestIdToBeFulfilled, lastCheckpointIndex - 1);
+        emit LogFulfillment(msg.value, lastRequestIdToBeFulfilled, lastCheckpointIndex);
     }
 
     // user
@@ -80,7 +91,7 @@ contract DawnWithdraw is IDawnWithdraw, DawnBase, DawnWithdrawStorageLayout {
         // 判断requestId是否在合法的范围内
         require(requestId > 0, "Zero withdraw requestId");
         // 判断requestId是否已经处于fulfillment状态
-        require(requestId <= lastFulfillmentRequestId, "Not fulfillment");
+        require(requestId <= _getUint(_LAST_FULFILLMENT_REQUEST_ID_KEY), "Not fulfillment");
 
         WithdrawRequest memory withdrawRequest = withdrawRequestQueue[requestId];
         // 判断是否已经被claim过
@@ -100,7 +111,7 @@ contract DawnWithdraw is IDawnWithdraw, DawnBase, DawnWithdrawStorageLayout {
         uint256 ethAmount = withdrawRequest.maxCumulativeClaimableEther - preWithdrawRequest.maxCumulativeClaimableEther;
         uint256 pethAmount = withdrawRequest.cumulativePEth - preWithdrawRequest.cumulativePEth;
         // 根据pethAmount以及fulfillment阶段确定的requestId所属的CheckPoint时汇率，计算出最多能兑换 x Ether
-        uint256 checkPointIndex = _findCheckPointByRequestId(requestId, 0, lastCheckpointIndex);
+        uint256 checkPointIndex = _findCheckPointByRequestId(requestId, 0, _getUint(_LAST_CHECKPOINT_INDEX_KEY));
         ethAmount = Math.min(ethAmount, _getMaxEtherByCheckPoint(pethAmount, checkPoints[checkPointIndex]));
 
         // transfer ethAmount ether to msg.sender
@@ -109,7 +120,34 @@ contract DawnWithdraw is IDawnWithdraw, DawnBase, DawnWithdrawStorageLayout {
         emit LogClaimed(msg.sender, ethAmount);
     }
 
+    // 获取未完成的赎回请求队列(返回的数组index=0的WithdrawRequest是fulfilled)
+    function getUnfulfilledWithdrawRequestQueue() public view returns (WithdrawRequest[] memory unfulfilledWithdrawRequestQueue) {
+        uint256 lastFulfillmentRequestId = _getUint(_LAST_FULFILLMENT_REQUEST_ID_KEY);
+        uint256 length = withdrawRequestQueue.length - lastFulfillmentRequestId;
+        unfulfilledWithdrawRequestQueue = new WithdrawRequest[](length);
+
+        for (uint256 i = lastFulfillmentRequestId; i < withdrawRequestQueue.length; i++) {
+            unfulfilledWithdrawRequestQueue[i - lastFulfillmentRequestId] = withdrawRequestQueue[i];
+        }
+    }
+
+    function getWithdrawRequestQueue() public view returns (WithdrawRequest[] memory) {
+        return withdrawRequestQueue;
+    }
+
+    function getCheckPoints() public view returns (CheckPoint[] memory) {
+        return checkPoints;
+    }
+
+    function getWithdrawQueueStat() public view returns (uint256 lastFulfillmentRequestId, uint256 lastRequestId, uint256 lastCheckpointIndex) {
+        lastFulfillmentRequestId = _getUint(_LAST_FULFILLMENT_REQUEST_ID_KEY);
+        lastRequestId = _getUint(_LAST_REQUEST_ID_KEY);
+        lastCheckpointIndex = _getUint(_LAST_CHECKPOINT_INDEX_KEY);
+    }
+
     function getUnfulfilledTotalPEth() public view returns (uint256) {
+        uint256 lastFulfillmentRequestId = _getUint(_LAST_FULFILLMENT_REQUEST_ID_KEY);
+        uint256 lastRequestId = _getUint(_LAST_REQUEST_ID_KEY);
         if (lastFulfillmentRequestId == lastRequestId) {
             return 0;
         }
@@ -117,6 +155,8 @@ contract DawnWithdraw is IDawnWithdraw, DawnBase, DawnWithdrawStorageLayout {
     }
 
     function getUnfulfilledTotalEth() public view returns (uint256) {
+        uint256 lastFulfillmentRequestId = _getUint(_LAST_FULFILLMENT_REQUEST_ID_KEY);
+        uint256 lastRequestId = _getUint(_LAST_REQUEST_ID_KEY);
         if (lastFulfillmentRequestId == lastRequestId) {
             return 0;
         }
@@ -125,7 +165,8 @@ contract DawnWithdraw is IDawnWithdraw, DawnBase, DawnWithdrawStorageLayout {
 
     // [start, end)
     function _findCheckPointByRequestId(uint256 requestId, uint256 start, uint256 end) internal view returns(uint256 checkPointIndex) {
-        require(requestId <= lastFulfillmentRequestId, "Not fulfillment");
+        require(requestId <= _getUint(_LAST_FULFILLMENT_REQUEST_ID_KEY), "Not fulfillment");
+        checkPointIndex = 0;
         uint256 mid = start + (end - start) / 2;
         uint256 midFrom;
         while (start < end) {

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.17;
 
+import "../core/DawnWithdrawStorageLayout.sol";
+
 interface IDawnWithdraw {
     event LogWithdrawalRequested(
         uint256 indexed requestId,
@@ -24,6 +26,11 @@ interface IDawnWithdraw {
     function fulfillment(uint256 lastRequestIdToBeFulfilled) external payable;
 
     function claimEther(uint256 requestId) external;
+
+    function getUnfulfilledWithdrawRequestQueue() external view returns (WithdrawRequest[] memory unfulfilledWithdrawRequestQueue);
+    function getWithdrawRequestQueue() external view returns (WithdrawRequest[] memory);
+    function getCheckPoints() external view returns (CheckPoint[] memory);
+    function getWithdrawQueueStat() external view returns (uint256 lastFulfillmentRequestId, uint256 lastRequestId, uint256 lastCheckpointIndex);
 
     function getUnfulfilledTotalPEth() external view returns (uint256);
     function getUnfulfilledTotalEth() external view returns (uint256);
