@@ -195,10 +195,14 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
         );
 
         // process withdraw request
-        _processWithdrawRequest(lastRequestIdToBeFulfilled, ethAmountToLock);
+        if (ethAmountToLock > 0) {
+            _processWithdrawRequest(lastRequestIdToBeFulfilled, ethAmountToLock);
+        }
 
         // process burn pEth
-        _processPEthBurnRequest(burnedPEthAmount);
+        if (burnedPEthAmount > 0) {
+            _processPEthBurnRequest(burnedPEthAmount);
+        }
 
     }
 
