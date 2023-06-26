@@ -27,6 +27,8 @@ interface IDawnWithdraw {
 
     function claimEther(uint256 requestId) external;
 
+    function checkFulfillment(uint256 lastRequestIdToBeFulfilled, uint256 ethAmountToLock) external view;
+
     function getUnfulfilledWithdrawRequestQueue() external view returns (WithdrawRequest[] memory unfulfilledWithdrawRequestQueue);
     function getWithdrawRequestQueue() external view returns (WithdrawRequest[] memory);
     function getCheckPoints() external view returns (CheckPoint[] memory);

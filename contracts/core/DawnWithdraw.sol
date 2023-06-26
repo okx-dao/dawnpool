@@ -20,6 +20,9 @@ contract DawnWithdraw is IDawnWithdraw, DawnBase, DawnWithdrawStorageLayout {
     // ***************** contract name *****************
     string internal constant _DAWN_DEPOSIT_CONTRACT_NAME = "DawnDeposit";
 
+    error InvalidRequestIdToBeFulfilled(uint256 preLastFulfilledRequestId, uint256 lastRequestId, uint256 requestId);
+    error EthNotExpect(uint256 expectEth, uint256 ethAmountToLock);
+
 
     //    constructor
     constructor(IDawnStorageInterface dawnStorageAddress) DawnBase(dawnStorageAddress) { }
@@ -84,6 +87,26 @@ contract DawnWithdraw is IDawnWithdraw, DawnBase, DawnWithdrawStorageLayout {
         _setUint(_LAST_FULFILLMENT_REQUEST_ID_KEY, lastRequestIdToBeFulfilled);
 
         emit LogFulfillment(msg.value, lastRequestIdToBeFulfilled, lastCheckpointIndex);
+    }
+
+
+    function checkFulfillment(uint256 lastRequestIdToBeFulfilled, uint256 ethAmountToLock) public view {
+        uint256 preLastFulfillmentRequestId = _getUint(_LAST_FULFILLMENT_REQUEST_ID_KEY);
+        uint256 lastRequestId = _getUint(_LAST_REQUEST_ID_KEY);
+        if (lastRequestIdToBeFulfilled <= lastRequestId || lastRequestIdToBeFulfilled > preLastFulfillmentRequestId) {
+            revert InvalidRequestIdToBeFulfilled(preLastFulfillmentRequestId, lastRequestId, lastRequestIdToBeFulfilled);
+        }
+
+        uint256 expectEth = 0;
+
+        for (uint256 i = preLastFulfillmentRequestId; i <= lastRequestIdToBeFulfilled; i++) {
+            expectEth += Math.min(
+                withdrawRequestQueue[i].maxCumulativeClaimableEther - withdrawRequestQueue[i - 1].maxCumulativeClaimableEther,
+                IDawnDeposit(_getContractAddress(_DAWN_DEPOSIT_CONTRACT_NAME)).getEtherByPEth(withdrawRequestQueue[i].cumulativePEth - withdrawRequestQueue[i - 1].cumulativePEth)
+            );
+        }
+
+        if (expectEth != ethAmountToLock) revert EthNotExpect(expectEth, ethAmountToLock);
     }
 
     // user

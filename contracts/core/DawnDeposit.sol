@@ -175,12 +175,6 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
             IRewardsVault(_getContractAddress(_REWARDS_VAULT_CONTRACT_NAME)).withdrawRewards(availableRewards);
         }
 
-        // process withdraw request
-        _processWithdrawRequest(lastRequestIdToBeFulfilled, ethAmountToLock);
-
-        // process burn pEth
-        _processPEthBurnRequest(burnedPEthAmount);
-
         // calculate rewardsPEth
         // rewardsPEth / (rewards * fee/basic) = preTotalPEth / (preTotalEther + rewards * (basic - fee)/basic)
         // rewardsPEth / (rewards * fee) = preTotalPEth / (preTotalEther * basic + rewards * (basic - fee))
@@ -188,6 +182,7 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
         uint256 rewardsPEth = preTotalPEth.mul(rewards).mul(_getUint(_FEE_KEY)).div(
             preTotalEther.mul(_FEE_BASIC).add(rewards.mul(_FEE_BASIC.sub(_getUint(_FEE_KEY))))
         );
+        _mint(address(this), rewardsPEth);
         // distributeRewards
         _distributeRewards(rewardsPEth);
 
@@ -199,11 +194,18 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
             totalSupply()
         );
 
+        // process withdraw request
+        _processWithdrawRequest(lastRequestIdToBeFulfilled, ethAmountToLock);
+
+        // process burn pEth
+        _processPEthBurnRequest(burnedPEthAmount);
+
     }
 
     // process withdraw request
     function _processWithdrawRequest(uint256 lastRequestIdToBeFulfilled, uint256 ethAmountToLock) internal {
-        // todo 对ethAmountToLock合法性进行检测
+        require(ethAmountToLock <= _getUint(_BUFFERED_ETHER_KEY),"invalid eth amount to lock");
+        IDawnWithdraw(_getContractAddress(_DAWN_WITHDRAW_CONTRACT_NAME)).checkFulfillment(lastRequestIdToBeFulfilled, ethAmountToLock);
         // lock ETH for withdraw: transfer ETH to DawnWithdraw
         _subUint(_BUFFERED_ETHER_KEY, ethAmountToLock);
         IDawnWithdraw(_getContractAddress(_DAWN_WITHDRAW_CONTRACT_NAME)).fulfillment{value: ethAmountToLock}(lastRequestIdToBeFulfilled);
@@ -301,18 +303,18 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
 
     // transfer pETH as rewards to DawnInsurance
     function _transferToInsurance(uint256 rewardsPEth) internal {
-        _mint(_getContractAddress(_INSURANCE_CONTRACT_NAME), rewardsPEth);
+        _transfer(address(this), _getContractAddress(_INSURANCE_CONTRACT_NAME), rewardsPEth);
     }
 
     // transfer pETH as rewards to DawnTreasury
     function _transferToTreasury(uint256 rewardsPEth) internal {
-        _mint(_getContractAddress(_TREASURY_CONTRACT_NAME), rewardsPEth);
+        _transfer(address(this), _getContractAddress(_TREASURY_CONTRACT_NAME), rewardsPEth);
     }
 
     // distribute pETH as rewards to NodeOperators
     function _distributeNodeOperatorRewards(uint256 rewardsPEth) internal {
         address nodeManagerAddr = _getContractAddress(_NODE_OPERATOR_REGISTER_CONTRACT_NAME);
-        _mint(nodeManagerAddr, rewardsPEth);
+        _transfer(address(this), nodeManagerAddr, rewardsPEth);
         NodeManager(nodeManagerAddr).distributeNodeOperatorRewards(rewardsPEth);
     }
 
