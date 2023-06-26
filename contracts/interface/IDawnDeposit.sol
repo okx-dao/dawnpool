@@ -30,6 +30,13 @@ interface IDawnDeposit {
         uint256 ethAmountToLock
     ) external;
 
+    function preCalculateExchangeRate(
+        uint256 beaconValidators,
+        uint256 beaconBalance,
+        uint256 availableRewards,
+        uint256 exitedValidators
+    ) external view returns (uint256 totalEther, uint256 totalPEth);
+
     // receive pETH from Insurance, and burn
     function receiveFromInsurance(uint256 pEthAmount) external;
 

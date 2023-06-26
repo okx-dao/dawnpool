@@ -202,6 +202,40 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
 
     }
 
+    function preCalculateExchangeRate(
+        uint256 beaconValidators,
+        uint256 beaconBalance,
+        uint256 availableRewards,
+        uint256 exitedValidators
+    ) external view returns (uint256 totalEther, uint256 totalPEth) {
+        totalEther = _getUint(_BUFFERED_ETHER_KEY) // buffered balance
+            .add(availableRewards)
+            .add(beaconBalance) // beacon balance
+            .add(
+                _getUint(_DEPOSITED_VALIDATORS_KEY).sub(exitedValidators).sub(beaconValidators).mul(
+                    DEPOSIT_VALUE_PER_VALIDATOR
+                )
+            ) // transient balance
+            .add(_getUint(_PRE_DEPOSIT_VALIDATORS_KEY).mul(PRE_DEPOSIT_VALUE)) // pre validator balance
+            .sub(_getUint(_UNREACHABLE_ETHER_COUNT_KEY)); // unreachable ether
+
+        uint256 rewards = beaconBalance.add(availableRewards).sub(
+            _getUint(_BEACON_ACTIVE_VALIDATOR_BALANCE_KEY).add(
+                beaconValidators.add(exitedValidators).sub(_getUint(_BEACON_ACTIVE_VALIDATORS_KEY)).mul(DEPOSIT_VALUE_PER_VALIDATOR)
+            )
+        );
+
+        uint256 preTotalEther = _getTotalPooledEther();
+        uint256 preTotalPEth = totalSupply();
+
+        uint256 rewardsPEth = preTotalPEth.mul(rewards).mul(_getUint(_FEE_KEY)).div(
+            preTotalEther.mul(_FEE_BASIC).add(rewards.mul(_FEE_BASIC.sub(_getUint(_FEE_KEY))))
+        );
+
+        totalPEth = preTotalPEth + rewardsPEth;
+    }
+
+
     // process withdraw request
     function _processWithdrawRequest(uint256 lastRequestIdToBeFulfilled, uint256 ethAmountToLock) internal {
         require(ethAmountToLock <= _getUint(_BUFFERED_ETHER_KEY),"invalid eth amount to lock");
