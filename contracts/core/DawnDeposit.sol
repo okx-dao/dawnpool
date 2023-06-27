@@ -69,7 +69,9 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
         require(msg.sender == _getContractAddress(_INSURANCE_CONTRACT_NAME), "receive not from insurance");
 
         // burn insurance's pEth
-        _burn(_getContractAddress(_INSURANCE_CONTRACT_NAME), pEthAmount);
+        //_burn(_getContractAddress(_INSURANCE_CONTRACT_NAME), pEthAmount);
+        _transfer(msg.sender, _getContractAddress(_BURNER_CONTRACT_NAME), pEthAmount);
+        IBurner(_getContractAddress(_BURNER_CONTRACT_NAME)).requestBurnPEth(msg.sender, pEthAmount);
 
         emit LogReceiveInsurance(pEthAmount);
     }
