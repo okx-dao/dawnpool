@@ -4,16 +4,12 @@ pragma solidity ^0.8.17;
 import "../interface/IDawnInsurance.sol";
 import "../base/DawnBase.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-
-interface IDawnDeposit {
-    function receiveFromInsurance(uint256 pEthAmount) external;
-}
+import "../interface/IDawnDeposit.sol";
 
 contract DawnInsurance is IDawnInsurance, DawnBase {
     constructor(IDawnStorageInterface dawnStorageAddress) DawnBase(dawnStorageAddress) {}
 
-    function transferToStakingPool(uint256 amountPEth) external {
-        //todo: ACL
+    function transferToStakingPool(uint256 amountPEth) external onlyGuardian {
         require(_getContractAddress("DawnDeposit") != address(0), "pETH token not exists");
         address pETH = _getContractAddress("DawnDeposit");
         amountPEth = IERC20(pETH).balanceOf(address(this)) > amountPEth
