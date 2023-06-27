@@ -332,11 +332,15 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
     // distribute pETH rewards to NodeOperators、DawnInsurance、DawnTreasury
     function _distributeRewards(uint256 rewardsPEth) internal {
         uint256 insuranceFee = _getUint(_INSURANCE_FEE_KEY);
-        uint256 treasuryFee = _getUint(_TREASURY_FEE_KEY);
         uint256 nodeOperatorFee = _getUint(_NODE_OPERATOR_FEE_KEY);
-        _transferToInsurance(rewardsPEth.mul(insuranceFee).div(_FEE_BASIC));
-        _transferToTreasury(rewardsPEth.mul(treasuryFee).div(_FEE_BASIC));
-        _distributeNodeOperatorRewards(rewardsPEth.mul(nodeOperatorFee).div(_FEE_BASIC));
+
+        uint256 nodeOperatorRewards = rewardsPEth.mul(nodeOperatorFee).div(_FEE_BASIC);
+        uint256 insuranceRewards = rewardsPEth.mul(insuranceFee).div(_FEE_BASIC);
+        uint256 treasuryRewards = rewardsPEth.sub(nodeOperatorRewards).sub(insuranceRewards);
+
+        _transferToInsurance(insuranceRewards);
+        _transferToTreasury(treasuryRewards);
+        _distributeNodeOperatorRewards(nodeOperatorRewards);
     }
 
     // transfer pETH as rewards to DawnInsurance
