@@ -18,9 +18,9 @@ interface NodeManager {
 contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
     using SafeMath for uint256;
 
-    uint256 public constant DEPOSIT_VALUE_PER_VALIDATOR = 32 ether;
-    uint256 public constant PRE_DEPOSIT_VALUE = 1 ether;
-    uint256 public constant POST_DEPOSIT_VALUE = 31 ether;
+    uint256 internal constant DEPOSIT_VALUE_PER_VALIDATOR = 32 ether;
+    uint256 internal constant PRE_DEPOSIT_VALUE = 1 ether;
+    uint256 internal constant POST_DEPOSIT_VALUE = 31 ether;
     uint256 internal constant _FEE_BASIC = 10000;
 
     bytes32 internal constant _BUFFERED_ETHER_KEY = keccak256("dawnDeposit.bufferedEther");
@@ -50,6 +50,15 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
     error PEthNotEnough();
     error ZeroBurnAmount();
     error ErrorBurnedPEthAmount(uint256 burnedPEthAmount, uint256 burnerBalance);
+    error InvalidValidators(uint256 beaconValidators, uint256 exitedValidators, uint256 depositedValidators);
+    error Unprofitable();
+    error RewardsVaultBalanceNotEnough();
+    error ReceiveNotFromInsurance(address from);
+    error BufferedEtherNotEnough();
+    error InvalidLockEth(uint256 ethAmountToLock);
+    error StakeZeroEther();
+    error CallerAuthFailed(address from);
+    error NodeOperatorInactive(address nodeAddress);
 
     // constructor
     constructor(IDawnStorageInterface dawnStorageAddress) DawnTokenPETH() DawnBase(dawnStorageAddress) {}
@@ -66,7 +75,9 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
 
     // receive pETH from Insurance, and burn pETH
     function receiveFromInsurance(uint256 pEthAmount) external {
-        require(msg.sender == _getContractAddress(_INSURANCE_CONTRACT_NAME), "receive not from insurance");
+        if (msg.sender != _getContractAddress(_INSURANCE_CONTRACT_NAME)) {
+            revert ReceiveNotFromInsurance(msg.sender);
+        }
 
         // burn insurance's pEth
         //_burn(_getContractAddress(_INSURANCE_CONTRACT_NAME), pEthAmount);
@@ -82,7 +93,9 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
         bytes calldata pubkey,
         bytes calldata signature
     ) external onlyActiveNodeOperator(operator) {
-        require(address(this).balance >= POST_DEPOSIT_VALUE, "buffer ether not enough");
+        if (address(this).balance < POST_DEPOSIT_VALUE) {
+            revert BufferedEtherNotEnough();
+        }
         bytes32 withdrawalCredentials =  _getWithdrawalCredentials();
         _doDeposit(pubkey, withdrawalCredentials, signature, POST_DEPOSIT_VALUE);
 
@@ -103,7 +116,9 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
         bytes calldata pubkey,
         bytes calldata signature
     ) external onlyActiveNodeOperator(operator) {
-        require(address(this).balance >= PRE_DEPOSIT_VALUE, "buffer ether not enough");
+        if (address(this).balance < PRE_DEPOSIT_VALUE) {
+            revert BufferedEtherNotEnough();
+        }
         bytes32 withdrawalCredentials =  _getWithdrawalCredentials();
         _doDeposit(pubkey, withdrawalCredentials, signature, PRE_DEPOSIT_VALUE);
 
@@ -135,20 +150,21 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
         uint256 burnedPEthAmount,
         uint256 lastRequestIdToBeFulfilled,
         uint256 ethAmountToLock
-    ) external {
-        require(msg.sender == _getContractAddress(_ORACLE_CONTRACT_NAME), "only call by DawnPoolOracle");
-        require(beaconValidators + exitedValidators <= _getUint(_DEPOSITED_VALIDATORS_KEY), "invalid params: beaconValidators, exitedValidators");
-        require(
-            availableRewards <= _getContractAddress(_REWARDS_VAULT_CONTRACT_NAME).balance,
-            "RewardsVault insufficient balance"
-        );
-        require(
-            beaconBalance.add(availableRewards) >
+    ) external onlyDawnPoolOracle {
+        if (beaconValidators + exitedValidators > _getUint(_DEPOSITED_VALIDATORS_KEY)) {
+            revert InvalidValidators(beaconValidators, exitedValidators, _getUint(_DEPOSITED_VALIDATORS_KEY));
+        }
+        if (availableRewards > _getContractAddress(_REWARDS_VAULT_CONTRACT_NAME).balance) {
+            revert RewardsVaultBalanceNotEnough();
+        }
+        if (
+            beaconBalance.add(availableRewards) <=
                 _getUint(_BEACON_ACTIVE_VALIDATOR_BALANCE_KEY).add(
                     beaconValidators.add(exitedValidators).sub(_getUint(_BEACON_ACTIVE_VALIDATORS_KEY)).mul(DEPOSIT_VALUE_PER_VALIDATOR)
-                ),
-            "unprofitable"
-        );
+                )
+        ) {
+            revert Unprofitable();
+        }
 
         uint256 rewards = beaconBalance.add(availableRewards).sub(
             _getUint(_BEACON_ACTIVE_VALIDATOR_BALANCE_KEY).add(
@@ -244,7 +260,9 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
 
     // process withdraw request
     function _processWithdrawRequest(uint256 lastRequestIdToBeFulfilled, uint256 ethAmountToLock) internal {
-        require(ethAmountToLock <= _getUint(_BUFFERED_ETHER_KEY),"invalid eth amount to lock");
+        if (ethAmountToLock > _getUint(_BUFFERED_ETHER_KEY)) {
+            revert InvalidLockEth(ethAmountToLock);
+        }
         IDawnWithdraw(_getContractAddress(_DAWN_WITHDRAW_CONTRACT_NAME)).checkFulfillment(lastRequestIdToBeFulfilled, ethAmountToLock);
         // lock ETH for withdraw: transfer ETH to DawnWithdraw
         _subUint(_BUFFERED_ETHER_KEY, ethAmountToLock);
@@ -363,7 +381,9 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
     }
 
     function _stake() internal returns (uint256) {
-        require(msg.value != 0, "STAKE_ZERO_ETHER");
+        if (msg.value == 0) {
+            revert StakeZeroEther();
+        }
 
         uint256 pEthAmount = getPEthByEther(msg.value);
         if (pEthAmount == 0) {
@@ -433,13 +453,26 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
 
     modifier onlyActiveNodeOperator(address operator) {
         (address nodeAddress, bool isActive) = IDepositNodeManager(_getContractAddress(_DEPOSIT_NODE_MANAGER)).getNodeOperator(operator);
-        require(msg.sender == nodeAddress, "Only node operator can register validators!");
-        require(isActive, "Node operator is inactive!");
+        if (msg.sender != nodeAddress) {
+            revert CallerAuthFailed(msg.sender);
+        }
+        if (!isActive) {
+            revert NodeOperatorInactive(nodeAddress);
+        }
         _;
     }
 
     modifier onlyNodeManager() {
-        require(msg.sender == _getContractAddress(_NODE_OPERATOR_REGISTER_CONTRACT_NAME), "Only call by nodeManager");
+        if (msg.sender != _getContractAddress(_NODE_OPERATOR_REGISTER_CONTRACT_NAME)) {
+            revert CallerAuthFailed(msg.sender);
+        }
+        _;
+    }
+
+    modifier onlyDawnPoolOracle() {
+        if (msg.sender != _getContractAddress(_ORACLE_CONTRACT_NAME)) {
+            revert CallerAuthFailed(msg.sender);
+        }
         _;
     }
 }
