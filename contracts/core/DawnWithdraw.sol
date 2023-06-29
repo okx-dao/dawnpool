@@ -49,7 +49,8 @@ contract DawnWithdraw is IDawnWithdraw, DawnBase, DawnWithdrawStorageLayout {
             block.timestamp,
             false
         );
-        withdrawRequestQueue[lastRequestId + 1] = withdrawRequest;
+        requestId = lastRequestId + 1;
+        withdrawRequestQueue[requestId] = withdrawRequest;
 
         // update lastRequestId
         _addUint(_LAST_REQUEST_ID_KEY, 1);
