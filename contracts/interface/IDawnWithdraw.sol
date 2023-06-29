@@ -30,8 +30,6 @@ interface IDawnWithdraw {
     function checkFulfillment(uint256 lastRequestIdToBeFulfilled, uint256 ethAmountToLock) external view;
 
     function getUnfulfilledWithdrawRequestQueue() external view returns (WithdrawRequest[] memory unfulfilledWithdrawRequestQueue);
-    function getWithdrawRequestQueue() external view returns (WithdrawRequest[] memory);
-    function getCheckPoints() external view returns (CheckPoint[] memory);
     function getWithdrawQueueStat() external view returns (uint256 lastFulfillmentRequestId, uint256 lastRequestId, uint256 lastCheckpointIndex);
 
     function getUnfulfilledTotalPEth() external view returns (uint256);

@@ -20,6 +20,6 @@ struct CheckPoint {
 
 abstract contract DawnWithdrawStorageLayout {
 
-    WithdrawRequest[] withdrawRequestQueue;
-    CheckPoint[] checkPoints;
+    mapping(uint256 => WithdrawRequest) public withdrawRequestQueue;
+    mapping(uint256 => CheckPoint) public checkPoints;
 }

@@ -146,20 +146,13 @@ contract DawnWithdraw is IDawnWithdraw, DawnBase, DawnWithdrawStorageLayout {
     // 获取未完成的赎回请求队列(返回的数组index=0的WithdrawRequest是fulfilled)
     function getUnfulfilledWithdrawRequestQueue() public view returns (WithdrawRequest[] memory unfulfilledWithdrawRequestQueue) {
         uint256 lastFulfillmentRequestId = _getUint(_LAST_FULFILLMENT_REQUEST_ID_KEY);
-        uint256 length = withdrawRequestQueue.length - lastFulfillmentRequestId;
+        uint256 lastRequestId = _getUint(_LAST_REQUEST_ID_KEY);
+        uint256 length = lastRequestId - lastFulfillmentRequestId + 1;
         unfulfilledWithdrawRequestQueue = new WithdrawRequest[](length);
 
-        for (uint256 i = lastFulfillmentRequestId; i < withdrawRequestQueue.length; i++) {
+        for (uint256 i = lastFulfillmentRequestId; i <= lastRequestId; i++) {
             unfulfilledWithdrawRequestQueue[i - lastFulfillmentRequestId] = withdrawRequestQueue[i];
         }
-    }
-
-    function getWithdrawRequestQueue() public view returns (WithdrawRequest[] memory) {
-        return withdrawRequestQueue;
-    }
-
-    function getCheckPoints() public view returns (CheckPoint[] memory) {
-        return checkPoints;
     }
 
     function getWithdrawQueueStat() public view returns (uint256 lastFulfillmentRequestId, uint256 lastRequestId, uint256 lastCheckpointIndex) {
