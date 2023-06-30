@@ -33,27 +33,25 @@ contract DawnDepositSecurityModule is DawnBase,IDawnDepositSecuritymodule {
     bytes32 public immutable ATTEST_MESSAGE_PREFIX;
     bytes32 public immutable UNSAFE_MESSAGE_PREFIX;
     // keccak256("dawnPool.DepositSecurityModule.OWNER")
-    bytes32 public constant  OWNER_HASH=bytes32(0xc9251fa75af76049a46c72a1940af4a2dfa80228a9f60ce95cf8b12dc69459c8);
+    bytes32 public constant  OWNER_HASH=0xc9251fa75af76049a46c72a1940af4a2dfa80228a9f60ce95cf8b12dc69459c8;
     // keccak256("dawnPool.DepositSecurityModule.PAUSE_INTENT_VALIDITY_PERIOD_BLOCK")
-    bytes32 public constant PAUSE_INTENT_VALIDITY_PEROID_BLOCKS_HASH=bytes32(0x2e72a31c4de4682215c3b4bdfaf159f81858efb221c2576e36a9218a0f909ace);
+    bytes32 public constant PAUSE_INTENT_VALIDITY_PEROID_BLOCKS_HASH=0x2e72a31c4de4682215c3b4bdfaf159f81858efb221c2576e36a9218a0f909ace;
     // keccak256("dawnPool.DepositSecurityModule.MAX_DEPOSITS_BLOCK")
-    bytes32 public constant MAX_DEPOSITS_BLOCK_HASH = bytes32(0x5c526a55ec962481ceee5f6e29b0bf6e8f21c4afc918115a21f225aa56b40e09);
+    bytes32 public constant MAX_DEPOSITS_BLOCK_HASH = 0x5c526a55ec962481ceee5f6e29b0bf6e8f21c4afc918115a21f225aa56b40e09;
     // keccak256("dawnPool.DepositSecurityModule.MIN_DEPOSIT_BLOCK_DISTANCE")
-    bytes32 public constant MIN_DEPOSIT_BLOCK_DISTANCE_HASH = bytes32(0xe36e3ab7618b1a09fe366e20a6f0cb9b9704c59d7f3131ac3bbb6b98f7c60098);
+    bytes32 public constant MIN_DEPOSIT_BLOCK_DISTANCE_HASH = 0xe36e3ab7618b1a09fe366e20a6f0cb9b9704c59d7f3131ac3bbb6b98f7c60098;
     // keccak256("dawnPool.DepositSecurityModule.GUARDIAN_QUORUM")
-    bytes32 public constant GUARDIAN_QUORUM_HASH =bytes32(0x62db56b7c289e6ee0047a0bb6a603e88fa085bce071aaa0d9bf3bbde47f0ffa4) ;
+    bytes32 public constant GUARDIAN_QUORUM_HASH =0x62db56b7c289e6ee0047a0bb6a603e88fa085bce071aaa0d9bf3bbde47f0ffa4;
     // keccak256("dawnPool.DepositSecurityModule.DEPOSIT_SECURITY_MODULE_GUARDIAN_ADDRESS")
-    bytes32 public constant DEPOSIT_SECURITY_MODULE_GUARDIAN_ADDRESS_HASH = bytes32(0xa1f08e983736e93ab9eb200bf38d5e7f87bc8b9791bcd8802141baf806cdeada);
+    bytes32 public constant DEPOSIT_SECURITY_MODULE_GUARDIAN_ADDRESS_HASH = 0xa1f08e983736e93ab9eb200bf38d5e7f87bc8b9791bcd8802141baf806cdeada;
     // keccak256("dawnPool.DepositSecurityModule.LAST_DEPOSIT_BLOCK_HASH")
-    bytes32 public constant LAST_DEPOSIT_BLOCK_HASH =bytes32(0xa625831c7f31baad268665cfdba1031924ca705cf0a724acc0ec51ec366fa049);
+    bytes32 public constant LAST_DEPOSIT_BLOCK_HASH =0xa625831c7f31baad268665cfdba1031924ca705cf0a724acc0ec51ec366fa049;
 
 
     string internal constant _DAWN_DEPOSIT_CONTRACT_NAME = "DawnDeposit";
     string internal constant _DEPOSIT_NODE_MANAGER_CONTRACT_NAME = "DepositNodeManager";
-    IDepositNodeManager public immutable depositNodeManager;
-    IDawnDeposit public immutable dawnDeposit;
+    string internal constant _ADDRESS_SET_STORAGE_CONTRACT_NAME = "AddressSetStorage";
     IDepositContract public immutable depositContract;
-    IAddressSetStorageInterface addressSetStorage ;
 
 
 
@@ -61,16 +59,11 @@ contract DawnDepositSecurityModule is DawnBase,IDawnDepositSecuritymodule {
 
     constructor(
         IDawnStorageInterface _depositStorage,
-        address _depositContract,
-        uint256 _maxDepositsPerBlock,
-        uint256 _minDepositBlockDistance,
-        uint256 _pauseIntentValidityPeriodBlocks
+        address _depositContract
     ) DawnBase(_depositStorage){
         if (_depositContract == address(0)) revert ZeroAddress ("_depositContract");
 
-        dawnDeposit = IDawnDeposit( _getContractAddress(_DAWN_DEPOSIT_CONTRACT_NAME));
         depositContract = IDepositContract(_depositContract);
-        depositNodeManager =IDepositNodeManager( _getContractAddress(_DEPOSIT_NODE_MANAGER_CONTRACT_NAME));
 
         ATTEST_MESSAGE_PREFIX = keccak256(
             abi.encodePacked(
@@ -89,15 +82,24 @@ contract DawnDepositSecurityModule is DawnBase,IDawnDepositSecuritymodule {
                 address(this)
             )
         );
+    }
 
-
+    function initilize( uint256 _maxDepositsPerBlock,
+        uint256 _minDepositBlockDistance,
+        uint256 _pauseIntentValidityPeriodBlocks
+    ) external  {
         _setOwner(msg.sender);
         _setMaxDeposits(_maxDepositsPerBlock);
         _setMinDepositBlockDistance(_minDepositBlockDistance);
         _setPauseIntentValidityPeriodBlocks(_pauseIntentValidityPeriodBlocks);
-        addressSetStorage = IAddressSetStorageInterface(_getContractAddress("addressSetStorage"));
     }
 
+    function getAttestMessagePrefix() external view returns (bytes32) {
+        return ATTEST_MESSAGE_PREFIX;
+    }
+    function getUnsafeMessagePrefix() external view returns (bytes32) {
+        return UNSAFE_MESSAGE_PREFIX;
+    }
 
     function getOwner() external view returns (address) {
           return _getOwner();
@@ -169,6 +171,17 @@ contract DawnDepositSecurityModule is DawnBase,IDawnDepositSecuritymodule {
         emit MaxDepositsChanged(newValue);
     }
 
+    function _getDawnDeposit() internal  view returns (address){
+        return _getContractAddress(_DAWN_DEPOSIT_CONTRACT_NAME);
+    }
+
+    function _getDepositNodeManager() internal  view returns (address){
+        return _getContractAddress(_DEPOSIT_NODE_MANAGER_CONTRACT_NAME);
+    }
+
+    function _getAddressSetStorage() internal  view returns (address){
+        return _getContractAddress(_ADDRESS_SET_STORAGE_CONTRACT_NAME);
+    }
 
     function getMinDepositBlockDistance() external view returns (uint256) {
         return _getMinDepositBlockDistance();
@@ -221,14 +234,16 @@ contract DawnDepositSecurityModule is DawnBase,IDawnDepositSecuritymodule {
         return _getGuardianAddress(index);
     }
     function _getGuardianAddress(uint256 index) internal view returns (address) {
-        return  addressSetStorage.getItem(DEPOSIT_SECURITY_MODULE_GUARDIAN_ADDRESS_HASH,index);
+        return   IAddressSetStorageInterface(_getAddressSetStorage())
+        .getItem(DEPOSIT_SECURITY_MODULE_GUARDIAN_ADDRESS_HASH,index);
     }
 
     function getGuardiansCount() external view returns (uint256) {
         return _getGuardiansCount();
     }
     function _getGuardiansCount() internal view returns (uint256) {
-        return  addressSetStorage.getCount(DEPOSIT_SECURITY_MODULE_GUARDIAN_ADDRESS_HASH);
+        return  IAddressSetStorageInterface(_getAddressSetStorage())
+        .getCount(DEPOSIT_SECURITY_MODULE_GUARDIAN_ADDRESS_HASH);
     }
     /**
      * Checks whether the given address is a guardian.
@@ -249,7 +264,8 @@ contract DawnDepositSecurityModule is DawnBase,IDawnDepositSecuritymodule {
     }
 
     function _getGuardianIndex(address addr) internal view returns (int256) {
-        return  addressSetStorage.getIndexOf(DEPOSIT_SECURITY_MODULE_GUARDIAN_ADDRESS_HASH,addr);
+        return  IAddressSetStorageInterface(_getAddressSetStorage())
+        .getIndexOf(DEPOSIT_SECURITY_MODULE_GUARDIAN_ADDRESS_HASH,addr);
     }
 
     /**
@@ -279,7 +295,8 @@ contract DawnDepositSecurityModule is DawnBase,IDawnDepositSecuritymodule {
     function _addGuardian(address _newGuardian) internal {
         if (_newGuardian == address(0)) revert ZeroAddress("_newGuardian");
         if (_isGuardian(_newGuardian)) revert DuplicateAddress(_newGuardian);
-        addressSetStorage.addItem(DEPOSIT_SECURITY_MODULE_GUARDIAN_ADDRESS_HASH,_newGuardian);
+        IAddressSetStorageInterface(_getAddressSetStorage())
+        .addItem(DEPOSIT_SECURITY_MODULE_GUARDIAN_ADDRESS_HASH,_newGuardian);
         emit GuardianAdded(_newGuardian);
     }
 
@@ -289,6 +306,7 @@ contract DawnDepositSecurityModule is DawnBase,IDawnDepositSecuritymodule {
      * Only callable by the owner.
      */
     function removeGuardian(address addr, uint256 newQuorum) external onlyOwner {
+        IAddressSetStorageInterface addressSetStorage = IAddressSetStorageInterface(_getAddressSetStorage());
         int256 indexOneBased =  addressSetStorage.getIndexOf(DEPOSIT_SECURITY_MODULE_GUARDIAN_ADDRESS_HASH,addr);
         if (indexOneBased < 0) revert NotAGuardian(addr);
 
@@ -315,7 +333,7 @@ contract DawnDepositSecurityModule is DawnBase,IDawnDepositSecuritymodule {
      * The signature, if present, must be produced for keccak256 hash of the following
      * message (each component taking 32 bytes):
      *
-     * | UNSAFE_MESSAGE_PREFIX | blockNumber |
+     * | UNSAFE_MESSAGE_PREFIX | blockNumber | index| slashAmount
      */
     function setValidatorUnsafe(
         uint256 blockNumber,
@@ -335,7 +353,7 @@ contract DawnDepositSecurityModule is DawnBase,IDawnDepositSecuritymodule {
         int256 guardianIndex = _getGuardianIndex(msg.sender);
 
         if (guardianIndex == -1) {
-            bytes32 msgHash = keccak256(abi.encodePacked(UNSAFE_MESSAGE_PREFIX, blockNumber));
+            bytes32 msgHash = keccak256(abi.encodePacked(UNSAFE_MESSAGE_PREFIX, blockNumber,index,slashAmount));
             guardianAddr = ECDSA.recover(msgHash, sig.r, sig.vs);
             guardianIndex = _getGuardianIndex(guardianAddr);
             if (guardianIndex == -1) revert InvalidSignature();
@@ -343,7 +361,7 @@ contract DawnDepositSecurityModule is DawnBase,IDawnDepositSecuritymodule {
 
         if (block.number - blockNumber >  _getPauseIntentValidityPeriodBlocks()) revert PauseIntentExpired();
 
-        depositNodeManager.setValidatorUnsafe(index,slashAmount);
+        IDepositNodeManager(_getDepositNodeManager()).setValidatorUnsafe(index,slashAmount);
         emit DepositsUnsafeValidator(index, slashAmount);
     }
 
@@ -356,7 +374,7 @@ contract DawnDepositSecurityModule is DawnBase,IDawnDepositSecuritymodule {
 
     function canDeposit() external view returns (bool) {
 
-        bool isCanDeposit = dawnDeposit.getBufferedEther() > 31000000000000000000;
+        bool isCanDeposit =  IDawnDeposit(_getDawnDeposit()).getBufferedEther() >= 31000000000000000000;
         return (
             _getGuardianQuorum() > 0
             && block.number -  _getLastDepositBlock() >= _getMinDepositBlockDistance()
@@ -391,20 +409,20 @@ contract DawnDepositSecurityModule is DawnBase,IDawnDepositSecuritymodule {
 
         bytes32 onchainDepositRoot = IDepositContract(depositContract).get_deposit_root();
         if (depositRoot != onchainDepositRoot) revert DepositRootChanged();
+        IDepositNodeManager depositNodeManager = IDepositNodeManager(_getDepositNodeManager());
         IDepositNodeManager.ValidatorStatus temp;
         uint256 i=0;
         for(i=0;i<indexs.length ;i++){
             (,,temp)= depositNodeManager.getNodeValidator(indexs[i]);
+            if (temp!=IDepositNodeManager.ValidatorStatus.WAITING_ACTIVATED)  revert DepositInactiveModule();
         }
-        if (temp!=IDepositNodeManager.ValidatorStatus.WAITING_ACTIVATED)  revert DepositInactiveModule();
 
         if (block.number - _getLastDepositBlock() < _getMinDepositBlockDistance()) revert DepositTooFrequent();
         if (blockHash == bytes32(0) || blockhash(blockNumber) != blockHash) revert DepositUnexpectedBlockHash();
 
 
-        for(i=0;i<indexs.length;i++){
-            _verifySignatures(depositRoot, blockNumber, blockHash, indexs[i], sortedGuardianSignatures);
-        }
+
+        _verifySignatures(depositRoot, blockNumber, blockHash, indexs, sortedGuardianSignatures);
 
         depositNodeManager.activateValidators(indexs);
 
@@ -414,11 +432,11 @@ contract DawnDepositSecurityModule is DawnBase,IDawnDepositSecuritymodule {
         bytes32 depositRoot,
         uint256 blockNumber,
         bytes32 blockHash,
-        uint256 index,
+        uint256[]  memory indexs,
         Signature[] memory sigs
     ) internal view {
         bytes32 msgHash = keccak256(
-            abi.encodePacked(ATTEST_MESSAGE_PREFIX, blockNumber, blockHash, depositRoot, index)
+            abi.encodePacked(ATTEST_MESSAGE_PREFIX, blockNumber, blockHash, depositRoot, indexs)
         );
 
         address prevSignerAddr = address(0);

@@ -36,4 +36,6 @@ interface IDawnDepositSecuritymodule {
     function canDeposit() external view returns (bool);
     function depositBufferedEther(uint256 blockNumber,bytes32 blockHash,bytes32 depositRoot,uint256[] calldata indexs,
         Signature[] calldata sortedGuardianSignatures) external;
+    function getAttestMessagePrefix() external view returns (bytes32);
+    function getUnsafeMessagePrefix() external view returns (bytes32);
 }
