@@ -82,8 +82,10 @@ module.exports = {
   },
   defaultNetwork: 'hardhat',
   networks: {
-    localhost: {
+    dev: {
+      chainId: 32382,
       url: 'http://127.0.0.1:8545',
+      accounts: ['0x2e0834786285daccd064ca17f1654f67b4aef298acbb82cef9ec422fb4975622']
     },
     ganache: {
       url: 'http://127.0.0.1:7545',
