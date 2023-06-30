@@ -8,6 +8,11 @@ import "../base/DawnBase.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../interface/IDawnDeposit.sol";
 
+interface IDawnPunish {
+    function punish(address burnAddress, uint256 pethAmountToBurn) external;
+    function punish(address burnAddress, uint256 pethAmountToBurn, uint256 ethAmountToDecrease) external;
+}
+
 /**
  * @title Dawn node operator manager contract
  * @author Ray
@@ -23,12 +28,13 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
     bytes32 internal constant _TOTAL_REWARDS_PETH = keccak256("DepositNodeManager.TOTAL_REWARDS_PETH");
     bytes32 internal constant _REWARDS_PETH_PER_VALIDATOR = keccak256("DepositNodeManager.REWARDS_PETH_PER_VALIDATOR");
     string internal constant _DAWN_DEPOSIT_CONTRACT_NAME = "DawnDeposit";
-    bytes32 internal constant _NEXT_EXITING_VALIDATOR_ID = keccak256("DepositNodeManager.NEXT_EXITING_VALIDATOR_ID");
+    bytes32 internal constant _NEXT_EXIT_VALIDATOR_ID = keccak256("DepositNodeManager.NEXT_EXIT_VALIDATOR_ID");
 
     error ZeroAddress();
     error OperatorAlreadyExist();
+    error PubkeyAlreadyExist();
     error InconsistentNodeOperatorAddress(address operator, address required, address caller);
-    error InactiveNodeOperator();
+    error InactiveNodeOperator(address operator);
     error InconsistentValidatorStatus(uint256 index, uint256 required, uint256 current);
     error NotReceiveEnoughRewards(uint256 required, uint256 current);
     error NotExistOperator();
@@ -53,7 +59,6 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
         ).deployDepositNodeOperator(msg.sender);
         _setAddress(operatorStorageKey, nodeAddress);
         _setBool(operatorStorageKey, true);
-        _setUint(_getClaimedRewardsPerValidatorStorageKey(msg.sender), type(uint256).max); // init operator claimed rewards
         emit NodeOperatorRegistered(msg.sender, nodeAddress);
         _setAddress(_getWithdrawAddressStorageKey(msg.sender), withdrawAddress);
         emit WithdrawAddressSet(msg.sender, withdrawAddress);
@@ -82,12 +87,20 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
     function registerValidator(address operator, bytes calldata pubkey) external returns (uint256) {
         (address nodeAddress, bool isActive) = getNodeOperator(operator);
         if(msg.sender != nodeAddress) revert InconsistentNodeOperatorAddress(operator, nodeAddress, msg.sender);
-        if(!isActive) revert InactiveNodeOperator();
+        if(!isActive) revert InactiveNodeOperator(operator);
+        bytes32 pubkeyStorageKey = _getStorageKeyByValidatorPubkey(pubkey);
+        if(_getUint(pubkeyStorageKey) > 0 || _getBool(pubkeyStorageKey)) {
+            revert PubkeyAlreadyExist();
+        }
         uint256 index = _getUint(_NEXT_VALIDATOR_ID);
         bytes32 validatorStorageKey = _getStorageKeyByValidatorIndex(index);
         _setAddress(validatorStorageKey, operator);
         _setUint(validatorStorageKey, uint(ValidatorStatus.WAITING_ACTIVATED));
         _setBytes(validatorStorageKey, pubkey);
+        _setUint(pubkeyStorageKey, index);
+        if(index == 0) {
+            _setBool(pubkeyStorageKey, true);
+        }
         _addUint(_NEXT_VALIDATOR_ID, 1);
         emit SigningKeyAdded(index, operator, pubkey);
         return index;
@@ -107,6 +120,23 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
         operator = _getAddress(validatorStorageKey);
         pubkey = _getBytes(validatorStorageKey);
         status = ValidatorStatus(_getUint(validatorStorageKey));
+    }
+
+    /**
+     * @notice Get contract and status of validator by pubkey
+     * @param pubkey The public key of the validator
+     * @return index The index of the validator
+     * @return operator Operator address the validator belongs to
+     * @return status Validator status
+     */
+    function getNodeValidator(bytes calldata pubkey) external view returns (uint256 index, address operator, ValidatorStatus status) {
+        bytes32 pubkeyStorageKey = _getStorageKeyByValidatorPubkey(pubkey);
+        index = _getUint(pubkeyStorageKey);
+        if(index > 0 || _getBool(pubkeyStorageKey)) {
+            bytes32 validatorStorageKey = _getStorageKeyByValidatorIndex(index);
+            operator = _getAddress(validatorStorageKey);
+            status = ValidatorStatus(_getUint(validatorStorageKey));
+        }
     }
 
     /**
@@ -143,6 +173,7 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
         address operator;
         address nodeAddress;
         uint256 index;
+        bool isActive;
         for(uint256 i = 0; i < indexes.length; ++i){
             index = indexes[i];
             storageKey = _getStorageKeyByValidatorIndex(index);
@@ -150,7 +181,8 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
                 revert InconsistentValidatorStatus(index, uint256(ValidatorStatus.WAITING_ACTIVATED), _getUint(storageKey));
             bytes memory pubkey = _getBytes(storageKey);
             operator = _getAddress(storageKey);
-            nodeAddress = _getAddress(_getStorageKeyByOperatorAddress(operator));
+            (nodeAddress, isActive) = getNodeOperator(operator);
+            if(!isActive) revert InactiveNodeOperator(operator);
             IDepositNodeOperator(nodeAddress).activateValidator(index, pubkey);
             _updateRewards(operator);
             _setUint(storageKey, uint256(ValidatorStatus.VALIDATING));
@@ -170,8 +202,29 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
         return _getUint(_ACTIVATED_VALIDATOR_COUNT);
     }
 
-    function setValidatorUnsafe(uint256 index, uint256 slashAmount) external onlyGuardian {
-
+    /**
+     * @notice Set validator unsafe, the validator which was deposited
+     * and was set wrong withdraw credential should be slashed by Oracle
+     * @param index Validator index
+     * @param slashedPethAmount PETH amount to be slashed
+     */
+    function setValidatorUnsafe(uint256 index, uint256 slashedPethAmount) external onlyGuardian {
+        /// set validator status unsafe
+        bytes32 validatorStorageKey = _getStorageKeyByValidatorIndex(index);
+        if(_getUint(validatorStorageKey) != uint256(ValidatorStatus.WAITING_ACTIVATED))
+            revert InconsistentValidatorStatus(index, uint256(ValidatorStatus.WAITING_ACTIVATED), _getUint(validatorStorageKey));
+        _setUint(validatorStorageKey, uint256(ValidatorStatus.UNSAFE));
+        /// set operator inactive
+        address operator = _getAddress(validatorStorageKey);
+        bytes32 operatorStorageKey = _getStorageKeyByOperatorAddress(operator);
+        if(_getBool(operatorStorageKey)) {
+            _setBool(operatorStorageKey, false);
+        }
+        /// slash the operator 2 peth and decrease pool 1 eth
+        address nodeAddress = _getAddress(operatorStorageKey);
+        _slashNodeOperator(nodeAddress, slashedPethAmount, 1 ether);
+        IDepositNodeOperator(_getAddress(_getStorageKeyByOperatorAddress(operator))).updateValidatorExitCount(1);
+        emit SigningKeyUnsafe(index, operator, _getBytes(validatorStorageKey), nodeAddress, slashedPethAmount);
     }
 
     /**
@@ -180,7 +233,7 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
      */
     function distributeNodeOperatorRewards(uint256 pethAmount) external onlyLatestContract(_DAWN_DEPOSIT_CONTRACT_NAME, msg.sender) {
         uint256 bufferedRewards = _getUint(_TOTAL_REWARDS_PETH);
-        uint256 currentPETHBalance = IERC20(_getContractAddressUnsafe(_DAWN_DEPOSIT_CONTRACT_NAME)).balanceOf(address(this));
+        uint256 currentPETHBalance = IERC20(_getDawnDeposit()).balanceOf(address(this));
         if(currentPETHBalance < bufferedRewards + pethAmount)
             revert NotReceiveEnoughRewards(bufferedRewards + pethAmount, currentPETHBalance);
         uint256 rewardsAddedPerValidator = pethAmount / _getUint(_ACTIVATED_VALIDATOR_COUNT);
@@ -233,30 +286,29 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
      * @param count Validators count to change status
      * @dev Validators should exit firstly who joined at the earliest(least index)
      */
-    function updateValidatorsExiting(uint256 count) external onlyLatestContract(_DAWN_DEPOSIT_CONTRACT_NAME, msg.sender) returns (uint256[] memory indexes){
+    function updateValidatorsExit(uint256 count) external onlyLatestContract(_DAWN_DEPOSIT_CONTRACT_NAME, msg.sender) returns (uint256[] memory indexes){
         bytes32 validatorStorageKey;
-        uint256 index = _getUint(_NEXT_EXITING_VALIDATOR_ID);
+        uint256 index = _getUint(_NEXT_EXIT_VALIDATOR_ID);
         uint256 nextValidatorId = _getUint(_NEXT_VALIDATOR_ID);
-        uint256 exitingCount = 0;
+        uint256 exitCount = 0;
         uint256[] memory temp = new uint256[](count);
-        while(exitingCount < count && index < nextValidatorId) {
+        while(exitCount < count && index < nextValidatorId) {
             validatorStorageKey = _getStorageKeyByValidatorIndex(index);
-            if(_getUint(validatorStorageKey) != uint256(ValidatorStatus.VALIDATING))
-            {
+            if(_getUint(validatorStorageKey) != uint256(ValidatorStatus.VALIDATING)) {
                 ++index;
                 continue;
             }
-            _exitingOneValidator(index);
-            temp[exitingCount] = index;
+            _exitOneValidator(index, validatorStorageKey);
+            temp[exitCount] = index;
             ++index;
-            ++exitingCount;
+            ++exitCount;
         }
-        indexes = new uint256[](exitingCount);
-        for(uint256 i = 0; i < exitingCount; ++i) {
+        indexes = new uint256[](exitCount);
+        for(uint256 i = 0; i < exitCount; ++i) {
             indexes[i] = temp[i];
         }
-        _setUint(_NEXT_EXITING_VALIDATOR_ID, index);
-        _subUint(_ACTIVATED_VALIDATOR_COUNT, exitingCount);
+        _setUint(_NEXT_EXIT_VALIDATOR_ID, index);
+        _subUint(_ACTIVATED_VALIDATOR_COUNT, exitCount);
     }
 
     /**
@@ -271,27 +323,65 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
         _updateRewards(operator);
         uint256 index;
         bytes32 validatorStorageKey;
-        uint256 addedExitingCount;
+        uint256 addedExitCount;
         for(uint256 i = 0; i < indexes.length; ++i) {
             index = indexes[i];
             validatorStorageKey = _getStorageKeyByValidatorIndex(index);
             if(_getAddress(validatorStorageKey) != operator) revert InconsistentValidatorOperator(index, _getAddress(validatorStorageKey), operator);
-            if(_getUint(validatorStorageKey) != uint256(ValidatorStatus.VALIDATING)) continue;
-            _setUint(validatorStorageKey, uint256(ValidatorStatus.EXITING));
-            emit SigningKeyExiting(index, operator, _getBytes(validatorStorageKey));
-            ++addedExitingCount;
+            if(_getUint(validatorStorageKey) != uint256(ValidatorStatus.VALIDATING))
+                revert InconsistentValidatorStatus(index, uint256(ValidatorStatus.VALIDATING), _getUint(validatorStorageKey));
+            _setUint(validatorStorageKey, uint256(ValidatorStatus.EXIT));
+            emit SigningKeyExit(index, operator, _getBytes(validatorStorageKey));
+            ++addedExitCount;
         }
-        _subUint(_getValidatingValidatorsCountStorageKey(operator), addedExitingCount);
-        _subUint(_ACTIVATED_VALIDATOR_COUNT, addedExitingCount);
+        _subUint(_getValidatingValidatorsCountStorageKey(operator), addedExitCount);
+        _subUint(_ACTIVATED_VALIDATOR_COUNT, addedExitCount);
     }
 
     /**
-     * @notice Change validators status before force operator exit
-     * @param index Validators index will exit
-     * @param slashAmount Amount will be slashed
+     * @notice Set validators status exit
+     * @param index Validators index exited
      */
-    function setValidatorExiting(uint256 index, uint256 slashAmount) external {
-//        _setUint(_getStorageKeyByValidatorIndex(index), uint256(ValidatorStatus.EXITING));
+    function setValidatorExit(uint256 index) external onlyGuardian {
+        /// set validator status exit
+        bytes32 validatorStorageKey = _getStorageKeyByValidatorIndex(index);
+        if(_getUint(validatorStorageKey) != uint256(ValidatorStatus.VALIDATING))
+            revert InconsistentValidatorStatus(index, uint256(ValidatorStatus.VALIDATING), _getUint(validatorStorageKey));
+        _exitOneValidator(index, validatorStorageKey);
+        _subUint(_ACTIVATED_VALIDATOR_COUNT, 1);
+    }
+
+    function setValidatorSlashing(uint256 index, uint256 slashedPethAmount, bool slashFinished) external onlyGuardian {
+        bytes32 validatorStorageKey = _getStorageKeyByValidatorIndex(index);
+        address operator = _getAddress(validatorStorageKey);
+        address nodeAddress = _getAddress(_getStorageKeyByOperatorAddress(operator));
+        _slashNodeOperator(nodeAddress, slashedPethAmount, 0);
+        emit SigningKeySlashing(index, operator, _getBytes(validatorStorageKey), nodeAddress, slashedPethAmount);
+        if(slashFinished) {
+            if(_getUint(validatorStorageKey) != uint256(ValidatorStatus.SLASHING)) {
+                revert InconsistentValidatorStatus(index, uint256(ValidatorStatus.SLASHING), _getUint(validatorStorageKey));
+            }
+            _setUint(validatorStorageKey, uint256(ValidatorStatus.EXIT));
+            emit SigningKeyExit(index, operator, _getBytes(validatorStorageKey));
+            IDepositNodeOperator(nodeAddress).updateValidatorExitCount(1);
+        }
+        else {
+            if(_getUint(validatorStorageKey) != uint256(ValidatorStatus.VALIDATING)) {
+                revert InconsistentValidatorStatus(index, uint256(ValidatorStatus.VALIDATING), _getUint(validatorStorageKey));
+            }
+            _updateRewards(operator);
+            _setUint(validatorStorageKey, uint256(ValidatorStatus.SLASHING));
+            _subUint(_getValidatingValidatorsCountStorageKey(operator), 1);
+            _subUint(_ACTIVATED_VALIDATOR_COUNT, 1);
+        }
+    }
+
+    function punishOneValidator(uint256 index, uint256 slashedPethAmount, bytes calldata reason) external onlyGuardian {
+        bytes32 validatorStorageKey = _getStorageKeyByValidatorIndex(index);
+        address operator = _getAddress(validatorStorageKey);
+        address nodeAddress = _getAddress(_getStorageKeyByOperatorAddress(operator));
+        _slashNodeOperator(nodeAddress, slashedPethAmount, 0);
+        emit SigningKeyPunished(index, operator, _getBytes(validatorStorageKey), nodeAddress, slashedPethAmount, reason);
     }
 
     /// @dev Get the storage key of the operator
@@ -302,6 +392,11 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
     /// @dev Get the storage key of the validator
     function _getStorageKeyByValidatorIndex(uint256 index) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked("DepositNodeManager.validatorIndex", index));
+    }
+
+    ///
+    function _getStorageKeyByValidatorPubkey(bytes calldata pubkey) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked("DepositNodeManager.validatorPubkey", pubkey));
     }
 
     /// @dev Get the storage key of the node operator's validating validators count
@@ -323,7 +418,7 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
         uint256 claimableRewards = _getClaimableNodeRewards(operator, claimedRewardsPerValidator, rewardsPerValidator);
         if(claimableRewards > 0) {
             address withdrawAddress = getWithdrawAddress(operator);
-            IERC20(_getContractAddressUnsafe(_DAWN_DEPOSIT_CONTRACT_NAME)).transfer(withdrawAddress, claimableRewards);
+            IERC20(_getDawnDeposit()).transfer(withdrawAddress, claimableRewards);
             _subUint(_TOTAL_REWARDS_PETH, claimableRewards);
             emit NodeOperatorNodeRewardsClaimed(operator, msg.sender, withdrawAddress, claimableRewards);
         }
@@ -349,13 +444,32 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
         return 0;
     }
 
-    function _exitingOneValidator(uint256 index) internal {
-        bytes32 validatorStorageKey = _getStorageKeyByValidatorIndex(index);
+    function _exitOneValidator(uint256 index, bytes32 validatorStorageKey) internal {
         address operator = _getAddress(validatorStorageKey);
         _updateRewards(operator);
-        _setUint(validatorStorageKey, uint256(ValidatorStatus.EXITING));
+        _setUint(validatorStorageKey, uint256(ValidatorStatus.EXIT));
         _subUint(_getValidatingValidatorsCountStorageKey(operator), 1);
-        emit SigningKeyExiting(index, operator, _getBytes(validatorStorageKey));
+        emit SigningKeyExit(index, operator, _getBytes(validatorStorageKey));
+        IDepositNodeOperator(_getAddress(_getStorageKeyByOperatorAddress(operator))).updateValidatorExitCount(1);
+    }
+
+    /// @dev Get address of dawn deposit contract
+    function _getDawnDeposit() internal view returns (address) {
+        return _getContractAddressUnsafe(_DAWN_DEPOSIT_CONTRACT_NAME);
+    }
+
+    function _slashNodeOperator(address nodeAddress, uint256 slashedPethAmount, uint256 decreaseEthAmount) internal returns (uint256) {
+        address dawnDeposit = _getDawnDeposit();
+        uint256 nodeBalance = IERC20(dawnDeposit).balanceOf(nodeAddress);
+        slashedPethAmount = slashedPethAmount <= nodeBalance? slashedPethAmount : nodeBalance;
+        if(slashedPethAmount == 0) return slashedPethAmount;
+        if(decreaseEthAmount == 0) {
+            IDawnPunish(dawnDeposit).punish(nodeAddress, slashedPethAmount);
+        }
+        else {
+            IDawnPunish(dawnDeposit).punish(nodeAddress, slashedPethAmount, decreaseEthAmount);
+        }
+        return slashedPethAmount;
     }
 
 }
