@@ -8,11 +8,6 @@ import "../base/DawnBase.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../interface/IDawnDeposit.sol";
 
-interface IDawnPunish {
-    function punish(address burnAddress, uint256 pethAmountToBurn) external;
-    function punish(address burnAddress, uint256 pethAmountToBurn, uint256 ethAmountToDecrease) external;
-}
-
 /**
  * @title Dawn node operator manager contract
  * @author Ray
@@ -29,6 +24,7 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
     bytes32 internal constant _REWARDS_PETH_PER_VALIDATOR = keccak256("DepositNodeManager.REWARDS_PETH_PER_VALIDATOR");
     string internal constant _DAWN_DEPOSIT_CONTRACT_NAME = "DawnDeposit";
     bytes32 internal constant _NEXT_EXIT_VALIDATOR_ID = keccak256("DepositNodeManager.NEXT_EXIT_VALIDATOR_ID");
+    string internal constant _VALIDATORS_EXIT_BUS_ORACLE_CONTRACT_NAME = "ValidatorsExitBusOracle";
 
     error ZeroAddress();
     error OperatorAlreadyExist();
@@ -286,7 +282,7 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
      * @param count Validators count to change status
      * @dev Validators should exit firstly who joined at the earliest(least index)
      */
-    function updateValidatorsExit(uint256 count) external onlyLatestContract(_DAWN_DEPOSIT_CONTRACT_NAME, msg.sender) returns (uint256[] memory indexes){
+    function updateValidatorsExit(uint256 count) external onlyLatestContract(_VALIDATORS_EXIT_BUS_ORACLE_CONTRACT_NAME, msg.sender) returns (uint256[] memory indexes){
         bytes32 validatorStorageKey;
         uint256 index = _getUint(_NEXT_EXIT_VALIDATOR_ID);
         uint256 nextValidatorId = _getUint(_NEXT_VALIDATOR_ID);
@@ -464,10 +460,10 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
         slashedPethAmount = slashedPethAmount <= nodeBalance? slashedPethAmount : nodeBalance;
         if(slashedPethAmount == 0) return slashedPethAmount;
         if(decreaseEthAmount == 0) {
-            IDawnPunish(dawnDeposit).punish(nodeAddress, slashedPethAmount);
+            IDawnDeposit(dawnDeposit).punish(nodeAddress, slashedPethAmount);
         }
         else {
-            IDawnPunish(dawnDeposit).punish(nodeAddress, slashedPethAmount, decreaseEthAmount);
+            IDawnDeposit(dawnDeposit).punish(nodeAddress, slashedPethAmount, decreaseEthAmount);
         }
         return slashedPethAmount;
     }
