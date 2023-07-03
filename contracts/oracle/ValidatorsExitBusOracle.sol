@@ -156,7 +156,7 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
         _clearReportingAndAdvanceTo(data.refSlot + _beaconSpec.epochsPerFrame);
 
         IDepositNodeManager nodeManager = getDepositNodeManager();
-        nodeManager.updateValidatorsExiting(data.requestsCount);
+        nodeManager.updateValidatorsExit(data.requestsCount);
 
         uint256 timestamp = _getTime();
 
@@ -199,10 +199,11 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
     function getChainConfig() external view returns (
         uint256 slotsPerEpoch,
         uint256 secondsPerSlot,
-        uint256 genesisTime
+        uint256 genesisTime,
+        uint256 epochsPerFrame
     ) {
         BeaconSpec memory beaconSpec = _getBeaconSpec();
-        return (beaconSpec.slotsPerEpoch, beaconSpec.secondsPerSlot, beaconSpec.genesisTime);
+        return (beaconSpec.slotsPerEpoch, beaconSpec.secondsPerSlot, beaconSpec.genesisTime, beaconSpec.epochsPerFrame);
     }
 
     /**
