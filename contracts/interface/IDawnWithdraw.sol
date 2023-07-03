@@ -21,6 +21,7 @@ interface IDawnWithdraw {
     error AlreadyClaimed(uint256 requestId);
     error NotWithdrawOwner(uint256 requestId, address owner, address sender);
 
+    function requestWithdrawWithPermit(uint256 pEthAmount, PermitInput calldata _permit) external returns (uint256 requestId);
     function requestWithdraw(uint256 pEthAmount) external returns (uint256 requestId);
 
     function fulfillment(uint256 lastRequestIdToBeFulfilled) external payable;

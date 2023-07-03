@@ -104,7 +104,7 @@ contract DawnWithdraw is IDawnWithdraw, DawnBase, DawnWithdrawStorageLayout {
     function checkFulfillment(uint256 lastRequestIdToBeFulfilled, uint256 ethAmountToLock) public view {
         uint256 preLastFulfillmentRequestId = _getUint(_LAST_FULFILLMENT_REQUEST_ID_KEY);
         uint256 lastRequestId = _getUint(_LAST_REQUEST_ID_KEY);
-        if (lastRequestIdToBeFulfilled <= lastRequestId || lastRequestIdToBeFulfilled > preLastFulfillmentRequestId) {
+        if (lastRequestIdToBeFulfilled > lastRequestId || lastRequestIdToBeFulfilled <= preLastFulfillmentRequestId) {
             revert InvalidRequestIdToBeFulfilled(preLastFulfillmentRequestId, lastRequestId, lastRequestIdToBeFulfilled);
         }
 
