@@ -110,7 +110,7 @@ contract DawnWithdraw is IDawnWithdraw, DawnBase, DawnWithdrawStorageLayout {
 
         uint256 expectEth = 0;
 
-        for (uint256 i = preLastFulfillmentRequestId; i <= lastRequestIdToBeFulfilled; i++) {
+        for (uint256 i = preLastFulfillmentRequestId + 1; i <= lastRequestIdToBeFulfilled; i++) {
             expectEth += Math.min(
                 withdrawRequestQueue[i].maxCumulativeClaimableEther - withdrawRequestQueue[i - 1].maxCumulativeClaimableEther,
                 IDawnDeposit(_getContractAddress(_DAWN_DEPOSIT_CONTRACT_NAME)).getEtherByPEth(withdrawRequestQueue[i].cumulativePEth - withdrawRequestQueue[i - 1].cumulativePEth)
