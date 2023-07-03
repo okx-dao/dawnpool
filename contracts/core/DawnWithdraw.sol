@@ -8,6 +8,7 @@ import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "../interface/IDawnDeposit.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/draft-IERC20Permit.sol";
 
 contract DawnWithdraw is IDawnWithdraw, DawnBase, DawnWithdrawStorageLayout {
     using SafeMath for uint256;
@@ -27,12 +28,21 @@ contract DawnWithdraw is IDawnWithdraw, DawnBase, DawnWithdrawStorageLayout {
     //    constructor
     constructor(IDawnStorageInterface dawnStorageAddress) DawnBase(dawnStorageAddress) { }
 
+    function requestWithdrawWithPermit(uint256 pEthAmount, PermitInput calldata _permit) external returns (uint256 requestId) {
+        IERC20Permit(_getContractAddress(_DAWN_DEPOSIT_CONTRACT_NAME)).permit(msg.sender, address(this), _permit.value, _permit.deadline, _permit.v, _permit.r, _permit.s);
+        requestId = _requestWithdraw(pEthAmount, msg.sender);
+    }
+
     // user call
     function requestWithdraw(uint256 pEthAmount) external returns (uint256 requestId) {
+        requestId = _requestWithdraw(pEthAmount, msg.sender);
+    }
+
+    function _requestWithdraw(uint256 pEthAmount, address owner) internal returns(uint256 requestId) {
         // 请求赎回的pEthAmount不能为0
         require(pEthAmount > 0, "Zero pEth");
-        // 判断msg.sender 是否有足够的 PEth
-        require(IERC20(_getContractAddress(_DAWN_DEPOSIT_CONTRACT_NAME)).balanceOf(msg.sender) >= pEthAmount, "PEth not enough");
+        // transfer peth to withdraw
+        IERC20(_getContractAddress(_DAWN_DEPOSIT_CONTRACT_NAME)).transferFrom(owner, address(this), pEthAmount);
 
         // maxClaimableEther
         uint256 maxClaimableEther = IDawnDeposit(_getContractAddress(_DAWN_DEPOSIT_CONTRACT_NAME)).getEtherByPEth(pEthAmount);
@@ -43,19 +53,20 @@ contract DawnWithdraw is IDawnWithdraw, DawnBase, DawnWithdrawStorageLayout {
 
         // 创建WithdrawRequest并存到队列中
         WithdrawRequest memory withdrawRequest = WithdrawRequest(
-            msg.sender,
+            owner,
             lastWithdrawRequest.cumulativePEth + pEthAmount,
             lastWithdrawRequest.maxCumulativeClaimableEther + maxClaimableEther,
             block.timestamp,
             false
         );
-        withdrawRequestQueue[lastRequestId + 1] = withdrawRequest;
+        requestId = lastRequestId + 1;
+        withdrawRequestQueue[requestId] = withdrawRequest;
 
         // update lastRequestId
         _addUint(_LAST_REQUEST_ID_KEY, 1);
 
         // 触发创建赎回请求的事件
-        emit LogWithdrawalRequested(requestId, msg.sender, pEthAmount, maxClaimableEther);
+        emit LogWithdrawalRequested(requestId, owner, pEthAmount, maxClaimableEther);
     }
 
     // DawnPool
