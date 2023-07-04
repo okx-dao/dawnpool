@@ -87,7 +87,7 @@ contract DawnWithdraw is IDawnWithdraw, DawnBase, DawnWithdrawStorageLayout {
 
         uint256 lastCheckpointIndex = _getUint(_LAST_CHECKPOINT_INDEX_KEY);
         // add checkpoint
-        checkPoints[lastCheckpointIndex] = CheckPoint(
+        checkPoints[lastCheckpointIndex + 1] = CheckPoint(
                     IDawnDeposit(_getContractAddress(_DAWN_DEPOSIT_CONTRACT_NAME)).getTotalPooledEther(),
                     IERC20(_getContractAddress(_DAWN_DEPOSIT_CONTRACT_NAME)).totalSupply(),
                     lastRequestIdToBeFulfilled
@@ -145,7 +145,7 @@ contract DawnWithdraw is IDawnWithdraw, DawnBase, DawnWithdrawStorageLayout {
         uint256 ethAmount = withdrawRequest.maxCumulativeClaimableEther - preWithdrawRequest.maxCumulativeClaimableEther;
         uint256 pethAmount = withdrawRequest.cumulativePEth - preWithdrawRequest.cumulativePEth;
         // 根据pethAmount以及fulfillment阶段确定的requestId所属的CheckPoint时汇率，计算出最多能兑换 x Ether
-        uint256 checkPointIndex = _findCheckPointByRequestId(requestId, 0, _getUint(_LAST_CHECKPOINT_INDEX_KEY));
+        uint256 checkPointIndex = _findCheckPointByRequestId(requestId, 1, _getUint(_LAST_CHECKPOINT_INDEX_KEY));
         ethAmount = Math.min(ethAmount, _getMaxEtherByCheckPoint(pethAmount, checkPoints[checkPointIndex]));
 
         // transfer ethAmount ether to msg.sender
@@ -190,19 +190,19 @@ contract DawnWithdraw is IDawnWithdraw, DawnBase, DawnWithdrawStorageLayout {
         return withdrawRequestQueue[lastRequestId].maxCumulativeClaimableEther - withdrawRequestQueue[lastFulfillmentRequestId].maxCumulativeClaimableEther;
     }
 
-    // [start, end)
+    // [start, end]
     function _findCheckPointByRequestId(uint256 requestId, uint256 start, uint256 end) internal view returns(uint256 checkPointIndex) {
-        require(requestId <= _getUint(_LAST_FULFILLMENT_REQUEST_ID_KEY), "Not fulfillment");
+        require(requestId <= checkPoints[end].endRequestId && requestId > checkPoints[start - 1].endRequestId, "CheckPoint Not Found");
         checkPointIndex = 0;
-        uint256 mid = start + (end - start) / 2;
-        uint256 midFrom;
-        while (start < end) {
+        uint256 mid;
+        uint256 startRequestId;
+        while (start <= end) {
+            mid = start + (end - start) / 2;
             if (requestId > checkPoints[mid].endRequestId) {
                 start = mid + 1;
             } else {
-                if (mid == 0) midFrom = 0;
-                midFrom = checkPoints[mid - 1].endRequestId;
-                if (requestId > midFrom && requestId <= checkPoints[mid].endRequestId) {
+                startRequestId = checkPoints[mid - 1].endRequestId;
+                if (requestId > startRequestId && requestId <= checkPoints[mid].endRequestId) {
                     checkPointIndex = mid;
                     break ;
                 }
