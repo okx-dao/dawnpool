@@ -3,7 +3,7 @@ pragma solidity ^0.8.17;
 
 interface IBurner {
     function requestBurnPEth(address from, uint256 amount) external;
-    function requestBurnMyPEth(uint256 amount) external;
+//    function requestBurnMyPEth(uint256 amount) external;
     function commitPEthToBurn(uint256 burnedPEthAmount) external;
 
     function getTotalBurnedPEth() external view returns (uint256);
