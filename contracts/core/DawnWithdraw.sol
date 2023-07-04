@@ -20,6 +20,7 @@ contract DawnWithdraw is IDawnWithdraw, DawnBase, DawnWithdrawStorageLayout {
 
     // ***************** contract name *****************
     string internal constant _DAWN_DEPOSIT_CONTRACT_NAME = "DawnDeposit";
+    string internal constant _BURNER_CONTRACT_NAME = "Burner";
 
     error InvalidRequestIdToBeFulfilled(uint256 preLastFulfilledRequestId, uint256 lastRequestId, uint256 requestId);
     error EthNotExpect(uint256 expectEth, uint256 ethAmountToLock);
@@ -79,6 +80,9 @@ contract DawnWithdraw is IDawnWithdraw, DawnBase, DawnWithdrawStorageLayout {
         // (startRequest, endRequest]
         WithdrawRequest memory startRequest = withdrawRequestQueue[lastFulfillmentRequestId];
         WithdrawRequest memory endRequest = withdrawRequestQueue[lastRequestIdToBeFulfilled];
+
+        // transfer PEth to Burner
+        IERC20(_getContractAddress(_DAWN_DEPOSIT_CONTRACT_NAME)).transfer(_getContractAddress(_BURNER_CONTRACT_NAME), endRequest.cumulativePEth - startRequest.cumulativePEth);
 
         // 锁定的ether不能超过创建赎回请求时能够赎回的数量，即创建赎回请求时开始，不在产生收益
         if (msg.value > endRequest.maxCumulativeClaimableEther - startRequest.maxCumulativeClaimableEther) {
