@@ -9,6 +9,7 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "../interface/IDawnDeposit.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/draft-IERC20Permit.sol";
+import "../interface/IBurner.sol";
 
 contract DawnWithdraw is IDawnWithdraw, DawnBase, DawnWithdrawStorageLayout {
     using SafeMath for uint256;
@@ -83,6 +84,7 @@ contract DawnWithdraw is IDawnWithdraw, DawnBase, DawnWithdrawStorageLayout {
 
         // transfer PEth to Burner
         IERC20(_getContractAddress(_DAWN_DEPOSIT_CONTRACT_NAME)).transfer(_getContractAddress(_BURNER_CONTRACT_NAME), endRequest.cumulativePEth - startRequest.cumulativePEth);
+        IBurner(_getContractAddress(_BURNER_CONTRACT_NAME)).requestBurnPEth(address(this), endRequest.cumulativePEth - startRequest.cumulativePEth);
 
         // 锁定的ether不能超过创建赎回请求时能够赎回的数量，即创建赎回请求时开始，不在产生收益
         if (msg.value > endRequest.maxCumulativeClaimableEther - startRequest.maxCumulativeClaimableEther) {
