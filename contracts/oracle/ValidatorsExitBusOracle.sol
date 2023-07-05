@@ -38,6 +38,9 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
 //    uint64 internal immutable SECONDS_PER_SLOT;
 //    uint64 internal immutable GENESIS_TIME;
 
+    /// Maximum number of oracle committee members
+    uint256 public constant MAX_MEMBERS = 256;
+
     uint256 internal constant MEMBER_NOT_FOUND = 2**256 - 1;
     /// Contract structured storage
     address[] private members;                /// slot 0: oracle committee members
@@ -489,6 +492,20 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
      */
     function _getFrameFirstEpochId(uint256 _epochId, BeaconSpec memory _beaconSpec) internal pure returns (uint256) {
         return _epochId / _beaconSpec.epochsPerFrame * _beaconSpec.epochsPerFrame;
+    }
+
+    /**
+ * 向 dawnpool 合约中添加新的 Oracle 成员
+ * todo
+ */
+    function addOracleMember(address _member) external onlyGuardian{
+        require(address(0) != _member, "BAD_ARGUMENT");
+        require(MEMBER_NOT_FOUND == _getMemberId(_member), "MEMBER_EXISTS");
+        require(members.length < MAX_MEMBERS, "TOO_MANY_MEMBERS");
+
+        members.push(_member);
+
+        emit MemberAdded(_member);
     }
 
 

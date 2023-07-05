@@ -13,6 +13,7 @@ interface IValidatorsExitBusOracle {
         uint64 genesisTime
     );
 
+    event MemberAdded(address member);
     event ExpectedEpochIdUpdated(uint256 epochId);
 
     /**
@@ -73,5 +74,10 @@ interface IValidatorsExitBusOracle {
         uint64 _genesisTime,
         uint256 lastProcessingRefSlot
     ) external;
+
+    /**
+ * @notice Add `_member` to the oracle member committee list
+     */
+    function addOracleMember(address _member) external;
 
 }
