@@ -67,6 +67,8 @@ interface IValidatorsExitBusOracle {
 
     function getLastProcessingRefSlot() external view returns (uint256);
 
+    function getLastProcessingRefEpoch() external view returns (uint256);
+
     function initialize(
         uint64 _epochsPerFrame,
         uint64 _slotsPerEpoch,
