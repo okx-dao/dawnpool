@@ -486,6 +486,10 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
         return _getUint(LAST_PROCESSING_REF_EPOCH_POSITION);
     }
 
+    function getLastProcessingRefEpoch() external view returns (uint256) {
+        return _getUint(LAST_PROCESSING_REF_EPOCH_POSITION);
+    }
+
     /**
  *  首先通过 _epochId 除以 _beaconSpec.epochsPerFrame 来计算出该 Epoch 所处的 Frame 编号，然后将其乘以 _beaconSpec.epochsPerFrame，即可得到该 Frame 的第一个 Epoch ID
  * @notice Epoch 所属的 Frame 的第一个 Epoch ID
