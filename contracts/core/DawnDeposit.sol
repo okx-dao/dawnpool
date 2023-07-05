@@ -272,7 +272,7 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
     // process burn pEth
     function _processPEthBurnRequest(uint256 burnedPEthAmount) internal {
         address burnerAddr = _getContractAddress(_BURNER_CONTRACT_NAME);
-        if (burnedPEthAmount < balanceOf(burnerAddr)) revert ErrorBurnedPEthAmount(burnedPEthAmount, balanceOf(burnerAddr));
+        if (burnedPEthAmount > balanceOf(burnerAddr)) revert ErrorBurnedPEthAmount(burnedPEthAmount, balanceOf(burnerAddr));
         _burn(burnerAddr, burnedPEthAmount);
         IBurner(burnerAddr).commitPEthToBurn(burnedPEthAmount);
     }

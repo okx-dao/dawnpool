@@ -13,6 +13,7 @@ contract Burner is IBurner, DawnBase {
 
     // ***************** contract name *****************
     string internal constant _DAWN_DEPOSIT_CONTRACT_NAME = "DawnDeposit";
+    string internal constant _DAWN_WITHDRAW_CONTRACT_NAME = "DawnWithdraw";
 
     event LogRequestBurnPETH(address from, uint256 amount);
     event LogRequestBurnMyPEth(uint256 amount);
@@ -26,21 +27,21 @@ contract Burner is IBurner, DawnBase {
     constructor(IDawnStorageInterface dawnStorageAddress) DawnBase(dawnStorageAddress) {}
 
 
-    function requestBurnPEth(address from, uint256 amount) external onlyDawnDeposit {
+    function requestBurnPEth(address from, uint256 amount) external onlyDawnDepositOrWithdraw {
         _addUint(_PETH_BURN_REQUESTED, amount);
         emit LogRequestBurnPETH(from, amount);
     }
 
-    function requestBurnMyPEth(uint256 amount) external {
-        if (amount == 0) revert ZeroBurnAmount();
-
-        IERC20 PEth = IERC20(_getContractAddress(_DAWN_DEPOSIT_CONTRACT_NAME));
-        if (PEth.balanceOf(msg.sender) < amount) revert PEthNotEnough();
-        PEth.transfer(address(this), amount);
-        _addUint(_PETH_BURN_REQUESTED, amount);
-
-        emit LogRequestBurnMyPEth(amount);
-    }
+//    function requestBurnMyPEth(uint256 amount) external {
+//        if (amount == 0) revert ZeroBurnAmount();
+//
+//        IERC20 PEth = IERC20(_getContractAddress(_DAWN_DEPOSIT_CONTRACT_NAME));
+//        if (PEth.balanceOf(msg.sender) < amount) revert PEthNotEnough();
+//        PEth.transfer(address(this), amount);
+//        _addUint(_PETH_BURN_REQUESTED, amount);
+//
+//        emit LogRequestBurnMyPEth(amount);
+//    }
 
     function commitPEthToBurn(uint256 burnedPEthAmount) external {
         require(msg.sender == _getContractAddress(_DAWN_DEPOSIT_CONTRACT_NAME), "caller is not DawnDeposit contract");
@@ -70,8 +71,8 @@ contract Burner is IBurner, DawnBase {
         return _getUint(_PETH_BURN_REQUESTED);
     }
 
-    modifier onlyDawnDeposit() {
-        require(msg.sender == _getContractAddress(_DAWN_DEPOSIT_CONTRACT_NAME), "Only call by dawnDeposit");
+    modifier onlyDawnDepositOrWithdraw() {
+        require(msg.sender == _getContractAddress(_DAWN_DEPOSIT_CONTRACT_NAME) || msg.sender == _getContractAddress(_DAWN_WITHDRAW_CONTRACT_NAME), "Only call by dawnDeposit or dawnWithdraw");
         _;
     }
 

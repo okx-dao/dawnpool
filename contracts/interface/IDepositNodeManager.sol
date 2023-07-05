@@ -68,6 +68,15 @@ interface IDepositNodeManager {
      */
     event SigningKeySlashing(uint256 indexed index, address indexed operator, bytes pubkey, address nodeAddress, uint256 slashedPethAmount);
 
+    /**
+     * @notice Emit when validator is set unsafe
+     * @param index Validator index
+     * @param operator Operator address
+     * @param pubkey Validator public key
+     * @param nodeAddress The node address to get slashed
+     * @param slashedPethAmount PETH amount to get slashed
+     * @param reason Punished reason
+     */
     event SigningKeyPunished(uint256 indexed index, address indexed operator, bytes pubkey, address nodeAddress, uint256 slashedPethAmount, bytes reason);
 
     /**
@@ -85,6 +94,13 @@ interface IDepositNodeManager {
      * @param pethAmount Node rewards amount distributed to the operator and claimed
      */
     event NodeOperatorNodeRewardsClaimed(address indexed operator, address indexed claimer, address indexed withdrawAddress, uint256 pethAmount);
+
+    /**
+     * @notice Emit when distribute Node rewards(commission) to the node operator
+     * @param operator Operator address
+     * @param isActive Operator is active or not now
+     */
+    event NodeOperatorActiveStatusChanged(address indexed operator, bool isActive);
 
     /**
      * @notice Validator status, should be WAITING_ACTIVATED -> VALIDATING -> EXIT
@@ -217,7 +233,27 @@ interface IDepositNodeManager {
      */
     function setValidatorExit(uint256 index) external;
 
+    /**
+     * @notice Set a validator slashing, the validator which was slashed will be punished a ETH immediately
+     * and will be continuously punished for a long while, until it is forced out
+     * @param index Validator index
+     * @param slashedPethAmount PETH amount to be slashed
+     * @param slashFinished Set the validator exit status if the param is true
+     */
     function setValidatorSlashing(uint256 index, uint256 slashedPethAmount, bool slashFinished) external;
 
+    /**
+     * @notice Punish one validator, maybe only can be called by DAO
+     * @param index Validator index
+     * @param slashedPethAmount PETH amount to be slashed
+     * @param reason The reason why the validator is punished
+     */
     function punishOneValidator(uint256 index, uint256 slashedPethAmount, bytes calldata reason) external;
+
+    /**
+     * @notice Set node operator active or not
+     * @param operator Node operator address
+     * @param isActive Node operator is active or not to be set
+     */
+    function setNodeOperatorActiveStatus(address operator, bool isActive) external;
 }

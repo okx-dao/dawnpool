@@ -9,6 +9,7 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "../interface/IDawnDeposit.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/draft-IERC20Permit.sol";
+import "../interface/IBurner.sol";
 
 contract DawnWithdraw is IDawnWithdraw, DawnBase, DawnWithdrawStorageLayout {
     using SafeMath for uint256;
@@ -20,6 +21,7 @@ contract DawnWithdraw is IDawnWithdraw, DawnBase, DawnWithdrawStorageLayout {
 
     // ***************** contract name *****************
     string internal constant _DAWN_DEPOSIT_CONTRACT_NAME = "DawnDeposit";
+    string internal constant _BURNER_CONTRACT_NAME = "Burner";
 
     error InvalidRequestIdToBeFulfilled(uint256 preLastFulfilledRequestId, uint256 lastRequestId, uint256 requestId);
     error EthNotExpect(uint256 expectEth, uint256 ethAmountToLock);
@@ -80,6 +82,10 @@ contract DawnWithdraw is IDawnWithdraw, DawnBase, DawnWithdrawStorageLayout {
         WithdrawRequest memory startRequest = withdrawRequestQueue[lastFulfillmentRequestId];
         WithdrawRequest memory endRequest = withdrawRequestQueue[lastRequestIdToBeFulfilled];
 
+        // transfer PEth to Burner
+        IERC20(_getContractAddress(_DAWN_DEPOSIT_CONTRACT_NAME)).transfer(_getContractAddress(_BURNER_CONTRACT_NAME), endRequest.cumulativePEth - startRequest.cumulativePEth);
+        IBurner(_getContractAddress(_BURNER_CONTRACT_NAME)).requestBurnPEth(address(this), endRequest.cumulativePEth - startRequest.cumulativePEth);
+
         // 锁定的ether不能超过创建赎回请求时能够赎回的数量，即创建赎回请求时开始，不在产生收益
         if (msg.value > endRequest.maxCumulativeClaimableEther - startRequest.maxCumulativeClaimableEther) {
             revert TooMuchEtherToLocked(msg.value, endRequest.maxCumulativeClaimableEther - startRequest.maxCumulativeClaimableEther);
@@ -87,7 +93,7 @@ contract DawnWithdraw is IDawnWithdraw, DawnBase, DawnWithdrawStorageLayout {
 
         uint256 lastCheckpointIndex = _getUint(_LAST_CHECKPOINT_INDEX_KEY);
         // add checkpoint
-        checkPoints[lastCheckpointIndex] = CheckPoint(
+        checkPoints[lastCheckpointIndex + 1] = CheckPoint(
                     IDawnDeposit(_getContractAddress(_DAWN_DEPOSIT_CONTRACT_NAME)).getTotalPooledEther(),
                     IERC20(_getContractAddress(_DAWN_DEPOSIT_CONTRACT_NAME)).totalSupply(),
                     lastRequestIdToBeFulfilled
@@ -104,13 +110,13 @@ contract DawnWithdraw is IDawnWithdraw, DawnBase, DawnWithdrawStorageLayout {
     function checkFulfillment(uint256 lastRequestIdToBeFulfilled, uint256 ethAmountToLock) public view {
         uint256 preLastFulfillmentRequestId = _getUint(_LAST_FULFILLMENT_REQUEST_ID_KEY);
         uint256 lastRequestId = _getUint(_LAST_REQUEST_ID_KEY);
-        if (lastRequestIdToBeFulfilled <= lastRequestId || lastRequestIdToBeFulfilled > preLastFulfillmentRequestId) {
+        if (lastRequestIdToBeFulfilled > lastRequestId || lastRequestIdToBeFulfilled <= preLastFulfillmentRequestId) {
             revert InvalidRequestIdToBeFulfilled(preLastFulfillmentRequestId, lastRequestId, lastRequestIdToBeFulfilled);
         }
 
         uint256 expectEth = 0;
 
-        for (uint256 i = preLastFulfillmentRequestId; i <= lastRequestIdToBeFulfilled; i++) {
+        for (uint256 i = preLastFulfillmentRequestId + 1; i <= lastRequestIdToBeFulfilled; i++) {
             expectEth += Math.min(
                 withdrawRequestQueue[i].maxCumulativeClaimableEther - withdrawRequestQueue[i - 1].maxCumulativeClaimableEther,
                 IDawnDeposit(_getContractAddress(_DAWN_DEPOSIT_CONTRACT_NAME)).getEtherByPEth(withdrawRequestQueue[i].cumulativePEth - withdrawRequestQueue[i - 1].cumulativePEth)
@@ -145,7 +151,7 @@ contract DawnWithdraw is IDawnWithdraw, DawnBase, DawnWithdrawStorageLayout {
         uint256 ethAmount = withdrawRequest.maxCumulativeClaimableEther - preWithdrawRequest.maxCumulativeClaimableEther;
         uint256 pethAmount = withdrawRequest.cumulativePEth - preWithdrawRequest.cumulativePEth;
         // 根据pethAmount以及fulfillment阶段确定的requestId所属的CheckPoint时汇率，计算出最多能兑换 x Ether
-        uint256 checkPointIndex = _findCheckPointByRequestId(requestId, 0, _getUint(_LAST_CHECKPOINT_INDEX_KEY));
+        uint256 checkPointIndex = _findCheckPointByRequestId(requestId, 1, _getUint(_LAST_CHECKPOINT_INDEX_KEY));
         ethAmount = Math.min(ethAmount, _getMaxEtherByCheckPoint(pethAmount, checkPoints[checkPointIndex]));
 
         // transfer ethAmount ether to msg.sender
@@ -190,19 +196,19 @@ contract DawnWithdraw is IDawnWithdraw, DawnBase, DawnWithdrawStorageLayout {
         return withdrawRequestQueue[lastRequestId].maxCumulativeClaimableEther - withdrawRequestQueue[lastFulfillmentRequestId].maxCumulativeClaimableEther;
     }
 
-    // [start, end)
+    // [start, end]
     function _findCheckPointByRequestId(uint256 requestId, uint256 start, uint256 end) internal view returns(uint256 checkPointIndex) {
-        require(requestId <= _getUint(_LAST_FULFILLMENT_REQUEST_ID_KEY), "Not fulfillment");
+        require(requestId <= checkPoints[end].endRequestId && requestId > checkPoints[start - 1].endRequestId, "CheckPoint Not Found");
         checkPointIndex = 0;
-        uint256 mid = start + (end - start) / 2;
-        uint256 midFrom;
-        while (start < end) {
+        uint256 mid;
+        uint256 startRequestId;
+        while (start <= end) {
+            mid = start + (end - start) / 2;
             if (requestId > checkPoints[mid].endRequestId) {
                 start = mid + 1;
             } else {
-                if (mid == 0) midFrom = 0;
-                midFrom = checkPoints[mid - 1].endRequestId;
-                if (requestId > midFrom && requestId <= checkPoints[mid].endRequestId) {
+                startRequestId = checkPoints[mid - 1].endRequestId;
+                if (requestId > startRequestId && requestId <= checkPoints[mid].endRequestId) {
                     checkPointIndex = mid;
                     break ;
                 }

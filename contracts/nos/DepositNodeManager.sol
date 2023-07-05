@@ -22,9 +22,11 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
     bytes32 internal constant _ACTIVATED_VALIDATOR_COUNT = keccak256("DepositNodeManager.ACTIVATED_VALIDATOR_COUNT");
     bytes32 internal constant _TOTAL_REWARDS_PETH = keccak256("DepositNodeManager.TOTAL_REWARDS_PETH");
     bytes32 internal constant _REWARDS_PETH_PER_VALIDATOR = keccak256("DepositNodeManager.REWARDS_PETH_PER_VALIDATOR");
-    string internal constant _DAWN_DEPOSIT_CONTRACT_NAME = "DawnDeposit";
     bytes32 internal constant _NEXT_EXIT_VALIDATOR_ID = keccak256("DepositNodeManager.NEXT_EXIT_VALIDATOR_ID");
     string internal constant _VALIDATORS_EXIT_BUS_ORACLE_CONTRACT_NAME = "ValidatorsExitBusOracle";
+
+    string internal constant _DAWN_DEPOSIT_CONTRACT_NAME = "DawnDeposit";
+    string internal constant _DAWN_DEPOSIT_SECURITY_MODULE = 'DawnDepositSecurityModule';
 
     error ZeroAddress();
     error OperatorAlreadyExist();
@@ -56,6 +58,7 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
         _setAddress(operatorStorageKey, nodeAddress);
         _setBool(operatorStorageKey, true);
         emit NodeOperatorRegistered(msg.sender, nodeAddress);
+        emit NodeOperatorActiveStatusChanged(msg.sender, true);
         _setAddress(_getWithdrawAddressStorageKey(msg.sender), withdrawAddress);
         emit WithdrawAddressSet(msg.sender, withdrawAddress);
         return nodeAddress;
@@ -164,7 +167,7 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
      * @notice Activate validators by index
      * @param indexes Index array of validators to be activated
      */
-    function activateValidators(uint256[] calldata indexes) external onlyGuardian {
+    function activateValidators(uint256[] calldata indexes) external onlyLatestContract(_DAWN_DEPOSIT_SECURITY_MODULE, msg.sender) {
         bytes32 storageKey;
         address operator;
         address nodeAddress;
@@ -204,7 +207,7 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
      * @param index Validator index
      * @param slashedPethAmount PETH amount to be slashed
      */
-    function setValidatorUnsafe(uint256 index, uint256 slashedPethAmount) external onlyGuardian {
+    function setValidatorUnsafe(uint256 index, uint256 slashedPethAmount) external onlyLatestContract(_DAWN_DEPOSIT_SECURITY_MODULE, msg.sender) {
         /// set validator status unsafe
         bytes32 validatorStorageKey = _getStorageKeyByValidatorIndex(index);
         if(_getUint(validatorStorageKey) != uint256(ValidatorStatus.WAITING_ACTIVATED))
@@ -215,6 +218,7 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
         bytes32 operatorStorageKey = _getStorageKeyByOperatorAddress(operator);
         if(_getBool(operatorStorageKey)) {
             _setBool(operatorStorageKey, false);
+            emit NodeOperatorActiveStatusChanged(operator, false);
         }
         /// slash the operator 2 peth and decrease pool 1 eth
         address nodeAddress = _getAddress(operatorStorageKey);
@@ -347,10 +351,18 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
         _subUint(_ACTIVATED_VALIDATOR_COUNT, 1);
     }
 
+    /**
+     * @notice Set a validator slashing, the validator which was slashed will be punished a ETH immediately
+     * and will be continuously punished for a long while, until it is forced out
+     * @param index Validator index
+     * @param slashedPethAmount PETH amount to be slashed
+     * @param slashFinished Set the validator exit status if the param is true
+     */
     function setValidatorSlashing(uint256 index, uint256 slashedPethAmount, bool slashFinished) external onlyGuardian {
         bytes32 validatorStorageKey = _getStorageKeyByValidatorIndex(index);
         address operator = _getAddress(validatorStorageKey);
-        address nodeAddress = _getAddress(_getStorageKeyByOperatorAddress(operator));
+        bytes32 operatorStorageKey = _getStorageKeyByOperatorAddress(operator);
+        address nodeAddress = _getAddress(operatorStorageKey);
         _slashNodeOperator(nodeAddress, slashedPethAmount, 0);
         emit SigningKeySlashing(index, operator, _getBytes(validatorStorageKey), nodeAddress, slashedPethAmount);
         if(slashFinished) {
@@ -369,15 +381,35 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
             _setUint(validatorStorageKey, uint256(ValidatorStatus.SLASHING));
             _subUint(_getValidatingValidatorsCountStorageKey(operator), 1);
             _subUint(_ACTIVATED_VALIDATOR_COUNT, 1);
+            if (_getBool(operatorStorageKey)) {
+                _setBool(operatorStorageKey, false);
+                emit NodeOperatorActiveStatusChanged(operator, false);
+            }
         }
     }
 
+    /**
+     * @notice Punish one validator, maybe only can be called by DAO
+     * @param index Validator index
+     * @param slashedPethAmount PETH amount to be slashed
+     * @param reason The reason why the validator is punished
+     */
     function punishOneValidator(uint256 index, uint256 slashedPethAmount, bytes calldata reason) external onlyGuardian {
         bytes32 validatorStorageKey = _getStorageKeyByValidatorIndex(index);
         address operator = _getAddress(validatorStorageKey);
         address nodeAddress = _getAddress(_getStorageKeyByOperatorAddress(operator));
         _slashNodeOperator(nodeAddress, slashedPethAmount, 0);
         emit SigningKeyPunished(index, operator, _getBytes(validatorStorageKey), nodeAddress, slashedPethAmount, reason);
+    }
+
+    function setNodeOperatorActiveStatus(address operator, bool isActive) external onlyGuardian {
+        bytes32 operatorStorageKey = _getStorageKeyByOperatorAddress(msg.sender);
+        address nodeAddress = _getAddress(_getStorageKeyByOperatorAddress(operator));
+        if (nodeAddress == address(0)) revert NotExistOperator();
+        if (_getBool(operatorStorageKey) != isActive) {
+            _setBool(operatorStorageKey, isActive);
+            emit NodeOperatorActiveStatusChanged(operator, isActive);
+        }
     }
 
     /// @dev Get the storage key of the operator
