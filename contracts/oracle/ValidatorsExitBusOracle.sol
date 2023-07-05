@@ -11,7 +11,7 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
     using ReportUtils for uint256;
 
     /// @dev Storage slot: uint256 lastProcessingRefSlot
-    bytes32 internal constant LAST_PROCESSING_REF_SLOT_POSITION = keccak256("ValidatorsExitBusOracle.LAST_PROCESSING_REF_SLOT_POSITION");
+    bytes32 internal constant LAST_PROCESSING_REF_EPOCH_POSITION = keccak256("ValidatorsExitBusOracle.LAST_PROCESSING_REF_EPOCH_POSITION");
 
     bytes32 internal constant _QUORUM_POSITION = keccak256("ValidatorsExitBusOracle.QUORUM_POSITION");
 
@@ -143,7 +143,7 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
 
         // 处理提交的报告数据
         //        _startProcessing();
-        _setUint(LAST_PROCESSING_REF_SLOT_POSITION, data.refEpoch);
+        _setUint(LAST_PROCESSING_REF_EPOCH_POSITION, data.refEpoch);
         // 处理已经达成共识的报告数据
         _handleConsensusReportData(data, beaconSpec);
     }
@@ -451,7 +451,7 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
         uint64 _genesisTime,
         uint256 _lastProcessingRefSlot
     ) external {
-        _setUint(LAST_PROCESSING_REF_SLOT_POSITION, _lastProcessingRefSlot);
+        _setUint(LAST_PROCESSING_REF_EPOCH_POSITION, _lastProcessingRefSlot);
 
         _setBeaconSpec(
             _epochsPerFrame,
@@ -483,7 +483,7 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
     /// @notice Returns the last reference slot for which processing of the report was started.
     ///
     function getLastProcessingRefSlot() external view returns (uint256) {
-        return _getUint(LAST_PROCESSING_REF_SLOT_POSITION);
+        return _getUint(LAST_PROCESSING_REF_EPOCH_POSITION);
     }
 
     /**
