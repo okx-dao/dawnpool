@@ -2,7 +2,6 @@
 pragma solidity ^0.8.17;
 
 import "../interface/IDepositNodeOperator.sol";
-//import "../interface/IDawnDeposit.sol";
 import "../interface/IDepositNodeManager.sol";
 import "../base/DawnBase.sol";
 import "../interface/IDepositContract.sol";
@@ -24,13 +23,20 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
     /// @dev Deposit 1 ETH when a validator pubkey is added, so that other 1 eth can earn rewards
     uint128 internal constant _PRE_DEPOSIT_VALUE = 1 ether;
 
+    error ZeroAddress();
+    error OperatorAccessDenied();
+    error IncorrectPubkeysSignaturesLen(uint256 pubkeysLen, uint256 preSignaturesLen, uint256 depositSignaturesLen);
+    error NotEnoughDeposits(uint256 required, uint256 current);
+    error InvalidPubkeyLen(uint256 len);
+    error InvalidSignatureLen(uint256 len);
+
     /**
      * @dev Constructor
      * @param operator Address of node operator
      * @param dawnStorage Storage address
      */
     constructor(address operator, IDawnStorageInterface dawnStorage) DawnBase(dawnStorage) {
-        require(operator != address(0), "Operator address cannot be 0x0!");
+        if(operator == address(0)) revert ZeroAddress();
         _setAddress(_getOperatorStorageKey(), operator);
     }
 
@@ -64,12 +70,15 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
         bytes calldata preSignatures,
         bytes calldata depositSignatures
     ) external payable returns (uint256 startIndex, uint256 count) {
-        require(msg.sender == getOperator(), "Only operator can add validators!");
-        require(depositSignatures.length == preSignatures.length, "Inconsistent deposit signatures len!");
-        require(pubkeys.length % _PUBKEY_LENGTH == 0, "Inconsistent public keys len!");
-        require(preSignatures.length % _SIGNATURE_LENGTH == 0, "Inconsistent signatures len!");
+        if(msg.sender != getOperator()) revert OperatorAccessDenied();
         count = pubkeys.length / _PUBKEY_LENGTH;
-        require(preSignatures.length / _SIGNATURE_LENGTH == count, "Inconsistent signatures count!");
+        if(
+            depositSignatures.length != preSignatures.length
+            || pubkeys.length % _PUBKEY_LENGTH != 0
+            || preSignatures.length % _SIGNATURE_LENGTH != 0
+            || preSignatures.length / _SIGNATURE_LENGTH != count
+        )
+            revert IncorrectPubkeysSignaturesLen(pubkeys.length, preSignatures.length, depositSignatures.length);
         IDawnDeposit dawnDeposit = IDawnDeposit(_getDawnDeposit());
         if (msg.value > 0) {
             dawnDeposit.stake{value: msg.value}();
@@ -77,20 +86,33 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
         uint256 operatorBalance = dawnDeposit.getEtherByPEth(IERC20(address(dawnDeposit)).balanceOf(address(this)));
         IDepositNodeManager nodeManager = IDepositNodeManager(_getDepositNodeManager());
         uint256 nextActiveValidatorsCount = getActiveValidatorsCount() + count;
-        uint256 requiredAmount = nodeManager.getMinOperatorStakingAmount() * nextActiveValidatorsCount;
-        require(operatorBalance >= requiredAmount, "Not enough deposits!");
-        startIndex = nodeManager.registerValidators(msg.sender, count);
+        uint256 requiredAmount = _getMinOperatorStakingAmount() * nextActiveValidatorsCount;
+        if(operatorBalance < requiredAmount) revert NotEnoughDeposits(requiredAmount, operatorBalance);
+        uint256 index;
         for (uint256 i = 0; i < count; ++i) {
             bytes memory pubkey = pubkeys[i * _PUBKEY_LENGTH: i * _PUBKEY_LENGTH + _PUBKEY_LENGTH];
             bytes memory preSignature = preSignatures[i * _SIGNATURE_LENGTH: i * _SIGNATURE_LENGTH + _SIGNATURE_LENGTH];
             bytes memory depositSignature = depositSignatures[i * _SIGNATURE_LENGTH: i * _SIGNATURE_LENGTH + _SIGNATURE_LENGTH];
-            _setBytes(_getPubkeyStorageKeyByValidatorIndex(startIndex + i), pubkey);
-            _setBytes(_getSignatureStorageKeyByValidatorIndex(startIndex + i), depositSignature);
-//            _setUint(_getPubkeyIDStorageKeyByPubkey(pubkey), startIndex + i);
             dawnDeposit.preActivateValidator(msg.sender, pubkey, preSignature);
-            emit SigningKeyAdded(startIndex + i, pubkey);
+            index = nodeManager.registerValidator(msg.sender, pubkey);
+            _setBytes(_getSignatureStorageKeyByValidatorIndex(index), depositSignature);
         }
         _setUint(_getActiveValidatorsCountStorageKey(), nextActiveValidatorsCount);
+        startIndex = index + 1 - count;
+    }
+
+    /**
+     * @notice Activate a validator
+     * @param index Validator index
+     * @param pubkey Validator public key
+     */
+    function activateValidator(uint256 index, bytes calldata pubkey) external onlyLatestContract("DepositNodeManager", msg.sender) {
+        if(pubkey.length != _PUBKEY_LENGTH) revert InvalidPubkeyLen(pubkey.length);
+        bytes32 sigStorageKey = _getSignatureStorageKeyByValidatorIndex(index);
+        bytes memory signature = _getBytes(sigStorageKey);
+        if(signature.length != _SIGNATURE_LENGTH) revert InvalidSignatureLen(signature.length);
+        IDawnDeposit(_getDawnDeposit()).activateValidator(getOperator(), pubkey, signature);
+        _deleteBytes(sigStorageKey);
     }
 
     /**
@@ -106,31 +128,44 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
      * @return Active validators count
      */
     function getValidatingValidatorsCount() external view returns (uint256) {
-        return _getUint(_getValidatingValidatorsCountStorageKey());
+        return _getUint(keccak256(abi.encodePacked("DepositNodeManager.validatingValidatorsCount", getOperator())));
+    }
+
+    /// @notice Get the operator claimable staking and node rewards
+    function getClaimableRewards() external view returns (uint256) {
+        return _getStakeRewards(_getDawnDeposit())
+            + IDepositNodeManager(_getDepositNodeManager()).getClaimableNodeRewards(getOperator());
+    }
+
+    /// @notice Claim the operator staking and node rewards
+    function claimRewards() external {
+        address dawnDeposit = _getDawnDeposit();
+        uint256 stakeRewards = _getStakeRewards(dawnDeposit);
+        address operator = getOperator();
+        IDepositNodeManager nodeManager = IDepositNodeManager(_getDepositNodeManager());
+        if(stakeRewards > 0) {
+            address withdrawAddress = nodeManager.getWithdrawAddress(operator);
+            IERC20(dawnDeposit).transfer(withdrawAddress, stakeRewards);
+            emit NodeOperatorStakingRewardsClaimed(msg.sender, withdrawAddress, stakeRewards);
+        }
+        nodeManager.claimNodeRewards(operator);
     }
 
     /**
-     * @notice Get WithdrawalCredentials
+     * @notice Change validators status before operator exit his validators
+     * @param indexes Validators indexes will exit
+     * @dev Node operator can exit his validators anytime, but need to change contract validator status first
      */
-    function getWithdrawalCredentials() public view returns (bytes32) {
-        address rewardsVault = _getContractAddress("RewardsVault");
-        return bytes32(bytes.concat(bytes12(0x010000000000000000000000), bytes20(rewardsVault)));
-    }
-
-    /// @dev Get the storage key of the validator pubkey
-    function _getPubkeyStorageKeyByValidatorIndex(uint256 index) internal pure returns (bytes32) {
-        return keccak256(abi.encodePacked("DepositNodeOperator.pubkey", index));
+    function voluntaryExitValidators(uint256[] calldata indexes) external {
+        address operator = getOperator();
+        if(msg.sender != operator) revert OperatorAccessDenied();
+        IDepositNodeManager(_getDepositNodeManager()).operatorRequestToExitValidators(operator, indexes);
     }
 
     /// @dev Get the storage key of the validator signature
     function _getSignatureStorageKeyByValidatorIndex(uint256 index) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked("DepositNodeOperator.signature", index));
     }
-
-//    /// @dev Get the storage key of the validator pubkey
-//    function _getPubkeyIDStorageKeyByPubkey(bytes memory pubkey) internal pure returns (bytes32) {
-//        return keccak256(abi.encodePacked("DepositNodeOperator.pubkeyID", pubkey));
-//    }
 
     /// @dev Get address of dawn deposit contract
     function _getDawnDeposit() internal view returns (address) {
@@ -152,8 +187,19 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
         return keccak256(abi.encodePacked("DepositNodeOperator.ACTIVE_VALIDATORS_COUNT", getOperator()));
     }
 
-    /// @dev Get validating validators count storage key, only VALIDATING status
-    function _getValidatingValidatorsCountStorageKey() internal view returns (bytes32) {
-        return keccak256(abi.encodePacked("DepositNodeOperator.VALIDATING_VALIDATORS_COUNT", getOperator()));
+    function _getStakeRewards(address dawnDeposit) internal view returns (uint256){
+        uint256 operatorBalance = IERC20(dawnDeposit).balanceOf(address(this));
+        uint256 requiredAmount = IDawnDeposit(dawnDeposit).getPEthByEther(
+            _getMinOperatorStakingAmount() * getActiveValidatorsCount()
+        );
+        if(operatorBalance > requiredAmount) {
+            return operatorBalance - requiredAmount;
+        }
+        return 0;
     }
+
+    function _getMinOperatorStakingAmount() internal view returns (uint256) {
+        return _getUint(keccak256("DepositNodeManager.MIN_OPERATOR_STAKING_AMOUNT"));
+    }
+
 }

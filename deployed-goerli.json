@@ -1,0 +1,12 @@
+{
+  "chainId": 5,
+  "officialDepositContract": "0xff50ed3d0ec03aC01D4C79aAd74928BFF48a7b2b",
+  "depositContract": "",
+  "dawnStorage": "0xf0718B4182C67Bbb94c0eDe3850cD41a4c44Ab6d",
+  "RewardsVault": "0x87167FD3e2C2897B9aA66957CfD79A420b543e71",
+  "DawnInsurance": "0x32a3fD7024B4ed67De1d331091f0075DF0243bDd",
+  "DawnTreasury": "0xe00c3897596983A9457B0a5D36059A6Cc210d2BC",
+  "DepositNodeManager": "0x1E4f4fd4513dCE5FdD51e7e00c9ea0Ca093986cD",
+  "DepositNodeOperatorDeployer": "0x812F50E63eB2848d2273D15A670f2F322cBa53F9",
+  "DawnPoolOracle": "0x47ed8d4bCE7e180116Ee263c8CAC0C103172F5d8"
+}
