@@ -133,7 +133,7 @@ contract DawnWithdraw is IDawnWithdraw, DawnBase, DawnWithdrawStorageLayout {
         // 判断requestId是否已经处于fulfillment状态
         require(requestId <= _getUint(_LAST_FULFILLMENT_REQUEST_ID_KEY), "Not fulfillment");
 
-        WithdrawRequest memory withdrawRequest = withdrawRequestQueue[requestId];
+        WithdrawRequest storage withdrawRequest = withdrawRequestQueue[requestId];
         // 判断是否已经被claim过
         if (withdrawRequest.claimed) {
             revert AlreadyClaimed(requestId);
