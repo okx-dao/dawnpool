@@ -59,7 +59,7 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
     struct ReportData {
 
         // 表示报告计算所依据的参考时隙
-        uint256 refSlot;
+        uint256 refEpoch;
 
         // 表示在此报告中相关联的验证器退出请求的总数 todo
         uint256 requestsCount;
@@ -94,14 +94,14 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
         BeaconSpec memory beaconSpec = _getBeaconSpec();
         uint256 expectedEpoch = _getUint(_EXPECTED_EPOCH_ID_POSITION);
         //确保传入的_epochId大于等于预期的 epoch ID，以避免提交过时的验证报告
-        require(data.refSlot >= expectedEpoch, "EPOCH_IS_TOO_OLD");
+        require(data.refEpoch >= expectedEpoch, "EPOCH_IS_TOO_OLD");
 
         // if expected epoch has advanced, check that this is the first epoch of the current frame
         // and clear the last unsuccessful reporting todo 退出验证者多久上报一次
-        if (data.refSlot > expectedEpoch) {
-            require(data.refSlot == _getFrameFirstEpochId(_getCurrentEpochId(beaconSpec), beaconSpec), "UNEXPECTED_EPOCH");
+        if (data.refEpoch > expectedEpoch) {
+            require(data.refEpoch == _getFrameFirstEpochId(_getCurrentEpochId(beaconSpec), beaconSpec), "UNEXPECTED_EPOCH");
             //清除上一次未成功的验证报告并将预期的 epoch ID 更新为 _epochId。
-            _clearReportingAndAdvanceTo(data.refSlot);
+            _clearReportingAndAdvanceTo(data.refEpoch);
         }
 
         // 获取调用者在 dawnpool 合约中的成员 ID, 以确保调用者是 dawnpool 合约的授权成员之一
@@ -143,7 +143,7 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
 
         // 处理提交的报告数据
         //        _startProcessing();
-        _setUint(LAST_PROCESSING_REF_SLOT_POSITION, data.refSlot);
+        _setUint(LAST_PROCESSING_REF_SLOT_POSITION, data.refEpoch);
         // 处理已经达成共识的报告数据
         _handleConsensusReportData(data, beaconSpec);
     }
@@ -156,7 +156,7 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
         }
 
         // 清除上一次未成功的验证报告并将预期的 epoch ID 更新为 _epochId。
-        _clearReportingAndAdvanceTo(data.refSlot + _beaconSpec.epochsPerFrame);
+        _clearReportingAndAdvanceTo(data.refEpoch + _beaconSpec.epochsPerFrame);
 
         IDepositNodeManager nodeManager = getDepositNodeManager();
         nodeManager.updateValidatorsExit(data.requestsCount);
