@@ -17,39 +17,40 @@ const hre = require("hardhat");
 const { ethers } = require('hardhat');
 const { keccak256, encodePacked } = require('web3-utils');
 
+
+
+
+
+
+const contractList = [
+  'DawnDeposit',
+  'DawnWithdraw',
+  'Burner',
+  'DepositNodeManager',
+  'DepositNodeOperatorDeployer',
+  'DawnPoolOracle',
+  'ValidatorsExitBusOracle',
+  'DawnInsurance',
+  'RewardsVault',
+  // 'DawnDepositSecurityModule'
+];
+
 async function main() {
   // npx hardhat run --network goerli  scripts/core/deploy.js
-  // todo update here
-  const dawnStorageAddr = "0x000";
   const dawnStorageFactory = await ethers.getContractFactory('DawnStorage');
-  const dawnStorage = dawnStorageFactory.attach(dawnStorageAddr);
+// todo update here
+  const dawnStorageAddr = "0xeDAD3F908Cf4E617905026e6A979502f88E48028";
+  const dawnStorage = await dawnStorageFactory.attach(dawnStorageAddr);
 
-
-  // deploy DawnDeposit
-  const dawnDepositFactory = await ethers.getContractFactory('DawnDeposit');
-  const dawnDeposit = await dawnDepositFactory.deploy(dawnStorage.address);
-  console.log('deploy dawnDeposit Contract to:', dawnDeposit.address)
-
-  await dawnStorage.setAddress(keccak256(encodePacked('contract.address', "DawnDeposit")), dawnDeposit.address);
-  await dawnStorage.setBool(keccak256(encodePacked('contract.exists', dawnDeposit.address)), true);
-
-
-  // deploy RewardsVault
-  const rewardsVaultFactory = await ethers.getContractFactory('RewardsVault');
-  const rewardsVault = await rewardsVaultFactory.deploy(dawnStorage.address);
-  console.log('deploy rewardsVault Contract to:', rewardsVault.address)
-
-  await dawnStorage.setAddress(keccak256(encodePacked('contract.address', "RewardsVault")), rewardsVault.address);
-  await dawnStorage.setBool(keccak256(encodePacked('contract.exists', rewardsVault.address)), true);
-
-
-  // deploy DawnInsurance
-  const dawnInsuranceFactory = await ethers.getContractFactory('DawnInsurance');
-  const dawnInsurance = await dawnInsuranceFactory.deploy(dawnStorage.address);
-  console.log('deploy dawnInsurance Contract to:', dawnInsurance.address)
-
-  await dawnStorage.setAddress(keccak256(encodePacked('contract.address', "DawnInsurance")), dawnInsurance.address);
-  await dawnStorage.setBool(keccak256(encodePacked('contract.exists', dawnInsurance.address)), true);
+  // deploy contract
+  for (const contractName of contractList) {
+    const contractFactory = await ethers.getContractFactory(contractName);
+    const contractInstance = await contractFactory.deploy(dawnStorage.address);
+    console.log('deploy ', contractName,' Contract to: ', contractInstance.address)
+    //
+    await dawnStorage.setAddress(keccak256(encodePacked('contract.address', contractName)), contractInstance.address);
+    await dawnStorage.setBool(keccak256(encodePacked('contract.exists', contractInstance.address)), true);
+  }
 
 
   // deploy DawnTreasury
@@ -59,6 +60,14 @@ async function main() {
 
   await dawnStorage.setAddress(keccak256(encodePacked('contract.address', "DawnTreasury")), '0xe00c3897596983A9457B0a5D36059A6Cc210d2BC');
   await dawnStorage.setBool(keccak256(encodePacked('contract.exists', '0xe00c3897596983A9457B0a5D36059A6Cc210d2BC')), true);
+
+  // deploy DawnDepositSecurityModule
+    const dawnDepositSecurityModuleFactory = await ethers.getContractFactory('DawnDepositSecurityModule');
+    const dawnDepositSecurityModule = await dawnDepositSecurityModuleFactory.deploy(dawnStorage.address, '0xff50ed3d0ec03aC01D4C79aAd74928BFF48a7b2b');
+    console.log('deploy DawnDepositSecurityModule Contract to: ', dawnDepositSecurityModule.address)
+    //
+    await dawnStorage.setAddress(keccak256(encodePacked('contract.address', 'DawnDepositSecurityModule')), dawnDepositSecurityModule.address);
+    await dawnStorage.setBool(keccak256(encodePacked('contract.exists', dawnDepositSecurityModule.address)), true);
 
 
   // log
