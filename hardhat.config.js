@@ -7,6 +7,7 @@ require('hardhat-gas-reporter');
 require('hardhat-contract-sizer');
 require('hardhat-abi-exporter');
 require('@nomiclabs/hardhat-etherscan');
+require('hardhat-contract-sizer');
 
 const dotenv = require('dotenv');
 const path = require('path');
@@ -69,6 +70,7 @@ task('accounts', 'Prints the list of accounts', async (taskArgs, hre) => {
     console.log(account.address);
   }
 });
+
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
   solidity: {
@@ -134,5 +136,10 @@ module.exports = {
   mocha: {
     timeout: 120e3, // 120s
     retries: 1,
+  },
+  contractSizer: {
+    alphaSort: true,
+    runOnCompile: true,
+    disambiguatePaths: false,
   },
 };

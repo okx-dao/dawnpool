@@ -28,8 +28,8 @@ interface IDawnPoolOracle {
     );
     event Completed(
         uint256 epochId,
-        uint256 beaconBalance,
         uint256 beaconValidators,
+        uint256 beaconBalance,
         uint256 rewardsVaultBalance,
         uint256 exitedValidators,
         uint256 burnedPEthAmount,
