@@ -144,8 +144,7 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
         // 处理提交的报告数据
         //        _startProcessing();
         _setUint(LAST_PROCESSING_REF_EPOCH_POSITION, data.refEpoch);
-        // 处理已经达成共识的报告数据
-        _handleConsensusReportData(data, beaconSpec);
+
     }
 
 
@@ -155,9 +154,6 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
             return;
         }
 
-        // 清除上一次未成功的验证报告并将预期的 epoch ID 更新为 _epochId。
-        _clearReportingAndAdvanceTo(data.refEpoch + _beaconSpec.epochsPerFrame);
-
         IDepositNodeManager nodeManager = getDepositNodeManager();
         nodeManager.updateValidatorsExit(data.requestsCount);
 
@@ -166,23 +162,8 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
         // 将验证器退出请求的相关信息转换成事件并派发到链上，以供其他程序查询和使用。
         emit ValidatorExitRequest(data.requestsCount, timestamp);
 
-
-//    _processExitRequestsList(data.requestsCount);
     }
 
-      // 可以处理验证器的退出请求，并将相关信息记录下来，并且将该事件派发到区块链上，方便其他程序进行查询和使用 todo
-//    function _processExitRequestsList(uint256 count) internal {
-//
-//        // report to the DepositNodeManager
-//        IDepositNodeManager nodeManager = getDepositNodeManager();
-//        nodeManager.updateValidatorsExiting(count);
-//
-//        uint256 timestamp = _getTime();
-//
-//        // 将验证器退出请求的相关信息转换成事件并派发到链上，以供其他程序查询和使用。
-//        emit ValidatorExitRequest(count, timestamp);
-//
-//    }
 
     /**
  * @notice Return the number of exactly the same reports needed to finalize the epoch
@@ -255,7 +236,7 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
     }
 
     /**
- * @notice 清除上一次未成功的验证报告并将预期的 epoch ID 更新为 _epochId。
+ * @notice 清除上一次未成功的验证报告并将预期的 epoch ID 更新为 _epochId。 todo 调用次数时间
      */
     function _clearReportingAndAdvanceTo(uint256 _epochId) internal {
         //        REPORTS_BITMASK_POSITION.setStorageUint256(0);
