@@ -46,14 +46,6 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
     address[] private members;                /// slot 0: oracle committee members
     uint256[] private currentReportVariants;  /// slot 1: reporting storage
 
-    // 验证者退出请求事件 todo
-    event ValidatorExitRequest(
-    // 表示在此报告中相关联的验证器退出请求的总数
-        uint256 requestsCount,
-    // 验证器发出请求的时间戳
-        uint256 timestamp
-    );
-
     /// Data provider interface
     /// 包含了 Oracle 共识信息、请求数据格式和验证者退出请求数据等多方面的信息
     struct ReportData {
@@ -61,7 +53,7 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
         // 表示报告计算所依据的参考时隙
         uint256 refEpoch;
 
-        // 表示在此报告中相关联的验证器退出请求的总数 todo
+        // 表示在此报告中相关联的验证器退出请求的总数
         uint256 requestsCount;
 
         // 表示验证器退出请求数据的格式。目前仅支持 DATA_FORMAT_LIST=1
