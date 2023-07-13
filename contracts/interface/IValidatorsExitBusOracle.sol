@@ -16,6 +16,14 @@ interface IValidatorsExitBusOracle {
     event MemberAdded(address member);
     event ExpectedEpochIdUpdated(uint256 epochId);
 
+    // 验证者退出请求事件
+    event ValidatorExitRequest(
+    // 表示在此报告中相关联的验证器退出请求的总数
+        uint256 requestsCount,
+    // 验证器发出请求的时间戳
+        uint256 timestamp
+    );
+
     /**
      * @notice Return the number of exactly the same reports needed to finalize the epoch
      */
