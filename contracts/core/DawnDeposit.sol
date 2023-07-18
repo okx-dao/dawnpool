@@ -11,9 +11,6 @@ import "../deposit_contract/deposit_contract.sol";
 import "../interface/IBurner.sol";
 import "../interface/IDawnWithdraw.sol";
 
-interface NodeManager {
-    function distributeNodeOperatorRewards(uint256 pethAmount) external;
-}
 
 contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
     using SafeMath for uint256;
@@ -241,6 +238,14 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
             .add(_getUint(_PRE_DEPOSIT_VALIDATORS_KEY).mul(PRE_DEPOSIT_VALUE)) // pre validator balance
             .sub(_getUint(_UNREACHABLE_ETHER_COUNT_KEY)); // unreachable ether
 
+        // negative reward
+        if (beaconBalance.add(availableRewards) <= _getUint(_BEACON_ACTIVE_VALIDATOR_BALANCE_KEY).add(
+            beaconValidators.add(exitedValidators).sub(_getUint(_BEACON_ACTIVE_VALIDATORS_KEY)).mul(DEPOSIT_VALUE_PER_VALIDATOR)
+        )) {
+            totalPEth = totalSupply();
+            return (totalEther, totalPEth);
+        }
+
         uint256 rewards = beaconBalance.add(availableRewards).sub(
             _getUint(_BEACON_ACTIVE_VALIDATOR_BALANCE_KEY).add(
                 beaconValidators.add(exitedValidators).sub(_getUint(_BEACON_ACTIVE_VALIDATORS_KEY)).mul(DEPOSIT_VALUE_PER_VALIDATOR)
@@ -282,9 +287,12 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
     }
 
     function punish(address burnAddress, uint256 pethAmountToBurn, uint256 ethAmountToDecrease) external onlyNodeManager {
-        _punish(burnAddress, pethAmountToBurn);
-        _addUint(_UNREACHABLE_ETHER_COUNT_KEY, ethAmountToDecrease);
-        emit LogDecreaseEther(burnAddress, ethAmountToDecrease);
+        _punish(burnAddress, pethAmountToBurn, ethAmountToDecrease);
+    }
+
+    function increaseUnreachableEtherCount(uint256 amount) public onlyBurner {
+        _addUint(_UNREACHABLE_ETHER_COUNT_KEY, amount);
+        emit LogDecreaseEther(amount);
     }
 
     function _punish(address burnAddress, uint256 pethAmountToBurn) internal {
@@ -295,6 +303,16 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
         IBurner(_getContractAddress(_BURNER_CONTRACT_NAME)).requestBurnPEth(burnAddress, pethAmountToBurn);
 
         emit LogPunish(burnAddress, pethAmountToBurn);
+    }
+
+    function _punish(address burnAddress, uint256 pethAmountToBurn, uint256 ethAmountToDecrease) internal {
+        if (pethAmountToBurn == 0) revert ZeroBurnAmount();
+        if (this.balanceOf(burnAddress) < pethAmountToBurn) revert PEthNotEnough();
+
+        _transfer(burnAddress, _getContractAddress(_BURNER_CONTRACT_NAME), pethAmountToBurn);
+        IBurner(_getContractAddress(_BURNER_CONTRACT_NAME)).requestBurnPEthAndDecreaseEth(burnAddress, pethAmountToBurn, ethAmountToDecrease);
+
+        emit LogPunishWithEth(burnAddress, pethAmountToBurn, ethAmountToDecrease);
     }
 
     function getBeaconStat() external view returns (uint256 preDepositValidators, uint256 depositedValidators, uint256 beaconValidators, uint256 beaconBalance) {
@@ -376,8 +394,12 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
     // distribute pETH as rewards to NodeOperators
     function _distributeNodeOperatorRewards(uint256 rewardsPEth) internal {
         address nodeManagerAddr = _getContractAddress(_NODE_OPERATOR_REGISTER_CONTRACT_NAME);
-        _transfer(address(this), nodeManagerAddr, rewardsPEth);
-        NodeManager(nodeManagerAddr).distributeNodeOperatorRewards(rewardsPEth);
+        IDepositNodeManager nodeManager = IDepositNodeManager(nodeManagerAddr);
+
+        if(nodeManager.getTotalActivatedValidatorsCount() > 0) {
+            _transfer(address(this), nodeManagerAddr, rewardsPEth);
+            nodeManager.distributeNodeOperatorRewards(rewardsPEth);
+        }
     }
 
     function _stake() internal returns (uint256) {
@@ -471,6 +493,13 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
 
     modifier onlyDawnPoolOracle() {
         if (msg.sender != _getContractAddress(_ORACLE_CONTRACT_NAME)) {
+            revert CallerAuthFailed(msg.sender);
+        }
+        _;
+    }
+
+    modifier onlyBurner() {
+        if (msg.sender != _getContractAddress(_BURNER_CONTRACT_NAME)) {
             revert CallerAuthFailed(msg.sender);
         }
         _;

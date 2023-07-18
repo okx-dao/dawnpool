@@ -95,7 +95,7 @@ contract DawnWithdraw is IDawnWithdraw, DawnBase, DawnWithdrawStorageLayout {
         // add checkpoint
         checkPoints[lastCheckpointIndex + 1] = CheckPoint(
                     IDawnDeposit(_getContractAddress(_DAWN_DEPOSIT_CONTRACT_NAME)).getTotalPooledEther(),
-                    IERC20(_getContractAddress(_DAWN_DEPOSIT_CONTRACT_NAME)).totalSupply(),
+                    IERC20(_getContractAddress(_DAWN_DEPOSIT_CONTRACT_NAME)).totalSupply() - (endRequest.cumulativePEth - startRequest.cumulativePEth),
                     lastRequestIdToBeFulfilled
         );
 
