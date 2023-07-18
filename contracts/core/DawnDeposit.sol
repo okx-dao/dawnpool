@@ -287,9 +287,12 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
     }
 
     function punish(address burnAddress, uint256 pethAmountToBurn, uint256 ethAmountToDecrease) external onlyNodeManager {
-        _punish(burnAddress, pethAmountToBurn);
-        _addUint(_UNREACHABLE_ETHER_COUNT_KEY, ethAmountToDecrease);
-        emit LogDecreaseEther(burnAddress, ethAmountToDecrease);
+        _punish(burnAddress, pethAmountToBurn, ethAmountToDecrease);
+    }
+
+    function increaseUnreachableEtherCount(uint256 amount) public onlyBurner {
+        _addUint(_UNREACHABLE_ETHER_COUNT_KEY, amount);
+        emit LogDecreaseEther(amount);
     }
 
     function _punish(address burnAddress, uint256 pethAmountToBurn) internal {
@@ -300,6 +303,16 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
         IBurner(_getContractAddress(_BURNER_CONTRACT_NAME)).requestBurnPEth(burnAddress, pethAmountToBurn);
 
         emit LogPunish(burnAddress, pethAmountToBurn);
+    }
+
+    function _punish(address burnAddress, uint256 pethAmountToBurn, uint256 ethAmountToDecrease) internal {
+        if (pethAmountToBurn == 0) revert ZeroBurnAmount();
+        if (this.balanceOf(burnAddress) < pethAmountToBurn) revert PEthNotEnough();
+
+        _transfer(burnAddress, _getContractAddress(_BURNER_CONTRACT_NAME), pethAmountToBurn);
+        IBurner(_getContractAddress(_BURNER_CONTRACT_NAME)).requestBurnPEthAndDecreaseEth(burnAddress, pethAmountToBurn, ethAmountToDecrease);
+
+        emit LogPunishWithEth(burnAddress, pethAmountToBurn, ethAmountToDecrease);
     }
 
     function getBeaconStat() external view returns (uint256 preDepositValidators, uint256 depositedValidators, uint256 beaconValidators, uint256 beaconBalance) {
@@ -480,6 +493,13 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
 
     modifier onlyDawnPoolOracle() {
         if (msg.sender != _getContractAddress(_ORACLE_CONTRACT_NAME)) {
+            revert CallerAuthFailed(msg.sender);
+        }
+        _;
+    }
+
+    modifier onlyBurner() {
+        if (msg.sender != _getContractAddress(_BURNER_CONTRACT_NAME)) {
             revert CallerAuthFailed(msg.sender);
         }
         _;
