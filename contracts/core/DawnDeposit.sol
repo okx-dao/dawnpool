@@ -11,9 +11,6 @@ import "../deposit_contract/deposit_contract.sol";
 import "../interface/IBurner.sol";
 import "../interface/IDawnWithdraw.sol";
 
-interface NodeManager {
-    function distributeNodeOperatorRewards(uint256 pethAmount) external;
-}
 
 contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
     using SafeMath for uint256;
@@ -384,8 +381,12 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
     // distribute pETH as rewards to NodeOperators
     function _distributeNodeOperatorRewards(uint256 rewardsPEth) internal {
         address nodeManagerAddr = _getContractAddress(_NODE_OPERATOR_REGISTER_CONTRACT_NAME);
-        _transfer(address(this), nodeManagerAddr, rewardsPEth);
-        NodeManager(nodeManagerAddr).distributeNodeOperatorRewards(rewardsPEth);
+        IDepositNodeManager nodeManager = IDepositNodeManager(nodeManagerAddr);
+
+        if(nodeManager.getTotalActivatedValidatorsCount() > 0) {
+            _transfer(address(this), nodeManagerAddr, rewardsPEth);
+            nodeManager.distributeNodeOperatorRewards(rewardsPEth);
+        }
     }
 
     function _stake() internal returns (uint256) {
