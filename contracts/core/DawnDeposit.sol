@@ -241,6 +241,14 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
             .add(_getUint(_PRE_DEPOSIT_VALIDATORS_KEY).mul(PRE_DEPOSIT_VALUE)) // pre validator balance
             .sub(_getUint(_UNREACHABLE_ETHER_COUNT_KEY)); // unreachable ether
 
+        // negative reward
+        if (beaconBalance.add(availableRewards) <= _getUint(_BEACON_ACTIVE_VALIDATOR_BALANCE_KEY).add(
+            beaconValidators.add(exitedValidators).sub(_getUint(_BEACON_ACTIVE_VALIDATORS_KEY)).mul(DEPOSIT_VALUE_PER_VALIDATOR)
+        )) {
+            totalPEth = totalSupply();
+            return (totalEther, totalPEth);
+        }
+
         uint256 rewards = beaconBalance.add(availableRewards).sub(
             _getUint(_BEACON_ACTIVE_VALIDATOR_BALANCE_KEY).add(
                 beaconValidators.add(exitedValidators).sub(_getUint(_BEACON_ACTIVE_VALIDATORS_KEY)).mul(DEPOSIT_VALUE_PER_VALIDATOR)
