@@ -4,6 +4,7 @@ pragma solidity ^0.8.17;
 import "../interface/IBurner.sol";
 import "../base/DawnBase.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "../interface/IDawnDeposit.sol";
 
 
 contract Burner is IBurner, DawnBase {
@@ -11,11 +12,15 @@ contract Burner is IBurner, DawnBase {
     bytes32 internal constant _TOTAL_BURNED_PETH = keccak256("burner.totalBurnedPEth");
     bytes32 internal constant _PETH_BURN_REQUESTED = keccak256("burner.totalPEthBurnRequested");
 
+    bytes32 internal constant _TOTAL_DECREASED_ETH = keccak256("burner.totalDecreasedEth");
+    bytes32 internal constant _ETH_DECREASE_REQUESTED = keccak256("burner.totalEthDecreaseRequested");
+
     // ***************** contract name *****************
     string internal constant _DAWN_DEPOSIT_CONTRACT_NAME = "DawnDeposit";
     string internal constant _DAWN_WITHDRAW_CONTRACT_NAME = "DawnWithdraw";
 
     event LogRequestBurnPETH(address from, uint256 amount);
+    event LogRequestBurnPEthAndDecreaseEth(address from, uint256 burnedPEthAmount, uint256 decreaseEthAmount);
     event LogRequestBurnMyPEth(uint256 amount);
     event LogSubmitBurnRequest(uint256 burnedPEthAmount, uint256 totalBurnedPEth, uint256 currPEthBurnRequest);
 
@@ -30,6 +35,12 @@ contract Burner is IBurner, DawnBase {
     function requestBurnPEth(address from, uint256 amount) external onlyDawnDepositOrWithdraw {
         _addUint(_PETH_BURN_REQUESTED, amount);
         emit LogRequestBurnPETH(from, amount);
+    }
+
+    function requestBurnPEthAndDecreaseEth(address from, uint256 burnedPEthAmount, uint256 decreaseEthAmount) external onlyDawnDepositOrWithdraw {
+        _addUint(_PETH_BURN_REQUESTED, burnedPEthAmount);
+        _addUint(_ETH_DECREASE_REQUESTED, decreaseEthAmount);
+        emit LogRequestBurnPEthAndDecreaseEth(from, burnedPEthAmount, decreaseEthAmount);
     }
 
 //    function requestBurnMyPEth(uint256 amount) external {
@@ -49,6 +60,13 @@ contract Burner is IBurner, DawnBase {
         // update
         _subUint(_PETH_BURN_REQUESTED, burnedPEthAmount);
         _addUint(_TOTAL_BURNED_PETH, burnedPEthAmount);
+
+        uint256 decreasedEthAmount = _getUint(_ETH_DECREASE_REQUESTED);
+        if (decreasedEthAmount > 0) {
+            _addUint(_TOTAL_DECREASED_ETH, decreasedEthAmount);
+            _setUint(_ETH_DECREASE_REQUESTED, 0);
+            IDawnDeposit(_getContractAddress(_DAWN_DEPOSIT_CONTRACT_NAME)).increaseUnreachableEtherCount(decreasedEthAmount);
+        }
         // emit SubmitBurnRequest
         emit LogSubmitBurnRequest(burnedPEthAmount, _getTotalBurnedPEth(), _getPEthBurnRequest());
     }
