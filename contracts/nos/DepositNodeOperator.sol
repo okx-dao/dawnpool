@@ -22,6 +22,7 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
     uint64 internal constant _SIGNATURE_LENGTH = 96;
     /// @dev Deposit 1 ETH when a validator pubkey is added, so that other 1 eth can earn rewards
     uint128 internal constant _PRE_DEPOSIT_VALUE = 1 ether;
+    string internal constant _DEPOSIT_NODE_MANAGER_CONTRACT_NAME = "DepositNodeManager";
 
     error ZeroAddress();
     error OperatorAccessDenied();
@@ -106,7 +107,7 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
      * @param index Validator index
      * @param pubkey Validator public key
      */
-    function activateValidator(uint256 index, bytes calldata pubkey) external onlyLatestContract("DepositNodeManager", msg.sender) {
+    function activateValidator(uint256 index, bytes calldata pubkey) external onlyLatestContract(_DEPOSIT_NODE_MANAGER_CONTRACT_NAME, msg.sender) {
         if(pubkey.length != _PUBKEY_LENGTH) revert InvalidPubkeyLen(pubkey.length);
         bytes32 sigStorageKey = _getSignatureStorageKeyByValidatorIndex(index);
         bytes memory signature = _getBytes(sigStorageKey);
@@ -160,6 +161,15 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
         address operator = getOperator();
         if(msg.sender != operator) revert OperatorAccessDenied();
         IDepositNodeManager(_getDepositNodeManager()).operatorRequestToExitValidators(operator, indexes);
+        _subUint(_getActiveValidatorsCountStorageKey(), indexes.length);
+    }
+
+    /**
+     * @notice Update validators exit count
+     * @param count Validators exit count
+     */
+    function updateValidatorExitCount(uint256 count) external onlyLatestContract(_DEPOSIT_NODE_MANAGER_CONTRACT_NAME, msg.sender) {
+        _subUint(_getActiveValidatorsCountStorageKey(), count);
     }
 
     /// @dev Get the storage key of the validator signature
@@ -174,7 +184,7 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
 
     /// @dev Get DepositNodeManager contract address
     function _getDepositNodeManager() internal view returns (address) {
-        return _getContractAddressUnsafe("DepositNodeManager");
+        return _getContractAddressUnsafe(_DEPOSIT_NODE_MANAGER_CONTRACT_NAME);
     }
 
     /// @dev Get the operator storage key

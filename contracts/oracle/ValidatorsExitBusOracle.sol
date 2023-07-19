@@ -11,7 +11,7 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
     using ReportUtils for uint256;
 
     /// @dev Storage slot: uint256 lastProcessingRefSlot
-    bytes32 internal constant LAST_PROCESSING_REF_SLOT_POSITION = keccak256("ValidatorsExitBusOracle.LAST_PROCESSING_REF_SLOT_POSITION");
+    bytes32 internal constant LAST_PROCESSING_REF_EPOCH_POSITION = keccak256("ValidatorsExitBusOracle.LAST_PROCESSING_REF_EPOCH_POSITION");
 
     bytes32 internal constant _QUORUM_POSITION = keccak256("ValidatorsExitBusOracle.QUORUM_POSITION");
 
@@ -46,14 +46,6 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
     address[] private members;                /// slot 0: oracle committee members
     uint256[] private currentReportVariants;  /// slot 1: reporting storage
 
-    // 验证者退出请求事件 todo
-    event ValidatorExitRequest(
-    // 表示在此报告中相关联的验证器退出请求的总数
-        uint256 requestsCount,
-    // 验证器发出请求的时间戳
-        uint256 timestamp
-    );
-
     /// Data provider interface
     /// 包含了 Oracle 共识信息、请求数据格式和验证者退出请求数据等多方面的信息
     struct ReportData {
@@ -61,7 +53,7 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
         // 表示报告计算所依据的参考时隙
         uint256 refEpoch;
 
-        // 表示在此报告中相关联的验证器退出请求的总数 todo
+        // 表示在此报告中相关联的验证器退出请求的总数
         uint256 requestsCount;
 
         // 表示验证器退出请求数据的格式。目前仅支持 DATA_FORMAT_LIST=1
@@ -143,9 +135,8 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
 
         // 处理提交的报告数据
         //        _startProcessing();
-        _setUint(LAST_PROCESSING_REF_SLOT_POSITION, data.refEpoch);
-        // 处理已经达成共识的报告数据
-        _handleConsensusReportData(data, beaconSpec);
+        _setUint(LAST_PROCESSING_REF_EPOCH_POSITION, data.refEpoch);
+
     }
 
 
@@ -155,9 +146,6 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
             return;
         }
 
-        // 清除上一次未成功的验证报告并将预期的 epoch ID 更新为 _epochId。
-        _clearReportingAndAdvanceTo(data.refEpoch + _beaconSpec.epochsPerFrame);
-
         IDepositNodeManager nodeManager = getDepositNodeManager();
         nodeManager.updateValidatorsExit(data.requestsCount);
 
@@ -166,23 +154,8 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
         // 将验证器退出请求的相关信息转换成事件并派发到链上，以供其他程序查询和使用。
         emit ValidatorExitRequest(data.requestsCount, timestamp);
 
-
-//    _processExitRequestsList(data.requestsCount);
     }
 
-      // 可以处理验证器的退出请求，并将相关信息记录下来，并且将该事件派发到区块链上，方便其他程序进行查询和使用 todo
-//    function _processExitRequestsList(uint256 count) internal {
-//
-//        // report to the DepositNodeManager
-//        IDepositNodeManager nodeManager = getDepositNodeManager();
-//        nodeManager.updateValidatorsExiting(count);
-//
-//        uint256 timestamp = _getTime();
-//
-//        // 将验证器退出请求的相关信息转换成事件并派发到链上，以供其他程序查询和使用。
-//        emit ValidatorExitRequest(count, timestamp);
-//
-//    }
 
     /**
  * @notice Return the number of exactly the same reports needed to finalize the epoch
@@ -255,7 +228,7 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
     }
 
     /**
- * @notice 清除上一次未成功的验证报告并将预期的 epoch ID 更新为 _epochId。
+ * @notice 清除上一次未成功的验证报告并将预期的 epoch ID 更新为 _epochId。 todo 调用次数时间
      */
     function _clearReportingAndAdvanceTo(uint256 _epochId) internal {
         //        REPORTS_BITMASK_POSITION.setStorageUint256(0);
@@ -451,7 +424,7 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
         uint64 _genesisTime,
         uint256 _lastProcessingRefSlot
     ) external {
-        _setUint(LAST_PROCESSING_REF_SLOT_POSITION, _lastProcessingRefSlot);
+        _setUint(LAST_PROCESSING_REF_EPOCH_POSITION, _lastProcessingRefSlot);
 
         _setBeaconSpec(
             _epochsPerFrame,
@@ -483,7 +456,11 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
     /// @notice Returns the last reference slot for which processing of the report was started.
     ///
     function getLastProcessingRefSlot() external view returns (uint256) {
-        return _getUint(LAST_PROCESSING_REF_SLOT_POSITION);
+        return _getUint(LAST_PROCESSING_REF_EPOCH_POSITION);
+    }
+
+    function getLastProcessingRefEpoch() external view returns (uint256) {
+        return _getUint(LAST_PROCESSING_REF_EPOCH_POSITION);
     }
 
     /**
