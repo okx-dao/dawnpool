@@ -36,6 +36,10 @@ async function getChainInfo() {
       chainName = 'local';
       depositContractAddr = (await deployDepositContract()).address;
       break;
+    case 32382:
+      chainName = 'localhost';
+      depositContractAddr = '0x4242424242424242424242424242424242424242';
+      break;
     default:
       break;
   }
@@ -90,6 +94,7 @@ async function getDeployedContractAddress(contractName) {
 }
 
 module.exports = {
+  getChainInfo,
   deployContracts,
   upgradeContracts,
   getDeployedContractAddress,

@@ -17,17 +17,24 @@ interface IDawnPoolOracle {
     );
     event BeaconReported(
         uint256 epochId,
-        uint128 beaconBalance,
-        uint128 beaconValidators,
-        uint128 rewardsVaultBalance,
+        uint256 beaconBalance,
+        uint256 beaconValidators,
+        uint256 rewardsVaultBalance,
+        uint256 exitedValidators,
+        uint256 burnedPEthAmount,
+        uint256 lastRequestIdToBeFulfilled,
+        uint256 ethAmountToLock,
         address caller
     );
     event Completed(
         uint256 epochId,
-        uint128 beaconBalance,
-        uint128 beaconValidators,
-        uint128 rewardsVaultBalance,
-        uint128 exitedValidators
+        uint256 beaconValidators,
+        uint256 beaconBalance,
+        uint256 rewardsVaultBalance,
+        uint256 exitedValidators,
+        uint256 burnedPEthAmount,
+        uint256 lastRequestIdToBeFulfilled,
+        uint256 ethAmountToLock
     );
 
     /**
@@ -176,7 +183,8 @@ interface IDawnPoolOracle {
     function setQuorum(uint256 _quorum) external;
 
 
-    function reportBeacon(uint256 _epochId, uint64 _beaconBalance, uint32 _beaconValidators, uint64 _rewardsVaultBalance, uint32 _exitedValidators) external;
+//    function reportBeacon(uint256 _epochId, uint256 _beaconBalance, uint256 _beaconValidators, uint256 _rewardsVaultBalance, uint256 _exitedValidators,
+//        uint256 _burnedPEthAmount ,uint256 _lastRequestIdToBeFulfilled, uint256 _ethAmountToLock) external;
 
 
 
