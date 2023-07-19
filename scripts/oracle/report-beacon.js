@@ -10,16 +10,29 @@
 const hre = require("hardhat");
 const { ethers } = require('hardhat');
 const { keccak256, encodePacked } = require('web3-utils');
+const { BigNumber } = require('ethers');
 
 async function main() {
 
   // npx hardhat run --network goerli  scripts/oracle/report-beacon.js
   const dawnPoolOracleFactory = await ethers.getContractFactory('DawnPoolOracle');
-  const dawnPoolOracleOracle = await dawnPoolOracleFactory.attach('0x47ed8d4bCE7e180116Ee263c8CAC0C103172F5d8');
+  const dawnPoolOracleOracle = await dawnPoolOracleFactory.attach('0x1B38b1D02F4693C4bda78F6d2f38fa1DC0050334');
 
   const frameFirstEpochId = await dawnPoolOracleOracle.getFrameFirstEpochId()
   console.log("frameFirstEpochId= ",frameFirstEpochId)
-  const result = await dawnPoolOracleOracle.reportBeacon(185400, 208000855015000000000/1e9, 2, '14000000000000000000', 0);
+  // (190220, 0, 0, 64001989366000000000, 2 , 11978844447443412188, 1, 9958588402895866439)
+  const report_data ={
+     epochId: 190240,
+     beaconBalance: 0,
+     beaconValidators: 0,
+     rewardsVaultBalance: '64001989366000000000',
+     exitedValidators: 2,
+     burnedPEthAmount: '11978844447443412188',
+     lastRequestIdToBeFulfilled: 1,
+     ethAmountToLock: '9958588402895866439'
+  }
+
+  const result = await dawnPoolOracleOracle.reportBeacon(report_data);
   console.log("result= ",result)
 
 }
