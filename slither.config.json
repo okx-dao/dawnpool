@@ -1,5 +1,5 @@
 {
-  "detectors_to_run": "reentrancy-eth,reentrancy-no-eth,reentrancy-unlimited-gas",
+  "detectors_to_run": "all",
   "filter_paths": "contracts/mocks",
   "compile_force_framework": "hardhat"
 }
