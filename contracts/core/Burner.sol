@@ -6,9 +6,7 @@ import "../base/DawnBase.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../interface/IDawnDeposit.sol";
 
-
 contract Burner is IBurner, DawnBase {
-
     bytes32 internal constant _TOTAL_BURNED_PETH = keccak256("burner.totalBurnedPEth");
     bytes32 internal constant _PETH_BURN_REQUESTED = keccak256("burner.totalPEthBurnRequested");
 
@@ -31,28 +29,31 @@ contract Burner is IBurner, DawnBase {
     // constructor
     constructor(IDawnStorageInterface dawnStorageAddress) DawnBase(dawnStorageAddress) {}
 
-
     function requestBurnPEth(address from, uint256 amount) external onlyDawnDepositOrWithdraw {
         _addUint(_PETH_BURN_REQUESTED, amount);
         emit LogRequestBurnPETH(from, amount);
     }
 
-    function requestBurnPEthAndDecreaseEth(address from, uint256 burnedPEthAmount, uint256 decreaseEthAmount) external onlyDawnDepositOrWithdraw {
+    function requestBurnPEthAndDecreaseEth(
+        address from,
+        uint256 burnedPEthAmount,
+        uint256 decreaseEthAmount
+    ) external onlyDawnDepositOrWithdraw {
         _addUint(_PETH_BURN_REQUESTED, burnedPEthAmount);
         _addUint(_ETH_DECREASE_REQUESTED, decreaseEthAmount);
         emit LogRequestBurnPEthAndDecreaseEth(from, burnedPEthAmount, decreaseEthAmount);
     }
 
-//    function requestBurnMyPEth(uint256 amount) external {
-//        if (amount == 0) revert ZeroBurnAmount();
-//
-//        IERC20 PEth = IERC20(_getContractAddress(_DAWN_DEPOSIT_CONTRACT_NAME));
-//        if (PEth.balanceOf(msg.sender) < amount) revert PEthNotEnough();
-//        PEth.transfer(address(this), amount);
-//        _addUint(_PETH_BURN_REQUESTED, amount);
-//
-//        emit LogRequestBurnMyPEth(amount);
-//    }
+    //    function requestBurnMyPEth(uint256 amount) external {
+    //        if (amount == 0) revert ZeroBurnAmount();
+    //
+    //        IERC20 PEth = IERC20(_getContractAddress(_DAWN_DEPOSIT_CONTRACT_NAME));
+    //        if (PEth.balanceOf(msg.sender) < amount) revert PEthNotEnough();
+    //        PEth.transfer(address(this), amount);
+    //        _addUint(_PETH_BURN_REQUESTED, amount);
+    //
+    //        emit LogRequestBurnMyPEth(amount);
+    //    }
 
     function commitPEthToBurn(uint256 burnedPEthAmount) external {
         require(msg.sender == _getContractAddress(_DAWN_DEPOSIT_CONTRACT_NAME), "caller is not DawnDeposit contract");
@@ -65,12 +66,13 @@ contract Burner is IBurner, DawnBase {
         if (decreasedEthAmount > 0) {
             _addUint(_TOTAL_DECREASED_ETH, decreasedEthAmount);
             _setUint(_ETH_DECREASE_REQUESTED, 0);
-            IDawnDeposit(_getContractAddress(_DAWN_DEPOSIT_CONTRACT_NAME)).increaseUnreachableEtherCount(decreasedEthAmount);
+            IDawnDeposit(_getContractAddress(_DAWN_DEPOSIT_CONTRACT_NAME)).increaseUnreachableEtherCount(
+                decreasedEthAmount
+            );
         }
         // emit SubmitBurnRequest
         emit LogSubmitBurnRequest(burnedPEthAmount, _getTotalBurnedPEth(), _getPEthBurnRequest());
     }
-
 
     function getTotalBurnedPEth() public view returns (uint256) {
         return _getTotalBurnedPEth();
@@ -79,7 +81,6 @@ contract Burner is IBurner, DawnBase {
     function getPEthBurnRequest() public view returns (uint256) {
         return _getPEthBurnRequest();
     }
-
 
     function _getTotalBurnedPEth() internal view returns (uint256) {
         return _getUint(_TOTAL_BURNED_PETH);
@@ -90,8 +91,11 @@ contract Burner is IBurner, DawnBase {
     }
 
     modifier onlyDawnDepositOrWithdraw() {
-        require(msg.sender == _getContractAddress(_DAWN_DEPOSIT_CONTRACT_NAME) || msg.sender == _getContractAddress(_DAWN_WITHDRAW_CONTRACT_NAME), "Only call by dawnDeposit or dawnWithdraw");
+        require(
+            msg.sender == _getContractAddress(_DAWN_DEPOSIT_CONTRACT_NAME) ||
+                msg.sender == _getContractAddress(_DAWN_WITHDRAW_CONTRACT_NAME),
+            "Only call by dawnDeposit or dawnWithdraw"
+        );
         _;
     }
-
 }

@@ -27,7 +27,6 @@ struct PermitInput {
 }
 
 abstract contract DawnWithdrawStorageLayout {
-
     mapping(uint256 => WithdrawRequest) public withdrawRequestQueue;
     mapping(uint256 => CheckPoint) public checkPoints;
 }

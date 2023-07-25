@@ -5,7 +5,6 @@ import "../interface/IRewardsVault.sol";
 import "../base/DawnBase.sol";
 import "../interface/IDawnDeposit.sol";
 
-
 contract RewardsVault is DawnBase, IRewardsVault {
     constructor(IDawnStorageInterface dawnStorageAddress) DawnBase(dawnStorageAddress) {}
 

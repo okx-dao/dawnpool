@@ -10,32 +10,33 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 // Address set storage helper for RocketStorage data (contains unique items; has reverse index lookups)
 
 contract AddressSetStorage is DawnBase, IAddressSetStorageInterface {
-
     using SafeMath for uint;
 
     // Construct
-    constructor(IDawnStorageInterface _dawnStorageAddress) DawnBase(_dawnStorageAddress) {
-    }
+    constructor(IDawnStorageInterface _dawnStorageAddress) DawnBase(_dawnStorageAddress) {}
 
     // The number of items in a set
-    function getCount(bytes32 _key) override external view returns (uint) {
+    function getCount(bytes32 _key) external view override returns (uint) {
         return _getUint(keccak256(abi.encodePacked(_key, ".count")));
     }
 
     // The item in a set by index
-    function getItem(bytes32 _key, uint _index) override external view returns (address) {
+    function getItem(bytes32 _key, uint _index) external view override returns (address) {
         return _getAddress(keccak256(abi.encodePacked(_key, ".item", _index)));
     }
 
     // The index of an item in a set
     // Returns -1 if the value is not found
-    function getIndexOf(bytes32 _key, address _value) override external view returns (int) {
+    function getIndexOf(bytes32 _key, address _value) external view override returns (int) {
         return int(_getUint(keccak256(abi.encodePacked(_key, ".index", _value)))) - 1;
     }
 
     // Add an item to a set
     // Requires that the item does not exist in the set
-    function addItem(bytes32 _key, address _value) override external onlyLatestContract("AddressSetStorage", address(this))  {
+    function addItem(
+        bytes32 _key,
+        address _value
+    ) external override onlyLatestContract("AddressSetStorage", address(this)) {
         require(_getUint(keccak256(abi.encodePacked(_key, ".index", _value))) == 0, "Item already exists in set");
         uint count = _getUint(keccak256(abi.encodePacked(_key, ".count")));
         _setAddress(keccak256(abi.encodePacked(_key, ".item", count)), _value);
@@ -46,7 +47,10 @@ contract AddressSetStorage is DawnBase, IAddressSetStorageInterface {
     // Remove an item from a set
     // Swaps the item with the last item in the set and truncates it; computationally cheap
     // Requires that the item exists in the set
-    function removeItem(bytes32 _key, address _value) override external onlyLatestContract("AddressSetStorage", address(this))  {
+    function removeItem(
+        bytes32 _key,
+        address _value
+    ) external override onlyLatestContract("AddressSetStorage", address(this)) {
         uint256 index = _getUint(keccak256(abi.encodePacked(_key, ".index", _value)));
         require(index-- > 0, "Item does not exist in set");
         uint count = _getUint(keccak256(abi.encodePacked(_key, ".count")));
@@ -58,5 +62,4 @@ contract AddressSetStorage is DawnBase, IAddressSetStorageInterface {
         _setUint(keccak256(abi.encodePacked(_key, ".index", _value)), 0);
         _setUint(keccak256(abi.encodePacked(_key, ".count")), count.sub(1));
     }
-
 }

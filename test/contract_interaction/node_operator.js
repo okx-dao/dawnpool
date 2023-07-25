@@ -1,6 +1,7 @@
 const { ethers } = require('hardhat');
 const { getDeployedContracts } = require('./dawn_storage');
 const { BigNumber } = require('ethers');
+const { assert } = require('chai');
 
 async function registerNodeOperatorIfNotRegistered() {
   const { nodeManager } = await getDeployedContracts();
