@@ -1,4 +1,5 @@
-pragma solidity ^0.8.17;
+// SPDX-License-Identifier: GPL-3.0-only
+pragma solidity ^0.8.19;
 
 import "../base/DawnBase.sol";
 import "./DawnPoolOracle.sol";
@@ -8,15 +9,18 @@ import "../interface/IValidatorsExitBusOracle.sol";
 
 contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
     constructor(IDawnStorageInterface dawnStorageAddress) DawnBase(dawnStorageAddress) {}
+
     using ReportUtils for uint256;
 
     /// @dev Storage slot: uint256 lastProcessingRefSlot
-    bytes32 internal constant LAST_PROCESSING_REF_EPOCH_POSITION = keccak256("ValidatorsExitBusOracle.LAST_PROCESSING_REF_EPOCH_POSITION");
+    bytes32 internal constant LAST_PROCESSING_REF_EPOCH_POSITION =
+        keccak256("ValidatorsExitBusOracle.LAST_PROCESSING_REF_EPOCH_POSITION");
 
     bytes32 internal constant _QUORUM_POSITION = keccak256("ValidatorsExitBusOracle.QUORUM_POSITION");
 
     /// Epoch that we currently collect reports
-    bytes32 internal constant _EXPECTED_EPOCH_ID_POSITION = keccak256("ValidatorsExitBusOracle.EXPECTED_EPOCH_ID_POSITION");
+    bytes32 internal constant _EXPECTED_EPOCH_ID_POSITION =
+        keccak256("ValidatorsExitBusOracle.EXPECTED_EPOCH_ID_POSITION");
 
     /// The bitmask of the oracle members that pushed their reports
     bytes32 internal constant _REPORTS_BITMASK_POSITION = keccak256("ValidatorsExitBusOracle.REPORTS_BITMASK_POSITION");
@@ -33,32 +37,29 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
         uint64 genesisTime;
     }
 
-//    /// Chain specification
-//    uint64 internal immutable SLOTS_PER_EPOCH;
-//    uint64 internal immutable SECONDS_PER_SLOT;
-//    uint64 internal immutable GENESIS_TIME;
+    //    /// Chain specification
+    //    uint64 internal immutable SLOTS_PER_EPOCH;
+    //    uint64 internal immutable SECONDS_PER_SLOT;
+    //    uint64 internal immutable GENESIS_TIME;
 
     /// Maximum number of oracle committee members
     uint256 public constant MAX_MEMBERS = 256;
 
-    uint256 internal constant MEMBER_NOT_FOUND = 2**256 - 1;
+    uint256 internal constant MEMBER_NOT_FOUND = 2 ** 256 - 1;
     /// Contract structured storage
-    address[] private members;                /// slot 0: oracle committee members
-    uint256[] private currentReportVariants;  /// slot 1: reporting storage
+    address[] private members; /// slot 0: oracle committee members
+    uint256[] private currentReportVariants; /// slot 1: reporting storage
 
     /// Data provider interface
     /// 包含了 Oracle 共识信息、请求数据格式和验证者退出请求数据等多方面的信息
     struct ReportData {
-
         // 表示报告计算所依据的参考时隙
         uint256 refEpoch;
-
         // 表示在此报告中相关联的验证器退出请求的总数
         uint256 requestsCount;
 
         // 表示验证器退出请求数据的格式。目前仅支持 DATA_FORMAT_LIST=1
         //        uint256 dataFormat;
-
     }
 
     //
@@ -71,18 +72,14 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
     uint256 public constant DATA_FORMAT_LIST = 1;
 
     /**
-        * @notice Return the DepositNodeManager contract address
+     * @notice Return the DepositNodeManager contract address
      */
     function getDepositNodeManager() public view returns (IDepositNodeManager) {
-
         return IDepositNodeManager(_getContractAddress("DepositNodeManager"));
     }
 
     /// 提交报告数据，并进行一些必要的检查和处理操作。合约管理员可以根据需要调用此函数来处理提交的报告数据  whenResumed 则表示只有当合约恢复时才可以调用该函数 todo
-    function submitReportData(ReportData calldata data)
-    external
-    {
-
+    function submitReportData(ReportData calldata data) external {
         BeaconSpec memory beaconSpec = _getBeaconSpec();
         uint256 expectedEpoch = _getUint(_EXPECTED_EPOCH_ID_POSITION);
         //确保传入的_epochId大于等于预期的 epoch ID，以避免提交过时的验证报告
@@ -91,7 +88,10 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
         // if expected epoch has advanced, check that this is the first epoch of the current frame
         // and clear the last unsuccessful reporting todo 退出验证者多久上报一次
         if (data.refEpoch > expectedEpoch) {
-            require(data.refEpoch == _getFrameFirstEpochId(_getCurrentEpochId(beaconSpec), beaconSpec), "UNEXPECTED_EPOCH");
+            require(
+                data.refEpoch == _getFrameFirstEpochId(_getCurrentEpochId(beaconSpec), beaconSpec),
+                "UNEXPECTED_EPOCH"
+            );
             //清除上一次未成功的验证报告并将预期的 epoch ID 更新为 _epochId。
             _clearReportingAndAdvanceTo(data.refEpoch);
         }
@@ -114,7 +114,7 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
         uint256 i = 0;
 
         // iterate on all report variants we already have, limited by the oracle members maximum
-        while (i < currentReportVariants.length ) ++i;
+        while (i < currentReportVariants.length) ++i;
         if (i < currentReportVariants.length) {
             // 判断该 variant 的计数器是否已达到要求的数量.达到，则会通过调用 _push() 更新 dawnpool 合约的 validator 列表
             if (currentReportVariants[i].getCount() + 1 >= quorum) {
@@ -128,20 +128,17 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
             if (quorum == 1) {
                 _handleConsensusReportData(data, beaconSpec);
             }
-//                else {
-//                currentReportVariants.push(report + 1);
-//            }
+            //                else {
+            //                currentReportVariants.push(report + 1);
+            //            }
         }
 
         // 处理提交的报告数据
         //        _startProcessing();
         _setUint(LAST_PROCESSING_REF_EPOCH_POSITION, data.refEpoch);
-
     }
 
-
     function _handleConsensusReportData(ReportData calldata data, BeaconSpec memory _beaconSpec) internal {
-
         if (data.requestsCount == 0) {
             return;
         }
@@ -153,82 +150,62 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
 
         // 将验证器退出请求的相关信息转换成事件并派发到链上，以供其他程序查询和使用。
         emit ValidatorExitRequest(data.requestsCount, timestamp);
-
     }
 
-
     /**
- * @notice Return the number of exactly the same reports needed to finalize the epoch
+     * @notice Return the number of exactly the same reports needed to finalize the epoch
      */
     function getQuorum() public view returns (uint256) {
         return _getUint(_QUORUM_POSITION);
     }
 
     /**
- *
- * @dev 获取当前的 oracles 报告状态
+     *
+     * @dev 获取当前的 oracles 报告状态
      */
     function getCurrentOraclesReportStatus() external view returns (uint256) {
         return _getUint(_REPORTS_BITMASK_POSITION);
     }
 
-    function getChainConfig() external view returns (
-        uint256 slotsPerEpoch,
-        uint256 secondsPerSlot,
-        uint256 genesisTime,
-        uint256 epochsPerFrame
-    ) {
+    function getChainConfig()
+        external
+        view
+        returns (uint256 slotsPerEpoch, uint256 secondsPerSlot, uint256 genesisTime, uint256 epochsPerFrame)
+    {
         BeaconSpec memory beaconSpec = _getBeaconSpec();
         return (beaconSpec.slotsPerEpoch, beaconSpec.secondsPerSlot, beaconSpec.genesisTime, beaconSpec.epochsPerFrame);
     }
 
     /**
- * @notice 返回 currentReportVariants 数组中指定索引位置的元素
+     * @notice 返回 currentReportVariants 数组中指定索引位置的元素
      */
-    function getCurrentReportVariant(uint256 _index)
-    external
-    view
-    returns (
-        uint64 beaconBalance,
-        uint32 beaconValidators,
-        uint16 count
-    )
-    {
+    function getCurrentReportVariant(
+        uint256 _index
+    ) external view returns (uint64 beaconBalance, uint32 beaconValidators, uint16 count) {
         return currentReportVariants[_index].decodeWithCount();
     }
 
-
     /**
- * @notice 获取当前 dawnpool 合约的所有 Oracle 成员地址。
+     * @notice 获取当前 dawnpool 合约的所有 Oracle 成员地址。
      */
     function getOracleMembers() external view returns (address[] memory) {
         return members;
     }
 
     /**
- * @notice  获取 dawnpool 合约所使用的 BeaconChain 规格信息
+     * @notice  获取 dawnpool 合约所使用的 BeaconChain 规格信息
      */
     function getBeaconSpec()
-    external
-    view
-    returns (
-        uint64 epochsPerFrame,
-        uint64 slotsPerEpoch,
-        uint64 secondsPerSlot,
-        uint64 genesisTime
-    )
+        external
+        view
+        returns (uint64 epochsPerFrame, uint64 slotsPerEpoch, uint64 secondsPerSlot, uint64 genesisTime)
     {
         BeaconSpec memory beaconSpec = _getBeaconSpec();
-        return (
-        beaconSpec.epochsPerFrame,
-        beaconSpec.slotsPerEpoch,
-        beaconSpec.secondsPerSlot,
-        beaconSpec.genesisTime
-        );
+        return (beaconSpec.epochsPerFrame, beaconSpec.slotsPerEpoch, beaconSpec.secondsPerSlot, beaconSpec.genesisTime);
     }
 
     /**
- * @notice 清除上一次未成功的验证报告并将预期的 epoch ID 更新为 _epochId。 todo 调用次数时间
+     * @notice 清除上一次未成功的验证报告并将预期的 epoch ID 更新为 _epochId。 todo 调用次数时间
      */
     function _clearReportingAndAdvanceTo(uint256 _epochId) internal {
         //        REPORTS_BITMASK_POSITION.setStorageUint256(0);
@@ -239,7 +216,7 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
     }
 
     /**
- * @notice 更新 BeaconChain 规格信息
+     * @notice 更新 BeaconChain 规格信息
      * 权限控制 onlyGuardian todo
      */
     function setBeaconSpec(
@@ -247,16 +224,8 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
         uint64 _slotsPerEpoch,
         uint64 _secondsPerSlot,
         uint64 _genesisTime
-    )
-    external onlyGuardian
-
-    {
-        _setBeaconSpec(
-            _epochsPerFrame,
-            _slotsPerEpoch,
-            _secondsPerSlot,
-            _genesisTime
-        );
+    ) external onlyGuardian {
+        _setBeaconSpec(_epochsPerFrame, _slotsPerEpoch, _secondsPerSlot, _genesisTime);
     }
 
     /**
@@ -267,50 +236,38 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
         uint64 _slotsPerEpoch,
         uint64 _secondsPerSlot,
         uint64 _genesisTime
-    )
-    internal
-    {
+    ) internal {
         require(_epochsPerFrame > 0, "BAD_EPOCHS_PER_FRAME");
         require(_slotsPerEpoch > 0, "BAD_SLOTS_PER_EPOCH");
         require(_secondsPerSlot > 0, "BAD_SECONDS_PER_SLOT");
         require(_genesisTime > 0, "BAD_GENESIS_TIME");
 
-        uint256 data = (
-        uint256(_epochsPerFrame) << 192 |
-        uint256(_slotsPerEpoch) << 128 |
-        uint256(_secondsPerSlot) << 64 |
-        uint256(_genesisTime)
-        );
+        uint256 data = ((uint256(_epochsPerFrame) << 192) |
+            (uint256(_slotsPerEpoch) << 128) |
+            (uint256(_secondsPerSlot) << 64) |
+            uint256(_genesisTime));
         //        BEACON_SPEC_POSITION.setStorageUint256(data);
-        _setUint(_BEACON_SPEC_POSITION,data);
-        emit BeaconSpecSet(
-            _epochsPerFrame,
-            _slotsPerEpoch,
-            _secondsPerSlot,
-            _genesisTime);
+        _setUint(_BEACON_SPEC_POSITION, data);
+        emit BeaconSpecSet(_epochsPerFrame, _slotsPerEpoch, _secondsPerSlot, _genesisTime);
     }
 
     /**
- * @notice 获取当前报告变量的数量
+     * @notice 获取当前报告变量的数量
      */
     function getCurrentReportVariantsSize() external view returns (uint256) {
         return currentReportVariants.length;
     }
 
-    function decodeWithCount(uint256 value)
-    internal pure
-    returns (
-        uint64 beaconBalance,
-        uint32 beaconValidators,
-        uint16 count
-    ) {
+    function decodeWithCount(
+        uint256 value
+    ) internal pure returns (uint64 beaconBalance, uint32 beaconValidators, uint16 count) {
         beaconBalance = uint64(value >> 48);
         beaconValidators = uint32(value >> 16);
         count = uint16(value);
     }
 
     /**
- * @notice 获取当前 EpochId
+     * @notice 获取当前 EpochId
      */
     function getCurrentEpochId() external view returns (uint256) {
         BeaconSpec memory beaconSpec = _getBeaconSpec();
@@ -318,10 +275,10 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
     }
 
     /**
- * @notice 设置 dawnpool 合约中的最低投票数量，即 quorum 值
+     * @notice 设置 dawnpool 合约中的最低投票数量，即 quorum 值
      * auth(MANAGE_QUORUM) todo
      */
-    function setQuorum(uint256 _quorum) external  onlyGuardian{
+    function setQuorum(uint256 _quorum) external onlyGuardian {
         require(0 != _quorum, "QUORUM_WONT_BE_MADE");
 
         uint256 oldQuorum = _getUint(_QUORUM_POSITION);
@@ -335,19 +292,14 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
             if (isQuorum) {
                 (uint64 beaconBalance, uint32 beaconValidators) = report.decode();
                 //触发新的验证操作，其参数包括预期的 epoch ID、当前贡献总量、验证节点数量和 Beacon chain 规范信息
-
             }
         }
     }
 
     /**
- * @notice Return beacon specification data
+     * @notice Return beacon specification data
      */
-    function _getBeaconSpec()
-    internal
-    view
-    returns (BeaconSpec memory beaconSpec)
-    {
+    function _getBeaconSpec() internal view returns (BeaconSpec memory beaconSpec) {
         //        uint256 data = BEACON_SPEC_POSITION.getStorageUint256();
         uint256 data = _getUint(_BEACON_SPEC_POSITION);
         beaconSpec.epochsPerFrame = uint64(data >> 192);
@@ -357,10 +309,8 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
         return beaconSpec;
     }
 
-
-
     /**
- * @notice 取指定成员的 ID
+     * @notice 取指定成员的 ID
      */
     function _getMemberId(address _member) internal view returns (uint256) {
         uint256 length = members.length;
@@ -373,7 +323,7 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
     }
 
     /**
- * @notice 从合约中获取当前与指定 quorum 值对应的验证报告信息
+     * @notice 从合约中获取当前与指定 quorum 值对应的验证报告信息
      * 返回一个布尔值 isQuorum 表示是否满足 quorum 要求，一个整数 report 表示对应的验证报告信息
      */
     function _getQuorumReport(uint256 _quorum) internal view returns (bool isQuorum, uint256 report) {
@@ -426,12 +376,7 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
     ) external {
         _setUint(LAST_PROCESSING_REF_EPOCH_POSITION, _lastProcessingRefSlot);
 
-        _setBeaconSpec(
-            _epochsPerFrame,
-            _slotsPerEpoch,
-            _secondsPerSlot,
-            _genesisTime
-        );
+        _setBeaconSpec(_epochsPerFrame, _slotsPerEpoch, _secondsPerSlot, _genesisTime);
 
         //Quorum 值用于对 dawnpool DAO 委员会成员进行投票,将其初始化为 1，表示只需要一个委员会成员的投票即可生效
         _setUint(_QUORUM_POSITION, 1);
@@ -440,18 +385,16 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
         BeaconSpec memory beaconSpec = _getBeaconSpec();
         // Epoch 所属的 Frame 的第一个 Epoch ID
         uint256 expectedEpoch = _getFrameFirstEpochId(0, beaconSpec) + beaconSpec.epochsPerFrame;
-        _setUint(_EXPECTED_EPOCH_ID_POSITION,expectedEpoch);
+        _setUint(_EXPECTED_EPOCH_ID_POSITION, expectedEpoch);
         emit ExpectedEpochIdUpdated(expectedEpoch);
     }
 
     /**
- * @notice 获取当前区块时间戳
+     * @notice 获取当前区块时间戳
      */
     function _getTime() internal view returns (uint256) {
         return block.timestamp; // solhint-disable-line not-rely-on-time
     }
-
-
 
     /// @notice Returns the last reference slot for which processing of the report was started.
     ///
@@ -465,17 +408,17 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
 
     /**
      *  首先通过 _epochId 除以 _beaconSpec.epochsPerFrame 来计算出该 Epoch 所处的 Frame 编号，然后将其乘以 _beaconSpec.epochsPerFrame，即可得到该 Frame 的第一个 Epoch ID
-     * todo 取当前Frame的第一帧 忽略 slither 的 performs a multiplication on the result of a division提醒
+     * @notice Epoch 所属的 Frame 的第一个 Epoch ID
      */
     function _getFrameFirstEpochId(uint256 _epochId, BeaconSpec memory _beaconSpec) internal pure returns (uint256) {
-        return _epochId / _beaconSpec.epochsPerFrame * _beaconSpec.epochsPerFrame;
+        return (_epochId / _beaconSpec.epochsPerFrame) * _beaconSpec.epochsPerFrame;
     }
 
     /**
- * 向 dawnpool 合约中添加新的 Oracle 成员
- * todo
- */
-    function addOracleMember(address _member) external onlyGuardian{
+     * 向 dawnpool 合约中添加新的 Oracle 成员
+     * todo
+     */
+    function addOracleMember(address _member) external onlyGuardian {
         require(address(0) != _member, "BAD_ARGUMENT");
         require(MEMBER_NOT_FOUND == _getMemberId(_member), "MEMBER_EXISTS");
         require(members.length < MAX_MEMBERS, "TOO_MANY_MEMBERS");
@@ -484,6 +427,4 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
 
         emit MemberAdded(_member);
     }
-
-
 }

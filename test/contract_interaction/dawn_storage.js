@@ -50,7 +50,7 @@ async function getDeployedContracts() {
     rewardsVault = await RewardsVault.attach(await getAddress('RewardsVault'));
     dawnPoolOracle = await DawnPoolOracle.attach(await getAddress('DawnPoolOracle'));
   }
-  return { dawnStorage, dawnDeposit, nodeManager, rewardsVault, dawnPoolOracle};
+  return { dawnStorage, dawnDeposit, nodeManager, rewardsVault, dawnPoolOracle };
 }
 
 module.exports = {
