@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import "../interface/IDawnStorageInterface.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
@@ -52,6 +52,7 @@ contract DawnStorage is IDawnStorageInterface {
 
     function setGuardian(address newAddress) external override {
         require(msg.sender == _guardian, "Is not guardian account");
+        require(newAddress == address(0x0), "Need Non-zero address");
         _newGuardian = newAddress;
     }
 
