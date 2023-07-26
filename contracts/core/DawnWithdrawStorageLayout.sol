@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import "../interface/IDawnDeposit.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -27,7 +27,6 @@ struct PermitInput {
 }
 
 abstract contract DawnWithdrawStorageLayout {
-
     mapping(uint256 => WithdrawRequest) public withdrawRequestQueue;
     mapping(uint256 => CheckPoint) public checkPoints;
 }
