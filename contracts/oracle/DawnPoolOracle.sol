@@ -32,15 +32,15 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
     /// ACL
     bytes32 internal constant _MANAGE_QUORUM = keccak256("DawnPoolOracle.MANAGE_QUORUM");
 
-    /// Maximum number of oracle committee members
+    /// Maximum number of oracle committee _members
     uint256 public constant MAX_MEMBERS = 256;
 
     /// Eth1 denomination is 18 digits, while Eth2 has 9 digits. Because we work with Eth2
     /// balances and to support old interfaces expecting eth1 format, we multiply by this
     /// coefficient.
-    uint128 internal constant DENOMINATION_OFFSET = 1e9;
+    uint128 internal constant _DENOMINATION_OFFSET = 1e9;
 
-    uint256 internal constant MEMBER_NOT_FOUND = 2 ** 256 - 1;
+    uint256 internal constant _MEMBER_NOT_FOUND = 2 ** 256 - 1;
 
     /// Number of exactly the same reports needed to finalize the epoch
 
@@ -63,7 +63,7 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
     /// Epoch that we currently collect reports
     bytes32 internal constant _EXPECTED_EPOCH_ID_POSITION = keccak256("DawnPoolOracle.EXPECTED_EPOCH_ID_POSITION");
 
-    /// The bitmask of the oracle members that pushed their reports
+    /// The bitmask of the oracle _members that pushed their reports
     bytes32 internal constant _REPORTS_BITMASK_POSITION = keccak256("DawnPoolOracle.REPORTS_BITMASK_POSITION");
 
     /// Historic data about 2 last completed reports and their times
@@ -83,8 +83,8 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
         keccak256("DawnPoolOracle.BEACON_REPORT_RECEIVER_POSITION");
 
     /// Contract structured storage
-    address[] private members; /// slot 0: oracle committee members
-    uint256[] private currentReportVariants; /// slot 1: reporting storage
+    address[] private _members; /// slot 0: oracle committee members
+    uint256[] private _currentReportVariants; /// slot 1: reporting storage
 
     /**
      * @notice Return the DawnPool contract address
@@ -134,16 +134,16 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
      * @notice 获取当前报告变量的数量
      */
     function getCurrentReportVariantsSize() external view returns (uint256) {
-        return currentReportVariants.length;
+        return _currentReportVariants.length;
     }
 
     /**
-     * @notice 返回 currentReportVariants 数组中指定索引位置的元素
+     * @notice 返回 _currentReportVariants 数组中指定索引位置的元素
      */
     function getCurrentReportVariant(
         uint256 _index
     ) external view returns (uint64 beaconBalance, uint32 beaconValidators, uint16 count) {
-        return currentReportVariants[_index].decodeWithCount();
+        return _currentReportVariants[_index].decodeWithCount();
     }
 
     /**
@@ -157,7 +157,7 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
      * @notice 获取当前 dawnpool 合约的所有 Oracle 成员地址。
      */
     function getOracleMembers() external view returns (address[] memory) {
-        return members;
+        return _members;
     }
 
     /**
@@ -281,10 +281,10 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
      */
     function addOracleMember(address _member) external onlyGuardian {
         require(address(0) != _member, "BAD_ARGUMENT");
-        require(MEMBER_NOT_FOUND == _getMemberId(_member), "MEMBER_EXISTS");
-        require(members.length < MAX_MEMBERS, "TOO_MANY_MEMBERS");
+        require(_MEMBER_NOT_FOUND == _getMemberId(_member), "MEMBER_EXISTS");
+        require(_members.length < MAX_MEMBERS, "TOO_MANY_MEMBERS");
 
-        members.push(_member);
+        _members.push(_member);
 
         emit MemberAdded(_member);
     }
@@ -295,17 +295,17 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
      */
     function removeOracleMember(address _member) external onlyGuardian {
         uint256 index = _getMemberId(_member);
-        require(index != MEMBER_NOT_FOUND, "MEMBER_NOT_FOUND");
-        uint256 last = members.length - 1;
-        if (index != last) members[index] = members[last];
-        members[index] = members[members.length - 1];
+        require(index != _MEMBER_NOT_FOUND, "MEMBER_NOT_FOUND");
+        uint256 last = _members.length - 1;
+        if (index != last) _members[index] = _members[last];
+        _members[index] = _members[_members.length - 1];
         //        members.length--;
         emit MemberRemoved(_member);
 
         // 该函数在移除 Oracle 成员之后，还需要将与该成员相关的历史验证信息清除 (将存储在合约中的该 Oracle 成员所提交的最后一次验证报告的掩码值设为 0)
         _setUint(_REPORTS_BITMASK_POSITION, 0);
-        //通过 delete currentReportVariants 语句从合约中删除该成员所提交的当前验证报告信息
-        delete currentReportVariants;
+        //通过 delete _currentReportVariants 语句从合约中删除该成员所提交的当前验证报告信息
+        delete _currentReportVariants;
     }
 
     /**
@@ -315,19 +315,8 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
     function setQuorum(uint256 _quorum) external onlyGuardian {
         require(0 != _quorum, "QUORUM_WONT_BE_MADE");
 
-        uint256 oldQuorum = _getUint(_QUORUM_POSITION);
         _setUint(_QUORUM_POSITION, _quorum);
         emit QuorumChanged(_quorum);
-
-        // 如果新的 quorum 值比旧值更小，即降低了 quorum 要求，则需要检查当前是否存在足够的提交验证报告的节点数，以便在达到 quorum 要求后触发新的验证操作
-        if (oldQuorum > _quorum) {
-            //获取当前存在的验证报告信息
-            (bool isQuorum, uint256 report) = _getQuorumReport(_quorum);
-            if (isQuorum) {
-                (uint64 beaconBalance, uint32 beaconValidators) = report.decode();
-                //触发新的验证操作，其参数包括预期的 epoch ID、当前贡献总量、验证节点数量和 Beacon chain 规范信息
-            }
-        }
     }
 
     /**
@@ -365,7 +354,7 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
 
         // 获取调用者在 dawnpool 合约中的成员 ID, 以确保调用者是 dawnpool 合约的授权成员之一 todo 二期再做
         uint256 index = _getMemberId(msg.sender);
-        require(index != MEMBER_NOT_FOUND, "MEMBER_NOT_FOUND");
+        require(index != _MEMBER_NOT_FOUND, "MEMBER_NOT_FOUND");
         // 获取当前所有已提交验证报告的位表示，将其存储到变量 bitMask 中
         uint256 bitMask = _getUint(_REPORTS_BITMASK_POSITION);
         // 定义一个掩码变量 mask，将其设置为 1 左移 index 位，这样 mask 就表示了调用者可以使用的位，即第 index 位。
@@ -381,23 +370,23 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
         uint256 quorum = getQuorum();
         uint256 i = 0;
 
-        // iterate on all report variants we already have, limited by the oracle members maximum
-        while (i < currentReportVariants.length && currentReportVariants[i].isDifferent(report)) ++i;
-        if (i < currentReportVariants.length) {
+        // iterate on all report variants we already have, limited by the oracle _members maximum
+        while (i < _currentReportVariants.length && _currentReportVariants[i].isDifferent(report)) ++i;
+        if (i < _currentReportVariants.length) {
             // 判断该 variant 的计数器是否已达到要求的数量.达到，则会通过调用 _push() 更新 dawnpool 合约的 validator 列表
-            if (currentReportVariants[i].getCount() + 1 >= quorum) {
+            if (_currentReportVariants[i].getCount() + 1 >= quorum) {
                 _push(data, beaconSpec);
             } else {
                 // 增加对应 variant 的报告计数器
-                ++currentReportVariants[i];
+                ++_currentReportVariants[i];
             }
         } else {
             // 只需要一个验证报告即可，则直接调用 _push()
             if (quorum == 1) {
                 _push(data, beaconSpec);
             } else {
-                //创建一个新的 variant 并将其添加到 currentReportVariants 数组中。
-                currentReportVariants.push(report + 1);
+                //创建一个新的 variant 并将其添加到 _currentReportVariants 数组中。
+                _currentReportVariants.push(report + 1);
             }
         }
     }
@@ -421,10 +410,10 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
      */
     function _getQuorumReport(uint256 _quorum) internal view returns (bool isQuorum, uint256 report) {
         // 如果当前样本中只有一种报告，那么直接返回这个报告和它的出现次数
-        if (currentReportVariants.length == 1) {
-            return (currentReportVariants[0].getCount() >= _quorum, currentReportVariants[0]);
+        if (_currentReportVariants.length == 1) {
+            return (_currentReportVariants[0].getCount() >= _quorum, _currentReportVariants[0]);
             // 如果当前样本为空，那么直接返回 false 和 0
-        } else if (currentReportVariants.length == 0) {
+        } else if (_currentReportVariants.length == 0) {
             return (false, 0);
         }
 
@@ -434,8 +423,8 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
         uint16 maxval = 0;
         uint16 cur = 0;
         // 记录当前出现次数最多的报告索引 maxind、其出现次数 maxval，并记录重复次数 repeat
-        for (uint256 i = 0; i < currentReportVariants.length; ++i) {
-            cur = currentReportVariants[i].getCount();
+        for (uint256 i = 0; i < _currentReportVariants.length; ++i) {
+            cur = _currentReportVariants[i].getCount();
             //如果遍历到的报告次数大于等于 maxval，则更新最大值和对应的索引，
             if (cur >= maxval) {
                 // 如果遍历到的报告次数等于 maxval，则增加 repeat 计数器
@@ -449,7 +438,7 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
             }
         }
         // 将返回当前出现次数最多的报告和它的出现次数 maxval 是否超过了 _quorum。如果超过，则返回 true 和这个报告，否则返回 false 和 0。
-        return (maxval >= _quorum && repeat == 0, currentReportVariants[maxind]);
+        return (maxval >= _quorum && repeat == 0, _currentReportVariants[maxind]);
     }
 
     /**
@@ -520,7 +509,7 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
         _setUint(_REPORTS_BITMASK_POSITION, 0);
         _setUint(_EXPECTED_EPOCH_ID_POSITION, _epochId);
         //        EXPECTED_EPOCH_ID_POSITION.setStorageUint256(_epochId);
-        delete currentReportVariants;
+        delete _currentReportVariants;
         emit ExpectedEpochIdUpdated(_epochId);
     }
 
@@ -528,13 +517,13 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
      * @notice 取指定成员的 ID
      */
     function _getMemberId(address _member) internal view returns (uint256) {
-        uint256 length = members.length;
+        uint256 length = _members.length;
         for (uint256 i = 0; i < length; ++i) {
-            if (members[i] == _member) {
+            if (_members[i] == _member) {
                 return i;
             }
         }
-        return MEMBER_NOT_FOUND;
+        return _MEMBER_NOT_FOUND;
     }
 
     /**
@@ -547,7 +536,7 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
 
     /**
      *  首先通过 _epochId 除以 _beaconSpec.epochsPerFrame 来计算出该 Epoch 所处的 Frame 编号，然后将其乘以 _beaconSpec.epochsPerFrame，即可得到该 Frame 的第一个 Epoch ID
-     * @notice Epoch 所属的 Frame 的第一个 Epoch ID
+     *  todo 取当前Frame的第一帧 忽略 slither 的 performs a multiplication on the result of a division提醒
      */
     function _getFrameFirstEpochId(uint256 _epochId, BeaconSpec memory _beaconSpec) internal pure returns (uint256) {
         return (_epochId / _beaconSpec.epochsPerFrame) * _beaconSpec.epochsPerFrame;
