@@ -15,9 +15,9 @@ import "../interface/IDawnWithdraw.sol";
 contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
     using SafeMath for uint256;
 
-    uint256 internal constant DEPOSIT_VALUE_PER_VALIDATOR = 32 ether;
-    uint256 internal constant PRE_DEPOSIT_VALUE = 1 ether;
-    uint256 internal constant POST_DEPOSIT_VALUE = 31 ether;
+    uint256 internal constant _DEPOSIT_VALUE_PER_VALIDATOR = 32 ether;
+    uint256 internal constant _PRE_DEPOSIT_VALUE = 1 ether;
+    uint256 internal constant _POST_DEPOSIT_VALUE = 31 ether;
     uint256 internal constant _FEE_BASIC = 10000;
 
     bytes32 internal constant _BUFFERED_ETHER_KEY = keccak256("dawnDeposit.bufferedEther");
