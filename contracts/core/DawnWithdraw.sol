@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.17;
 
 import "../interface/IDawnWithdraw.sol";
 import "../base/DawnBase.sol";
@@ -7,12 +7,14 @@ import "./DawnWithdrawStorageLayout.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "../interface/IDawnDeposit.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/draft-IERC20Permit.sol";
 import "../interface/IBurner.sol";
 
 contract DawnWithdraw is IDawnWithdraw, DawnBase, DawnWithdrawStorageLayout {
     using SafeMath for uint256;
+    using SafeERC20 for IERC20;
 
     bytes32 internal constant _LAST_FULFILLMENT_REQUEST_ID_KEY = keccak256("dawnWithdraw.lastFulfillmentRequestId");
     bytes32 internal constant _LAST_REQUEST_ID_KEY = keccak256("dawnWithdraw.lastRequestId");
@@ -53,7 +55,7 @@ contract DawnWithdraw is IDawnWithdraw, DawnBase, DawnWithdrawStorageLayout {
         // 请求赎回的pEthAmount不能为0
         require(pEthAmount > 0, "Zero pEth");
         // transfer peth to withdraw
-        IERC20(_getContractAddress(_DAWN_DEPOSIT_CONTRACT_NAME)).transferFrom(owner, address(this), pEthAmount);
+        IERC20(_getContractAddress(_DAWN_DEPOSIT_CONTRACT_NAME)).safeTransferFrom(owner, address(this), pEthAmount);
 
         // maxClaimableEther
         uint256 maxClaimableEther = IDawnDeposit(_getContractAddress(_DAWN_DEPOSIT_CONTRACT_NAME)).getEtherByPEth(
@@ -94,7 +96,7 @@ contract DawnWithdraw is IDawnWithdraw, DawnBase, DawnWithdrawStorageLayout {
         WithdrawRequest memory endRequest = withdrawRequestQueue[lastRequestIdToBeFulfilled];
 
         // transfer PEth to Burner
-        IERC20(_getContractAddress(_DAWN_DEPOSIT_CONTRACT_NAME)).transfer(
+        IERC20(_getContractAddress(_DAWN_DEPOSIT_CONTRACT_NAME)).safeTransfer(
             _getContractAddress(_BURNER_CONTRACT_NAME),
             endRequest.cumulativePEth - startRequest.cumulativePEth
         );
