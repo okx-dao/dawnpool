@@ -34,13 +34,6 @@ interface IValidatorsExitBusOracle {
     ) external view returns (uint64 beaconBalance, uint32 beaconValidators, uint16 count);
 
     /**
-     * @notice Return the current reporting array element with the given index
-     */
-    function getCurrentReportVariant(
-        uint256 _index
-    ) external view returns (uint64 beaconBalance, uint32 beaconValidators, uint16 count);
-
-    /**
      * @notice Return the current oracle member committee list
      */
     function getOracleMembers() external view returns (address[] memory);
