@@ -8,7 +8,13 @@ interface IDawnDeposit {
     event LogPreActivateValidator(address operator, bytes pubkey, uint256 amount);
     event LogActivateValidator(address operator, bytes pubkey, uint256 amount);
     event LogETHRewards(uint256 epochId, uint256 preCLBalance, uint256 postCLBalance, uint256 rewardsVaultBalance);
-    event LogTokenRebase(uint256 epochId, uint256 preTotalEther, uint256 preTotalPEth, uint256 postTotalEther, uint256 postTotalPEth);
+    event LogTokenRebase(
+        uint256 epochId,
+        uint256 preTotalEther,
+        uint256 preTotalPEth,
+        uint256 postTotalEther,
+        uint256 postTotalPEth
+    );
     event LogPunish(address burnAddress, uint256 pethAmountToBurn);
     event LogPunishWithEth(address burnAddress, uint256 pethAmountToBurn, uint256 ethAmountToDecrease);
     event LogDecreaseEther(uint256 ethAmountToDecrease);
@@ -41,12 +47,24 @@ interface IDawnDeposit {
     // receive pETH from Insurance, and burn
     function receiveFromInsurance(uint256 pEthAmount) external;
 
-    function getBeaconStat() external view returns (uint256 preDepositValidators, uint256 depositedValidators, uint256 beaconValidators, uint256 beaconBalance);
+    function getBeaconStat()
+        external
+        view
+        returns (
+            uint256 preDepositValidators,
+            uint256 depositedValidators,
+            uint256 beaconValidators,
+            uint256 beaconBalance
+        );
+
     function getBufferedEther() external view returns (uint256);
+
     function getWithdrawalCredentials() external view returns (bytes32);
 
     function punish(address burnAddress, uint256 pethAmountToBurn) external;
+
     function punish(address burnAddress, uint256 pethAmountToBurn, uint256 ethAmountToDecrease) external;
+
     function increaseUnreachableEtherCount(uint256 count) external;
 
     // calculate the amount of pETH backing an amount of ETH
@@ -59,16 +77,8 @@ interface IDawnDeposit {
     function getTotalPooledEther() external view returns (uint256);
 
     // deposit 31 ETH to activate validator
-    function activateValidator(
-        address operator,
-        bytes calldata pubkey,
-        bytes calldata signature
-    ) external;
+    function activateValidator(address operator, bytes calldata pubkey, bytes calldata signature) external;
 
     // deposit 1 ETH for NodeOperatorRegister
-    function preActivateValidator(
-        address operator,
-        bytes calldata pubkey,
-        bytes calldata signature
-    ) external;
+    function preActivateValidator(address operator, bytes calldata pubkey, bytes calldata signature) external;
 }

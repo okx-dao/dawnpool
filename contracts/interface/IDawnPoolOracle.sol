@@ -9,12 +9,7 @@ interface IDawnPoolOracle {
     event MemberRemoved(address member);
     event QuorumChanged(uint256 quorum);
     event ExpectedEpochIdUpdated(uint256 epochId);
-    event BeaconSpecSet(
-        uint64 epochsPerFrame,
-        uint64 slotsPerEpoch,
-        uint64 secondsPerSlot,
-        uint64 genesisTime
-    );
+    event BeaconSpecSet(uint64 epochsPerFrame, uint64 slotsPerEpoch, uint64 secondsPerSlot, uint64 genesisTime);
     event BeaconReported(
         uint256 epochId,
         uint128 beaconBalance,
@@ -64,14 +59,9 @@ interface IDawnPoolOracle {
     /**
      * @notice Return the current reporting array element with the given index
      */
-    function getCurrentReportVariant(uint256 _index)
-    external
-    view
-    returns (
-        uint64 beaconBalance,
-        uint32 beaconValidators,
-        uint16 count
-    );
+    function getCurrentReportVariant(
+        uint256 _index
+    ) external view returns (uint64 beaconBalance, uint32 beaconValidators, uint16 count);
 
     /**
      * @notice Return epoch that can be reported by oracles
@@ -87,14 +77,9 @@ interface IDawnPoolOracle {
      * @notice Return beacon specification data
      */
     function getBeaconSpec()
-    external
-    view
-    returns (
-        uint64 epochsPerFrame,
-        uint64 slotsPerEpoch,
-        uint64 secondsPerSlot,
-        uint64 genesisTime
-    );
+        external
+        view
+        returns (uint64 epochsPerFrame, uint64 slotsPerEpoch, uint64 secondsPerSlot, uint64 genesisTime);
 
     /**
      * Updates beacon specification data
@@ -104,8 +89,7 @@ interface IDawnPoolOracle {
         uint64 _slotsPerEpoch,
         uint64 _secondsPerSlot,
         uint64 _genesisTime
-    )
-    external;
+    ) external;
 
     /**
      * Returns the epoch calculated from current timestamp
@@ -117,13 +101,9 @@ interface IDawnPoolOracle {
      * its start and end times in seconds
      */
     function getCurrentFrame()
-    external
-    view
-    returns (
-        uint256 frameEpochId,
-        uint256 frameStartTime,
-        uint256 frameEndTime
-    );
+        external
+        view
+        returns (uint256 frameEpochId, uint256 frameStartTime, uint256 frameEndTime);
 
     /**
      * @notice Return last completed epoch
@@ -134,14 +114,9 @@ interface IDawnPoolOracle {
      * @notice Report beacon balance and its change during the last frame
      */
     function getLastCompletedReportDelta()
-    external
-    view
-    returns (
-        uint256 postTotalPooledEther,
-        uint256 preTotalPooledEther,
-        uint256 timeElapsed
-    );
-
+        external
+        view
+        returns (uint256 postTotalPooledEther, uint256 preTotalPooledEther, uint256 timeElapsed);
 
     /**
      * @notice Initialize the contract (version 3 for now) from scratch
@@ -151,14 +126,12 @@ interface IDawnPoolOracle {
      * @param _genesisTime Genesis time
      */
     function initialize(
-//        address _dawnpool,
+        //        address _dawnpool,
         uint64 _epochsPerFrame,
         uint64 _slotsPerEpoch,
         uint64 _secondsPerSlot,
         uint64 _genesisTime
     ) external;
-
-
 
     /**
      * @notice Add `_member` to the oracle member committee list
@@ -175,10 +148,11 @@ interface IDawnPoolOracle {
      */
     function setQuorum(uint256 _quorum) external;
 
-
-    function reportBeacon(uint256 _epochId, uint64 _beaconBalance, uint32 _beaconValidators, uint64 _rewardsVaultBalance, uint32 _exitedValidators) external;
-
-
-
-
+    function reportBeacon(
+        uint256 _epochId,
+        uint64 _beaconBalance,
+        uint32 _beaconValidators,
+        uint64 _rewardsVaultBalance,
+        uint32 _exitedValidators
+    ) external;
 }

@@ -54,8 +54,8 @@ async function showAccount() {
   }
 }
 
-const getDawnStorage = async function() {
-  const {chainName} = await getChainInfo();
+const getDawnStorage = async function () {
+  const { chainName } = await getChainInfo();
   if (chainName && chainName != 'local') {
     console.log('Reading DawnDeposit contract address from json file...');
     const deployed = await readJSON(`../../deployed-${chainName}.json`);
@@ -63,7 +63,7 @@ const getDawnStorage = async function() {
     console.log('DawnDeposit contract address: ' + `\x1b[32m${dawnStorageAddress}\x1b[0m`);
     dawnStorage = await (await DawnStorage).attach(dawnStorageAddress);
   }
-}
+};
 
 const deployDepositNodeManager = async function () {
   console.log('****** Prints the list of accounts ******');
@@ -82,13 +82,13 @@ const deployDepositNodeManager = async function () {
   console.log(' Tx hash: ', toGreen(dawnInstance.deployTransaction.hash));
   await dawnInstance.deployed();
   console.log(` Contract ${CONTRACT} deployed: `, toGreen(dawnInstance.address));
-// Register the contract address as part of the network
+  // Register the contract address as part of the network
   console.log(' ** Set storage contract.exists...');
   tx = await dawnStorage.setBool(keccak256(encodePacked('contract.exists', dawnInstance.address)), true);
   console.log(' Tx hash: ', toGreen(tx.hash));
   await tx.wait();
   console.log(' Storage contract.exists set');
-// Register the contract's address by name
+  // Register the contract's address by name
   console.log(' ** Set storage contract.address...');
   tx = await dawnStorage.setAddress(keccak256(encodePacked('contract.address', CONTRACT)), dawnInstance.address);
   console.log(' Tx hash: ', toGreen(tx.hash));
@@ -105,4 +105,3 @@ deployDepositNodeManager()
     console.error(error);
     process.exit(1);
   });
-

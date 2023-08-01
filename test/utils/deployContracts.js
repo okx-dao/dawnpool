@@ -73,11 +73,11 @@ async function deployContracts() {
   await dawnStorage.setDeployedStatus();
 
   // init oracle
-  const [owner, oracleMember, otherAccount] = await ethers.getSigners()
+  const [owner, oracleMember, otherAccount] = await ethers.getSigners();
   storageAddr = await dawnStorage.getAddress(keccak256(encodePacked('contract.address', 'DawnPoolOracle')));
   const dawnPoolOracle = await ethers.getContractAt('DawnPoolOracle', storageAddr);
-  await dawnPoolOracle.initialize(225, 32, 12, 1639659600)
-  await dawnPoolOracle.addOracleMember(owner.address)
+  await dawnPoolOracle.initialize(225, 32, 12, 1639659600);
+  await dawnPoolOracle.addOracleMember(owner.address);
   return dawnStorage;
 }
 

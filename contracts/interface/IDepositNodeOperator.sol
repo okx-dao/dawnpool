@@ -11,7 +11,6 @@ pragma solidity ^0.8.17;
  * However, the "overflow" part of shares can be claimed with validator rewards
  */
 interface IDepositNodeOperator {
-
     event NodeOperatorStakingRewardsClaimed(address indexed claimer, address indexed withdrawAddress, uint256 amount);
 
     /**

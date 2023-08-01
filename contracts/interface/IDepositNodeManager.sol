@@ -62,7 +62,12 @@ interface IDepositNodeManager {
      * @param withdrawAddress Node rewards distributed to
      * @param pethAmount Node rewards amount distributed to the operator and claimed
      */
-    event NodeOperatorNodeRewardsClaimed(address indexed operator, address indexed claimer, address indexed withdrawAddress, uint256 pethAmount);
+    event NodeOperatorNodeRewardsClaimed(
+        address indexed operator,
+        address indexed claimer,
+        address indexed withdrawAddress,
+        uint256 pethAmount
+    );
 
     /**
      * @notice Validator status, should be WAITING_ACTIVATED -> VALIDATING -> EXITING -> EXITED
@@ -108,7 +113,9 @@ interface IDepositNodeManager {
      * @return pubkey Public key
      * @return status Validator status
      */
-    function getNodeValidator(uint256 index) external view returns (address operator, bytes memory pubkey, ValidatorStatus status);
+    function getNodeValidator(
+        uint256 index
+    ) external view returns (address operator, bytes memory pubkey, ValidatorStatus status);
 
     /**
      * @notice Get contract and status of validator by index
@@ -118,7 +125,10 @@ interface IDepositNodeManager {
      * @return pubkeys Public keys
      * @return statuses Validator statuses
      */
-    function getNodeValidators(uint256 startIndex, uint256 amount) external view returns (address[] memory operators, bytes[] memory pubkeys, ValidatorStatus[] memory statuses);
+    function getNodeValidators(
+        uint256 startIndex,
+        uint256 amount
+    ) external view returns (address[] memory operators, bytes[] memory pubkeys, ValidatorStatus[] memory statuses);
 
     /// @notice Set minimum deposit amount, may be changed by DAO
     function setMinOperatorStakingAmount(uint256 minAmount) external;

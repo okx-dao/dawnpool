@@ -13,7 +13,7 @@
 // You can also run a script with `npx hardhat run <script>`. If you do that, Hardhat
 // will compile your contracts, add the Hardhat Runtime Environment's members to the
 // global scope, and execute the script.
-const hre = require("hardhat");
+const hre = require('hardhat');
 const { ethers } = require('hardhat');
 const { keccak256, encodePacked } = require('web3-utils');
 
@@ -22,14 +22,12 @@ async function main() {
   // todo update here
   const dawnStorageFactory = await ethers.getContractFactory('DawnStorage');
   const dawnStorage = await dawnStorageFactory.deploy();
-  console.log('deploy DawnStorage Contract to:', dawnStorage.address)
-
+  console.log('deploy DawnStorage Contract to:', dawnStorage.address);
 }
 
 // We recommend this pattern to be able to use async/await everywhere
 // and properly handle errors.
-main().catch((error) => {
+main().catch(error => {
   console.error(error);
   process.exitCode = 1;
 });
-
