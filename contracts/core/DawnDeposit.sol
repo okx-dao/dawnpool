@@ -90,21 +90,21 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
         bytes calldata pubkey,
         bytes calldata signature
     ) external onlyActiveNodeOperator(operator) {
-        if (address(this).balance < POST_DEPOSIT_VALUE) {
+        if (address(this).balance < _POST_DEPOSIT_VALUE) {
             revert BufferedEtherNotEnough();
         }
         bytes32 withdrawalCredentials = _getWithdrawalCredentials();
-        _doDeposit(pubkey, withdrawalCredentials, signature, POST_DEPOSIT_VALUE);
+        _doDeposit(pubkey, withdrawalCredentials, signature, _POST_DEPOSIT_VALUE);
 
         // update deposited validators
         _addUint(_DEPOSITED_VALIDATORS_KEY, 1);
         // update pre deposit validators
         _subUint(_PRE_DEPOSIT_VALIDATORS_KEY, 1);
         // update buffered ether
-        _subUint(_BUFFERED_ETHER_KEY, POST_DEPOSIT_VALUE);
+        _subUint(_BUFFERED_ETHER_KEY, _POST_DEPOSIT_VALUE);
 
         // emit event
-        emit LogActivateValidator(operator, pubkey, POST_DEPOSIT_VALUE);
+        emit LogActivateValidator(operator, pubkey, _POST_DEPOSIT_VALUE);
     }
 
     // deposit 1 ETH for NodeOperatorRegister
@@ -113,19 +113,19 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
         bytes calldata pubkey,
         bytes calldata signature
     ) external onlyActiveNodeOperator(operator) {
-        if (address(this).balance < PRE_DEPOSIT_VALUE) {
+        if (address(this).balance < _PRE_DEPOSIT_VALUE) {
             revert BufferedEtherNotEnough();
         }
         bytes32 withdrawalCredentials = _getWithdrawalCredentials();
-        _doDeposit(pubkey, withdrawalCredentials, signature, PRE_DEPOSIT_VALUE);
+        _doDeposit(pubkey, withdrawalCredentials, signature, _PRE_DEPOSIT_VALUE);
 
         // update pre deposit validators
         _addUint(_PRE_DEPOSIT_VALIDATORS_KEY, 1);
         // update buffered ether
-        _subUint(_BUFFERED_ETHER_KEY, PRE_DEPOSIT_VALUE);
+        _subUint(_BUFFERED_ETHER_KEY, _PRE_DEPOSIT_VALUE);
 
         // emit event
-        emit LogPreActivateValidator(operator, pubkey, PRE_DEPOSIT_VALUE);
+        emit LogPreActivateValidator(operator, pubkey, _PRE_DEPOSIT_VALUE);
     }
 
     // receive ETH rewards from RewardsVault
@@ -158,7 +158,7 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
             beaconBalance.add(availableRewards) <=
             _getUint(_BEACON_ACTIVE_VALIDATOR_BALANCE_KEY).add(
                 beaconValidators.add(exitedValidators).sub(_getUint(_BEACON_ACTIVE_VALIDATORS_KEY)).mul(
-                    DEPOSIT_VALUE_PER_VALIDATOR
+                    _DEPOSIT_VALUE_PER_VALIDATOR
                 )
             )
         ) {
@@ -168,7 +168,7 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
         uint256 rewards = beaconBalance.add(availableRewards).sub(
             _getUint(_BEACON_ACTIVE_VALIDATOR_BALANCE_KEY).add(
                 beaconValidators.add(exitedValidators).sub(_getUint(_BEACON_ACTIVE_VALIDATORS_KEY)).mul(
-                    DEPOSIT_VALUE_PER_VALIDATOR
+                    _DEPOSIT_VALUE_PER_VALIDATOR
                 )
             )
         );
@@ -224,17 +224,17 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
         .add(beaconBalance) // beacon balance
         .add(
             _getUint(_DEPOSITED_VALIDATORS_KEY).sub(exitedValidators).sub(beaconValidators).mul(
-                DEPOSIT_VALUE_PER_VALIDATOR
+                _DEPOSIT_VALUE_PER_VALIDATOR
             )
         ) // transient balance
-        .add(_getUint(_PRE_DEPOSIT_VALIDATORS_KEY).mul(PRE_DEPOSIT_VALUE)).sub(_getUint(_UNREACHABLE_ETHER_COUNT_KEY)); // pre validator balance // unreachable ether
+        .add(_getUint(_PRE_DEPOSIT_VALIDATORS_KEY).mul(_PRE_DEPOSIT_VALUE)).sub(_getUint(_UNREACHABLE_ETHER_COUNT_KEY)); // pre validator balance // unreachable ether
 
         // negative reward
         if (
             beaconBalance.add(availableRewards) <=
             _getUint(_BEACON_ACTIVE_VALIDATOR_BALANCE_KEY).add(
                 beaconValidators.add(exitedValidators).sub(_getUint(_BEACON_ACTIVE_VALIDATORS_KEY)).mul(
-                    DEPOSIT_VALUE_PER_VALIDATOR
+                    _DEPOSIT_VALUE_PER_VALIDATOR
                 )
             )
         ) {
@@ -245,7 +245,7 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
         uint256 rewards = beaconBalance.add(availableRewards).sub(
             _getUint(_BEACON_ACTIVE_VALIDATOR_BALANCE_KEY).add(
                 beaconValidators.add(exitedValidators).sub(_getUint(_BEACON_ACTIVE_VALIDATORS_KEY)).mul(
-                    DEPOSIT_VALUE_PER_VALIDATOR
+                    _DEPOSIT_VALUE_PER_VALIDATOR
                 )
             )
         );
@@ -377,10 +377,10 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
             .add(_getUint(_BEACON_ACTIVE_VALIDATOR_BALANCE_KEY)) // beacon balance
             .add(
                 _getUint(_DEPOSITED_VALIDATORS_KEY).sub(_getUint(_BEACON_ACTIVE_VALIDATORS_KEY)).mul(
-                    DEPOSIT_VALUE_PER_VALIDATOR
+                    _DEPOSIT_VALUE_PER_VALIDATOR
                 )
             ) // transient balance
-            .add(_getUint(_PRE_DEPOSIT_VALIDATORS_KEY).mul(PRE_DEPOSIT_VALUE)).sub( // pre validator balance
+            .add(_getUint(_PRE_DEPOSIT_VALIDATORS_KEY).mul(_PRE_DEPOSIT_VALUE)).sub( // pre validator balance
                     _getUint(_UNREACHABLE_ETHER_COUNT_KEY)
                 ); // unreachable ether
     }
