@@ -13,10 +13,9 @@
 // You can also run a script with `npx hardhat run <script>`. If you do that, Hardhat
 // will compile your contracts, add the Hardhat Runtime Environment's members to the
 // global scope, and execute the script.
-const hre = require('hardhat');
+// const hre = require('hardhat');
 const { ethers } = require('hardhat');
 const { keccak256, encodePacked } = require('web3-utils');
-const chai = require('chai');
 
 async function main() {
   // npx hardhat run --network goerli  scripts/core/test-core.js

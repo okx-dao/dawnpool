@@ -1,6 +1,6 @@
 const { ethers, web3 } = require('hardhat');
 const { keccak256, encodePacked } = require('web3-utils');
-
+const { assert } = require('chai');
 // Storage
 const DawnStorage = ethers.getContractFactory('DawnStorage');
 
@@ -98,7 +98,7 @@ const deployContracts = async function () {
   console.log('');
   let dawnInstance, storageAddr, tx;
   for (let Contract in Contracts) {
-    if (Contracts.hasOwnProperty(Contract)) {
+    if (Contracts.hasOwnProperty.call(Contract)) {
       console.log(`****** Start deploy ${Contract} contract ******`);
       // console.log('Contract name is: ' + Contract.toString());
       switch (Contract) {

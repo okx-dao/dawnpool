@@ -1,11 +1,11 @@
-const { artifacts, contract, ethers, web3 } = require('hardhat');
-const { BN } = require('bn.js');
+const { ethers } = require('hardhat');
+// const { BN } = require('bn.js');
 const chai = require('chai');
 const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
 const { keccak256, encodePacked } = require('web3-utils');
 const { expect } = require('chai');
 
-const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
+// const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 
 describe('DawnDepositTest', function () {
   // We define a fixture to reuse the same setup in every test.
@@ -56,7 +56,7 @@ describe('DawnDepositTest', function () {
 
   describe('handleOracleReport', function () {
     it('Should handle success', async function () {
-      const { dawnDeposit, owner } = await loadFixture(deployDawnDepositFixture);
+      const { dawnDeposit } = await loadFixture(deployDawnDepositFixture);
 
       // await dawnDeposit.stake({ from: owner.address, value: 1 });
       // await chai.assert.equal(await dawnDeposit.balanceOf(owner.address), 1);

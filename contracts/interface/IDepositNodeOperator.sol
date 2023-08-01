@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 /**
  * @title Node operator contract
@@ -71,4 +71,15 @@ interface IDepositNodeOperator {
      * @dev Node operator can exit his validators anytime, but need to change contract validator status first
      */
     function voluntaryExitValidators(uint256[] calldata indexes) external;
+
+    /**
+     * @notice Update validators exit count to be decrease
+     * @param count Validators exit count
+     * @dev When operator calls voluntaryExitValidators, the ACTIVE_VALIDATORS_COUNT will decrease automatically
+     * But the following scenario requires the ACTIVE_VALIDATORS_COUNT to be updated by DepositNodeManager
+     * 1. The operator directly exit his validator without calling voluntaryExitValidators
+     * 2. The operator deposited using wrong withdraw address before add the validator to the contract
+     * 3. The validator got slashed and slash finished
+     */
+    function updateValidatorExitCount(uint256 count) external;
 }

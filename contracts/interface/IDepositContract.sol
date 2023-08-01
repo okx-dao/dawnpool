@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
-
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 /**
  * @title Deposit contract interface
@@ -19,4 +18,6 @@ interface IDepositContract {
         bytes /* 96 */ calldata signature,
         bytes32 deposit_data_root
     ) external payable;
+
+    function get_deposit_root() external view returns (bytes32);
 }

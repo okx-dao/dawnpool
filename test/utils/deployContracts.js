@@ -36,6 +36,10 @@ async function getChainInfo() {
       chainName = 'local';
       depositContractAddr = (await deployDepositContract()).address;
       break;
+    case 32382:
+      chainName = 'localhost';
+      depositContractAddr = '0x4242424242424242424242424242424242424242';
+      break;
     default:
       break;
   }
@@ -73,7 +77,7 @@ async function deployContracts() {
   await dawnStorage.setDeployedStatus();
 
   // init oracle
-  const [owner, oracleMember, otherAccount] = await ethers.getSigners();
+  const [owner] = await ethers.getSigners();
   storageAddr = await dawnStorage.getAddress(keccak256(encodePacked('contract.address', 'DawnPoolOracle')));
   const dawnPoolOracle = await ethers.getContractAt('DawnPoolOracle', storageAddr);
   await dawnPoolOracle.initialize(225, 32, 12, 1639659600);
@@ -90,6 +94,7 @@ async function getDeployedContractAddress(contractName) {
 }
 
 module.exports = {
+  getChainInfo,
   deployContracts,
   upgradeContracts,
   getDeployedContractAddress,

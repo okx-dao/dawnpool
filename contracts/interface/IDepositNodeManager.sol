@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 /// @title Dawn node operator manager interface
 /// @author Ray
@@ -26,27 +26,77 @@ interface IDepositNodeManager {
 
     /**
      * @notice Emit when validator pubkey and signature added
-     * @param validatorId Validator index
+     * @param index Validator index
      * @param operator Operator address
      * @param pubkey Validator public key
      */
-    event SigningKeyAdded(uint256 indexed validatorId, address indexed operator, bytes pubkey);
+    event SigningKeyAdded(uint256 indexed index, address indexed operator, bytes pubkey);
 
     /**
      * @notice Emit when validator activated
-     * @param validatorId Validator index
+     * @param index Validator index
      * @param operator Operator address
      * @param pubkey Validator public key
      */
-    event SigningKeyActivated(uint256 indexed validatorId, address indexed operator, bytes pubkey);
+    event SigningKeyActivated(uint256 indexed index, address indexed operator, bytes pubkey);
 
     /**
      * @notice Emit when validator request to exit
-     * @param validatorId Validator index
+     * @param index Validator index
      * @param operator Operator address
      * @param pubkey Validator public key
      */
-    event SigningKeyExiting(uint256 indexed validatorId, address indexed operator, bytes pubkey);
+    event SigningKeyExit(uint256 indexed index, address indexed operator, bytes pubkey);
+
+    /**
+     * @notice Emit when validator is set unsafe
+     * @param index Validator index
+     * @param operator Operator address
+     * @param pubkey Validator public key
+     * @param nodeAddress The node address to get slashed
+     * @param slashedPethAmount PETH amount to get slashed
+     */
+    event SigningKeyUnsafe(
+        uint256 indexed index,
+        address indexed operator,
+        bytes pubkey,
+        address nodeAddress,
+        uint256 slashedPethAmount
+    );
+
+    /**
+     * @notice Emit when validator is set unsafe
+     * @param index Validator index
+     * @param operator Operator address
+     * @param pubkey Validator public key
+     * @param nodeAddress The node address to get slashed
+     * @param slashedPethAmount PETH amount to get slashed
+     */
+    event SigningKeySlashing(
+        uint256 indexed index,
+        address indexed operator,
+        bytes pubkey,
+        address nodeAddress,
+        uint256 slashedPethAmount
+    );
+
+    /**
+     * @notice Emit when validator is set unsafe
+     * @param index Validator index
+     * @param operator Operator address
+     * @param pubkey Validator public key
+     * @param nodeAddress The node address to get slashed
+     * @param slashedPethAmount PETH amount to get slashed
+     * @param reason Punished reason
+     */
+    event SigningKeyPunished(
+        uint256 indexed index,
+        address indexed operator,
+        bytes pubkey,
+        address nodeAddress,
+        uint256 slashedPethAmount,
+        bytes reason
+    );
 
     /**
      * @notice Emit when receive node operator rewards
@@ -70,16 +120,23 @@ interface IDepositNodeManager {
     );
 
     /**
-     * @notice Validator status, should be WAITING_ACTIVATED -> VALIDATING -> EXITING -> EXITED
+     * @notice Emit when distribute Node rewards(commission) to the node operator
+     * @param operator Operator address
+     * @param isActive Operator is active or not now
+     */
+    event NodeOperatorActiveStatusChanged(address indexed operator, bool isActive);
+
+    /**
+     * @notice Validator status, should be WAITING_ACTIVATED -> VALIDATING -> EXIT
      * Get SLASHING status when operator do sth bad
      */
     enum ValidatorStatus {
         NOT_EXIST,
         WAITING_ACTIVATED,
         VALIDATING,
-        EXITING,
+        EXIT,
         SLASHING,
-        EXITED,
+        //        EXITED,
         UNSAFE
     }
 
@@ -108,7 +165,7 @@ interface IDepositNodeManager {
 
     /**
      * @notice Get contract and status of validator by index
-     * @param index Index of validator
+     * @param index The index of the validator
      * @return operator Operator address the validator belongs to
      * @return pubkey Public key
      * @return status Validator status
@@ -116,6 +173,17 @@ interface IDepositNodeManager {
     function getNodeValidator(
         uint256 index
     ) external view returns (address operator, bytes memory pubkey, ValidatorStatus status);
+
+    /**
+     * @notice Get contract and status of validator by pubkey
+     * @param pubkey The public key of the validator
+     * @return index The index of the validator
+     * @return operator Operator address the validator belongs to
+     * @return status Validator status
+     */
+    function getNodeValidator(
+        bytes calldata pubkey
+    ) external view returns (uint256 index, address operator, ValidatorStatus status);
 
     /**
      * @notice Get contract and status of validator by index
@@ -148,7 +216,13 @@ interface IDepositNodeManager {
     /// @notice Get total activated validators count only including VALIDATING status
     function getTotalActivatedValidatorsCount() external view returns (uint256);
 
-    function setValidatorUnsafe(uint256 index, uint256 slashAmount) external;
+    /**
+     * @notice Set validator unsafe, the validator which was deposited
+     * and was set wrong withdraw credential should be slashed by Oracle
+     * @param index Validator index
+     * @param slashedPethAmount PETH amount to be slashed
+     */
+    function setValidatorUnsafe(uint256 index, uint256 slashedPethAmount) external;
 
     /**
      * @notice Distribute node operator rewards PETH
@@ -171,10 +245,10 @@ interface IDepositNodeManager {
     /**
      * @notice Change validators status before exit
      * @param count Validators count to change status
-     * @return indexes Exiting validators indexes
+     * @return indexes Exit validators indexes
      * @dev Validators should exit firstly who joined at the earliest(least index)
      */
-    function updateValidatorsExiting(uint256 count) external returns (uint256[] memory indexes);
+    function updateValidatorsExit(uint256 count) external returns (uint256[] memory indexes);
 
     /**
      * @notice Change validators status before operator exit his validators
@@ -185,9 +259,32 @@ interface IDepositNodeManager {
     function operatorRequestToExitValidators(address operator, uint256[] calldata indexes) external;
 
     /**
-     * @notice Change validators status before force operator exit
-     * @param index Validators index will exit
-     * @param slashAmount Amount will be slashed
+     * @notice Set validators status exit
+     * @param index Validator index is exit
      */
-    function setValidatorExiting(uint256 index, uint256 slashAmount) external;
+    function setValidatorExit(uint256 index) external;
+
+    /**
+     * @notice Set a validator slashing, the validator which was slashed will be punished a ETH immediately
+     * and will be continuously punished for a long while, until it is forced out
+     * @param index Validator index
+     * @param slashedPethAmount PETH amount to be slashed
+     * @param slashFinished Set the validator exit status if the param is true
+     */
+    function setValidatorSlashing(uint256 index, uint256 slashedPethAmount, bool slashFinished) external;
+
+    /**
+     * @notice Punish one validator, maybe only can be called by DAO
+     * @param index Validator index
+     * @param slashedPethAmount PETH amount to be slashed
+     * @param reason The reason why the validator is punished
+     */
+    function punishOneValidator(uint256 index, uint256 slashedPethAmount, bytes calldata reason) external;
+
+    /**
+     * @notice Set node operator active or not
+     * @param operator Node operator address
+     * @param isActive Node operator is active or not to be set
+     */
+    function setNodeOperatorActiveStatus(address operator, bool isActive) external;
 }

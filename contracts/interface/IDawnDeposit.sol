@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 interface IDawnDeposit {
     event LogStake(address indexed staker, uint256 ethAmount);

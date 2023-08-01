@@ -1,7 +1,7 @@
 const { ethers, web3 } = require('hardhat');
 const { keccak256, encodePacked } = require('web3-utils');
 const { readJSON } = require('./helpers/fs');
-
+const { assert } = require('chai');
 // Storage
 const DawnStorage = ethers.getContractFactory('DawnStorage');
 
@@ -31,7 +31,7 @@ function toYellow(str) {
 
 async function getChainInfo() {
   const chainId = await web3.eth.getChainId();
-  let chainName, depositContractAddr;
+  let chainName;
   switch (chainId) {
     case 1:
       chainName = 'mainnet';

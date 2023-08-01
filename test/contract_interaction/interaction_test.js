@@ -91,7 +91,7 @@ describe('InteractionTest', function () {
 
   // Step 4: Handle oracle report TODO
   it('Handle oracle report', async function () {
-    const [owner, oracleMember, otherAccount] = await ethers.getSigners();
+    // const [owner, oracleMember, otherAccount] = await ethers.getSigners();
     const { dawnPoolOracle } = await getDeployedContracts();
 
     const epochId = await dawnPoolOracle.getFrameFirstEpochId();

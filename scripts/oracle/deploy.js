@@ -7,7 +7,7 @@
 //     process.exit(1);
 //   });
 
-const hre = require('hardhat');
+// const hre = require('hardhat');
 const { ethers } = require('hardhat');
 const { keccak256, encodePacked } = require('web3-utils');
 
