@@ -30,8 +30,8 @@ contract DawnDepositSecurityModule is DawnBase, IDawnDepositSecuritymodule {
     error NotAGuardian(address addr);
     error ZeroParameter(string parameter);
 
-    bytes32 public immutable ATTEST_MESSAGE_PREFIX;
-    bytes32 public immutable UNSAFE_MESSAGE_PREFIX;
+    bytes32 public immutable attestMessagePrefix;
+    bytes32 public immutable unsafeMessagePrefix;
     // keccak256("dawnPool.DepositSecurityModule.OWNER")
     bytes32 public constant OWNER_HASH = 0xc9251fa75af76049a46c72a1940af4a2dfa80228a9f60ce95cf8b12dc69459c8;
     // keccak256("dawnPool.DepositSecurityModule.PAUSE_INTENT_VALIDITY_PERIOD_BLOCK")
@@ -62,7 +62,7 @@ contract DawnDepositSecurityModule is DawnBase, IDawnDepositSecuritymodule {
 
         depositContract = IDepositContract(_depositContract);
 
-        ATTEST_MESSAGE_PREFIX = keccak256(
+        attestMessagePrefix = keccak256(
             abi.encodePacked(
                 // keccak256("dawnPool.DepositSecurityModule.ATTEST_MESSAGE")
                 bytes32(0x8afecddbaa398e929a3891f0f7dda5f46936f18a4c1058906db377f31b287cc2),
@@ -71,7 +71,7 @@ contract DawnDepositSecurityModule is DawnBase, IDawnDepositSecuritymodule {
             )
         );
 
-        UNSAFE_MESSAGE_PREFIX = keccak256(
+        unsafeMessagePrefix = keccak256(
             abi.encodePacked(
                 // keccak256("dawnPool.DepositSecurityModule.UNSAFE_MESSAGE_PREFIX")
                 bytes32(0xc1e6e246775e544affa47870fa3f1270d88e5f8b01f4fd1f926604f62501ab5c),
@@ -93,11 +93,11 @@ contract DawnDepositSecurityModule is DawnBase, IDawnDepositSecuritymodule {
     }
 
     function getAttestMessagePrefix() external view returns (bytes32) {
-        return ATTEST_MESSAGE_PREFIX;
+        return attestMessagePrefix;
     }
 
     function getUnsafeMessagePrefix() external view returns (bytes32) {
-        return UNSAFE_MESSAGE_PREFIX;
+        return unsafeMessagePrefix;
     }
 
     function getOwner() external view returns (address) {
@@ -362,7 +362,7 @@ contract DawnDepositSecurityModule is DawnBase, IDawnDepositSecuritymodule {
         int256 guardianIndex = _getGuardianIndex(msg.sender);
 
         if (guardianIndex == -1) {
-            bytes32 msgHash = keccak256(abi.encodePacked(UNSAFE_MESSAGE_PREFIX, blockNumber, index, slashAmount));
+            bytes32 msgHash = keccak256(abi.encodePacked(unsafeMessagePrefix, blockNumber, index, slashAmount));
             guardianAddr = ECDSA.recover(msgHash, sig.r, sig.vs);
             guardianIndex = _getGuardianIndex(guardianAddr);
             if (guardianIndex == -1) revert InvalidSignature();
@@ -442,9 +442,7 @@ contract DawnDepositSecurityModule is DawnBase, IDawnDepositSecuritymodule {
         uint256[] memory indexs,
         Signature[] memory sigs
     ) internal view {
-        bytes32 msgHash = keccak256(
-            abi.encodePacked(ATTEST_MESSAGE_PREFIX, blockNumber, blockHash, depositRoot, indexs)
-        );
+        bytes32 msgHash = keccak256(abi.encodePacked(attestMessagePrefix, blockNumber, blockHash, depositRoot, indexs));
 
         address prevSignerAddr = address(0);
 

@@ -14,7 +14,7 @@ contract AddressQueueStorage is DawnBase, IAddressQueueStorageInterface {
     using SafeMath for uint256;
 
     // Settings
-    uint256 public constant capacity = 2 ** 255; // max uint256 / 2
+    uint256 public constant UINT_CAPACITY = 2 ** 255; // max uint256 / 2
 
     // Construct
     constructor(IDawnStorageInterface _dawnStorageAddress) DawnBase(_dawnStorageAddress) {}
@@ -24,7 +24,7 @@ contract AddressQueueStorage is DawnBase, IAddressQueueStorageInterface {
         uint start = _getUint(keccak256(abi.encodePacked(_key, ".start")));
         uint end = _getUint(keccak256(abi.encodePacked(_key, ".end")));
         if (end < start) {
-            end = end.add(capacity);
+            end = end.add(UINT_CAPACITY);
         }
         return end.sub(start);
     }
@@ -32,8 +32,8 @@ contract AddressQueueStorage is DawnBase, IAddressQueueStorageInterface {
     // The item in a queue by index
     function getItem(bytes32 _key, uint _index) external view override returns (address) {
         uint index = _getUint(keccak256(abi.encodePacked(_key, ".start"))).add(_index);
-        if (index >= capacity) {
-            index = index.sub(capacity);
+        if (index >= UINT_CAPACITY) {
+            index = index.sub(UINT_CAPACITY);
         }
         return _getAddress(keccak256(abi.encodePacked(_key, ".item", index)));
     }
@@ -45,7 +45,7 @@ contract AddressQueueStorage is DawnBase, IAddressQueueStorageInterface {
         if (index != -1) {
             index -= int(_getUint(keccak256(abi.encodePacked(_key, ".start"))));
             if (index < 0) {
-                index += int(capacity);
+                index += int(UINT_CAPACITY);
             }
         }
         return index;
@@ -58,14 +58,14 @@ contract AddressQueueStorage is DawnBase, IAddressQueueStorageInterface {
         bytes32 _key,
         address _value
     ) external override onlyLatestContract("addressQueueStorage", address(this)) {
-        require(getLength(_key) < capacity.sub(1), "Queue is at capacity");
+        require(getLength(_key) < UINT_CAPACITY.sub(1), "Queue is at capacity");
         require(_getUint(keccak256(abi.encodePacked(_key, ".index", _value))) == 0, "Item already exists in queue");
         uint index = _getUint(keccak256(abi.encodePacked(_key, ".end")));
         _setAddress(keccak256(abi.encodePacked(_key, ".item", index)), _value);
         _setUint(keccak256(abi.encodePacked(_key, ".index", _value)), index.add(1));
         index = index.add(1);
-        if (index >= capacity) {
-            index = index.sub(capacity);
+        if (index >= UINT_CAPACITY) {
+            index = index.sub(UINT_CAPACITY);
         }
         _setUint(keccak256(abi.encodePacked(_key, ".end")), index);
     }
@@ -79,8 +79,8 @@ contract AddressQueueStorage is DawnBase, IAddressQueueStorageInterface {
         uint start = _getUint(keccak256(abi.encodePacked(_key, ".start")));
         address item = _getAddress(keccak256(abi.encodePacked(_key, ".item", start)));
         start = start.add(1);
-        if (start >= capacity) {
-            start = start.sub(capacity);
+        if (start >= UINT_CAPACITY) {
+            start = start.sub(UINT_CAPACITY);
         }
         _setUint(keccak256(abi.encodePacked(_key, ".index", item)), 0);
         _setUint(keccak256(abi.encodePacked(_key, ".start")), start);
@@ -97,7 +97,7 @@ contract AddressQueueStorage is DawnBase, IAddressQueueStorageInterface {
         uint index = _getUint(keccak256(abi.encodePacked(_key, ".index", _value)));
         require(index-- > 0, "Item does not exist in queue");
         uint lastIndex = _getUint(keccak256(abi.encodePacked(_key, ".end")));
-        if (lastIndex == 0) lastIndex = capacity;
+        if (lastIndex == 0) lastIndex = UINT_CAPACITY;
         lastIndex = lastIndex.sub(1);
         if (index != lastIndex) {
             address lastItem = _getAddress(keccak256(abi.encodePacked(_key, ".item", lastIndex)));
