@@ -226,8 +226,9 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
             _getUint(_DEPOSITED_VALIDATORS_KEY).sub(exitedValidators).sub(beaconValidators).mul(
                 _DEPOSIT_VALUE_PER_VALIDATOR
             )
-        ) // transient balance
-        .add(_getUint(_PRE_DEPOSIT_VALIDATORS_KEY).mul(_PRE_DEPOSIT_VALUE)).sub(_getUint(_UNREACHABLE_ETHER_COUNT_KEY)); // pre validator balance // unreachable ether
+        ).add(_getUint(_PRE_DEPOSIT_VALIDATORS_KEY).mul(_PRE_DEPOSIT_VALUE)).sub( // transient balance
+                _getUint(_UNREACHABLE_ETHER_COUNT_KEY)
+            ); // pre validator balance // unreachable ether
 
         // negative reward
         if (
@@ -379,10 +380,9 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
                 _getUint(_DEPOSITED_VALIDATORS_KEY).sub(_getUint(_BEACON_ACTIVE_VALIDATORS_KEY)).mul(
                     _DEPOSIT_VALUE_PER_VALIDATOR
                 )
-            ) // transient balance
-            .add(_getUint(_PRE_DEPOSIT_VALIDATORS_KEY).mul(_PRE_DEPOSIT_VALUE)).sub( // pre validator balance
-                    _getUint(_UNREACHABLE_ETHER_COUNT_KEY)
-                ); // unreachable ether
+            ).add(_getUint(_PRE_DEPOSIT_VALIDATORS_KEY).mul(_PRE_DEPOSIT_VALUE)).sub( // transient balance // pre validator balance
+                _getUint(_UNREACHABLE_ETHER_COUNT_KEY)
+            ); // unreachable ether
     }
 
     // ***************** internal function *****************
