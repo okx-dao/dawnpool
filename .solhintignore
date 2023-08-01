@@ -1,2 +1,3 @@
 node_modules
 contracts/deposit_contract/deposit_contract.sol
+contracts/interface/IDepositContract.sol
