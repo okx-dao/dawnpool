@@ -21,7 +21,7 @@ function directoryExists(path) {
 }
 
 function fileExists(path, isDirectory = false) {
-  return new Promise((resolve, reject) => {
+  return new Promise(resolve => {
     fs.stat(path, (err, stats) => resolve(!err && stats.isDirectory() === isDirectory));
   });
 }

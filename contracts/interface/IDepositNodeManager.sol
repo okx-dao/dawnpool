@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 /// @title Dawn node operator manager interface
 /// @author Ray
@@ -56,7 +56,13 @@ interface IDepositNodeManager {
      * @param nodeAddress The node address to get slashed
      * @param slashedPethAmount PETH amount to get slashed
      */
-    event SigningKeyUnsafe(uint256 indexed index, address indexed operator, bytes pubkey, address nodeAddress, uint256 slashedPethAmount);
+    event SigningKeyUnsafe(
+        uint256 indexed index,
+        address indexed operator,
+        bytes pubkey,
+        address nodeAddress,
+        uint256 slashedPethAmount
+    );
 
     /**
      * @notice Emit when validator is set unsafe
@@ -66,7 +72,13 @@ interface IDepositNodeManager {
      * @param nodeAddress The node address to get slashed
      * @param slashedPethAmount PETH amount to get slashed
      */
-    event SigningKeySlashing(uint256 indexed index, address indexed operator, bytes pubkey, address nodeAddress, uint256 slashedPethAmount);
+    event SigningKeySlashing(
+        uint256 indexed index,
+        address indexed operator,
+        bytes pubkey,
+        address nodeAddress,
+        uint256 slashedPethAmount
+    );
 
     /**
      * @notice Emit when validator is set unsafe
@@ -77,7 +89,14 @@ interface IDepositNodeManager {
      * @param slashedPethAmount PETH amount to get slashed
      * @param reason Punished reason
      */
-    event SigningKeyPunished(uint256 indexed index, address indexed operator, bytes pubkey, address nodeAddress, uint256 slashedPethAmount, bytes reason);
+    event SigningKeyPunished(
+        uint256 indexed index,
+        address indexed operator,
+        bytes pubkey,
+        address nodeAddress,
+        uint256 slashedPethAmount,
+        bytes reason
+    );
 
     /**
      * @notice Emit when receive node operator rewards
@@ -93,7 +112,12 @@ interface IDepositNodeManager {
      * @param withdrawAddress Node rewards distributed to
      * @param pethAmount Node rewards amount distributed to the operator and claimed
      */
-    event NodeOperatorNodeRewardsClaimed(address indexed operator, address indexed claimer, address indexed withdrawAddress, uint256 pethAmount);
+    event NodeOperatorNodeRewardsClaimed(
+        address indexed operator,
+        address indexed claimer,
+        address indexed withdrawAddress,
+        uint256 pethAmount
+    );
 
     /**
      * @notice Emit when distribute Node rewards(commission) to the node operator
@@ -112,7 +136,7 @@ interface IDepositNodeManager {
         VALIDATING,
         EXIT,
         SLASHING,
-//        EXITED,
+        //        EXITED,
         UNSAFE
     }
 
@@ -146,7 +170,9 @@ interface IDepositNodeManager {
      * @return pubkey Public key
      * @return status Validator status
      */
-    function getNodeValidator(uint256 index) external view returns (address operator, bytes memory pubkey, ValidatorStatus status);
+    function getNodeValidator(
+        uint256 index
+    ) external view returns (address operator, bytes memory pubkey, ValidatorStatus status);
 
     /**
      * @notice Get contract and status of validator by pubkey
@@ -155,7 +181,9 @@ interface IDepositNodeManager {
      * @return operator Operator address the validator belongs to
      * @return status Validator status
      */
-    function getNodeValidator(bytes calldata pubkey) external view returns (uint256 index, address operator, ValidatorStatus status);
+    function getNodeValidator(
+        bytes calldata pubkey
+    ) external view returns (uint256 index, address operator, ValidatorStatus status);
 
     /**
      * @notice Get contract and status of validator by index
@@ -165,7 +193,10 @@ interface IDepositNodeManager {
      * @return pubkeys Public keys
      * @return statuses Validator statuses
      */
-    function getNodeValidators(uint256 startIndex, uint256 amount) external view returns (address[] memory operators, bytes[] memory pubkeys, ValidatorStatus[] memory statuses);
+    function getNodeValidators(
+        uint256 startIndex,
+        uint256 amount
+    ) external view returns (address[] memory operators, bytes[] memory pubkeys, ValidatorStatus[] memory statuses);
 
     /// @notice Set minimum deposit amount, may be changed by DAO
     function setMinOperatorStakingAmount(uint256 minAmount) external;
