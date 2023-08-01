@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-pragma solidity ^0.8.17;
+pragma solidity ^0.8.19;
 
 import "../interface/IDawnDeposit.sol";
 import "../token/DawnTokenPETH.sol";
@@ -11,20 +11,20 @@ import "../deposit_contract/deposit_contract.sol";
 import "../interface/IBurner.sol";
 import "../interface/IDawnWithdraw.sol";
 
-
 contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
     using SafeMath for uint256;
 
-    uint256 internal constant DEPOSIT_VALUE_PER_VALIDATOR = 32 ether;
-    uint256 internal constant PRE_DEPOSIT_VALUE = 1 ether;
-    uint256 internal constant POST_DEPOSIT_VALUE = 31 ether;
+    uint256 internal constant _DEPOSIT_VALUE_PER_VALIDATOR = 32 ether;
+    uint256 internal constant _PRE_DEPOSIT_VALUE = 1 ether;
+    uint256 internal constant _POST_DEPOSIT_VALUE = 31 ether;
     uint256 internal constant _FEE_BASIC = 10000;
 
     bytes32 internal constant _BUFFERED_ETHER_KEY = keccak256("dawnDeposit.bufferedEther");
     bytes32 internal constant _PRE_DEPOSIT_VALIDATORS_KEY = keccak256("dawnDeposit.preDepositValidators");
     bytes32 internal constant _DEPOSITED_VALIDATORS_KEY = keccak256("dawnDeposit.depositedValidators");
     bytes32 internal constant _BEACON_ACTIVE_VALIDATORS_KEY = keccak256("dawnDeposit.beaconActiveValidators");
-    bytes32 internal constant _BEACON_ACTIVE_VALIDATOR_BALANCE_KEY = keccak256("dawnDeposit.beaconActiveValidatorBalance");
+    bytes32 internal constant _BEACON_ACTIVE_VALIDATOR_BALANCE_KEY =
+        keccak256("dawnDeposit.beaconActiveValidatorBalance");
     bytes32 internal constant _UNREACHABLE_ETHER_COUNT_KEY = keccak256("dawnDeposit.unreachableEtherCount");
 
     bytes32 internal constant _FEE_KEY = keccak256("dawnDeposit.fee");
@@ -90,21 +90,21 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
         bytes calldata pubkey,
         bytes calldata signature
     ) external onlyActiveNodeOperator(operator) {
-        if (address(this).balance < POST_DEPOSIT_VALUE) {
+        if (address(this).balance < _POST_DEPOSIT_VALUE) {
             revert BufferedEtherNotEnough();
         }
-        bytes32 withdrawalCredentials =  _getWithdrawalCredentials();
-        _doDeposit(pubkey, withdrawalCredentials, signature, POST_DEPOSIT_VALUE);
+        bytes32 withdrawalCredentials = _getWithdrawalCredentials();
+        _doDeposit(pubkey, withdrawalCredentials, signature, _POST_DEPOSIT_VALUE);
 
         // update deposited validators
         _addUint(_DEPOSITED_VALIDATORS_KEY, 1);
         // update pre deposit validators
         _subUint(_PRE_DEPOSIT_VALIDATORS_KEY, 1);
         // update buffered ether
-        _subUint(_BUFFERED_ETHER_KEY, POST_DEPOSIT_VALUE);
+        _subUint(_BUFFERED_ETHER_KEY, _POST_DEPOSIT_VALUE);
 
         // emit event
-        emit LogActivateValidator(operator, pubkey, POST_DEPOSIT_VALUE);
+        emit LogActivateValidator(operator, pubkey, _POST_DEPOSIT_VALUE);
     }
 
     // deposit 1 ETH for NodeOperatorRegister
@@ -113,19 +113,19 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
         bytes calldata pubkey,
         bytes calldata signature
     ) external onlyActiveNodeOperator(operator) {
-        if (address(this).balance < PRE_DEPOSIT_VALUE) {
+        if (address(this).balance < _PRE_DEPOSIT_VALUE) {
             revert BufferedEtherNotEnough();
         }
-        bytes32 withdrawalCredentials =  _getWithdrawalCredentials();
-        _doDeposit(pubkey, withdrawalCredentials, signature, PRE_DEPOSIT_VALUE);
+        bytes32 withdrawalCredentials = _getWithdrawalCredentials();
+        _doDeposit(pubkey, withdrawalCredentials, signature, _PRE_DEPOSIT_VALUE);
 
         // update pre deposit validators
         _addUint(_PRE_DEPOSIT_VALIDATORS_KEY, 1);
         // update buffered ether
-        _subUint(_BUFFERED_ETHER_KEY, PRE_DEPOSIT_VALUE);
+        _subUint(_BUFFERED_ETHER_KEY, _PRE_DEPOSIT_VALUE);
 
         // emit event
-        emit LogPreActivateValidator(operator, pubkey, PRE_DEPOSIT_VALUE);
+        emit LogPreActivateValidator(operator, pubkey, _PRE_DEPOSIT_VALUE);
     }
 
     // receive ETH rewards from RewardsVault
@@ -156,28 +156,27 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
         }
         if (
             beaconBalance.add(availableRewards) <=
-                _getUint(_BEACON_ACTIVE_VALIDATOR_BALANCE_KEY).add(
-                    beaconValidators.add(exitedValidators).sub(_getUint(_BEACON_ACTIVE_VALIDATORS_KEY)).mul(DEPOSIT_VALUE_PER_VALIDATOR)
+            _getUint(_BEACON_ACTIVE_VALIDATOR_BALANCE_KEY).add(
+                beaconValidators.add(exitedValidators).sub(_getUint(_BEACON_ACTIVE_VALIDATORS_KEY)).mul(
+                    _DEPOSIT_VALUE_PER_VALIDATOR
                 )
+            )
         ) {
             revert Unprofitable();
         }
 
         uint256 rewards = beaconBalance.add(availableRewards).sub(
             _getUint(_BEACON_ACTIVE_VALIDATOR_BALANCE_KEY).add(
-                beaconValidators.add(exitedValidators).sub(_getUint(_BEACON_ACTIVE_VALIDATORS_KEY)).mul(DEPOSIT_VALUE_PER_VALIDATOR)
+                beaconValidators.add(exitedValidators).sub(_getUint(_BEACON_ACTIVE_VALIDATORS_KEY)).mul(
+                    _DEPOSIT_VALUE_PER_VALIDATOR
+                )
             )
         );
 
         uint256 preTotalEther = _getTotalPooledEther();
         uint256 preTotalPEth = totalSupply();
 
-        emit LogETHRewards(
-            epochId,
-            _getUint(_BEACON_ACTIVE_VALIDATOR_BALANCE_KEY),
-            beaconBalance,
-            availableRewards
-        );
+        emit LogETHRewards(epochId, _getUint(_BEACON_ACTIVE_VALIDATOR_BALANCE_KEY), beaconBalance, availableRewards);
 
         // store beacon balance and validators
         _setUint(_BEACON_ACTIVE_VALIDATORS_KEY, beaconValidators);
@@ -201,13 +200,7 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
         // distributeRewards
         _distributeRewards(rewardsPEth);
 
-        emit LogTokenRebase(
-            epochId,
-            preTotalEther,
-            preTotalPEth,
-            _getTotalPooledEther(),
-            totalSupply()
-        );
+        emit LogTokenRebase(epochId, preTotalEther, preTotalPEth, _getTotalPooledEther(), totalSupply());
 
         // process withdraw request
         if (ethAmountToLock > 0) {
@@ -218,7 +211,6 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
         if (burnedPEthAmount > 0) {
             _processPEthBurnRequest(burnedPEthAmount);
         }
-
     }
 
     function preCalculateExchangeRate(
@@ -228,27 +220,34 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
         uint256 exitedValidators
     ) external view returns (uint256 totalEther, uint256 totalPEth) {
         totalEther = _getUint(_BUFFERED_ETHER_KEY) // buffered balance
-            .add(availableRewards)
-            .add(beaconBalance) // beacon balance
+        .add(availableRewards)
+        .add(beaconBalance) // beacon balance
             .add(
                 _getUint(_DEPOSITED_VALIDATORS_KEY).sub(exitedValidators).sub(beaconValidators).mul(
-                    DEPOSIT_VALUE_PER_VALIDATOR
+                    _DEPOSIT_VALUE_PER_VALIDATOR
                 )
-            ) // transient balance
-            .add(_getUint(_PRE_DEPOSIT_VALIDATORS_KEY).mul(PRE_DEPOSIT_VALUE)) // pre validator balance
-            .sub(_getUint(_UNREACHABLE_ETHER_COUNT_KEY)); // unreachable ether
+            )
+            .add(_getUint(_PRE_DEPOSIT_VALIDATORS_KEY).mul(_PRE_DEPOSIT_VALUE))
+            .sub(_getUint(_UNREACHABLE_ETHER_COUNT_KEY)); // transient balance // pre validator balance // unreachable ether
 
         // negative reward
-        if (beaconBalance.add(availableRewards) <= _getUint(_BEACON_ACTIVE_VALIDATOR_BALANCE_KEY).add(
-            beaconValidators.add(exitedValidators).sub(_getUint(_BEACON_ACTIVE_VALIDATORS_KEY)).mul(DEPOSIT_VALUE_PER_VALIDATOR)
-        )) {
+        if (
+            beaconBalance.add(availableRewards) <=
+            _getUint(_BEACON_ACTIVE_VALIDATOR_BALANCE_KEY).add(
+                beaconValidators.add(exitedValidators).sub(_getUint(_BEACON_ACTIVE_VALIDATORS_KEY)).mul(
+                    _DEPOSIT_VALUE_PER_VALIDATOR
+                )
+            )
+        ) {
             totalPEth = totalSupply();
             return (totalEther, totalPEth);
         }
 
         uint256 rewards = beaconBalance.add(availableRewards).sub(
             _getUint(_BEACON_ACTIVE_VALIDATOR_BALANCE_KEY).add(
-                beaconValidators.add(exitedValidators).sub(_getUint(_BEACON_ACTIVE_VALIDATORS_KEY)).mul(DEPOSIT_VALUE_PER_VALIDATOR)
+                beaconValidators.add(exitedValidators).sub(_getUint(_BEACON_ACTIVE_VALIDATORS_KEY)).mul(
+                    _DEPOSIT_VALUE_PER_VALIDATOR
+                )
             )
         );
 
@@ -262,22 +261,27 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
         totalPEth = preTotalPEth + rewardsPEth;
     }
 
-
     // process withdraw request
     function _processWithdrawRequest(uint256 lastRequestIdToBeFulfilled, uint256 ethAmountToLock) internal {
         if (ethAmountToLock > _getUint(_BUFFERED_ETHER_KEY)) {
             revert InvalidLockEth(ethAmountToLock);
         }
-        IDawnWithdraw(_getContractAddress(_DAWN_WITHDRAW_CONTRACT_NAME)).checkFulfillment(lastRequestIdToBeFulfilled, ethAmountToLock);
+        IDawnWithdraw(_getContractAddress(_DAWN_WITHDRAW_CONTRACT_NAME)).checkFulfillment(
+            lastRequestIdToBeFulfilled,
+            ethAmountToLock
+        );
         // lock ETH for withdraw: transfer ETH to DawnWithdraw
         _subUint(_BUFFERED_ETHER_KEY, ethAmountToLock);
-        IDawnWithdraw(_getContractAddress(_DAWN_WITHDRAW_CONTRACT_NAME)).fulfillment{value: ethAmountToLock}(lastRequestIdToBeFulfilled);
+        IDawnWithdraw(_getContractAddress(_DAWN_WITHDRAW_CONTRACT_NAME)).fulfillment{value: ethAmountToLock}(
+            lastRequestIdToBeFulfilled
+        );
     }
 
     // process burn pEth
     function _processPEthBurnRequest(uint256 burnedPEthAmount) internal {
         address burnerAddr = _getContractAddress(_BURNER_CONTRACT_NAME);
-        if (burnedPEthAmount > balanceOf(burnerAddr)) revert ErrorBurnedPEthAmount(burnedPEthAmount, balanceOf(burnerAddr));
+        if (burnedPEthAmount > balanceOf(burnerAddr))
+            revert ErrorBurnedPEthAmount(burnedPEthAmount, balanceOf(burnerAddr));
         _burn(burnerAddr, burnedPEthAmount);
         IBurner(burnerAddr).commitPEthToBurn(burnedPEthAmount);
     }
@@ -286,7 +290,11 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
         _punish(burnAddress, pethAmountToBurn);
     }
 
-    function punish(address burnAddress, uint256 pethAmountToBurn, uint256 ethAmountToDecrease) external onlyNodeManager {
+    function punish(
+        address burnAddress,
+        uint256 pethAmountToBurn,
+        uint256 ethAmountToDecrease
+    ) external onlyNodeManager {
         _punish(burnAddress, pethAmountToBurn, ethAmountToDecrease);
     }
 
@@ -310,12 +318,25 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
         if (this.balanceOf(burnAddress) < pethAmountToBurn) revert PEthNotEnough();
 
         _transfer(burnAddress, _getContractAddress(_BURNER_CONTRACT_NAME), pethAmountToBurn);
-        IBurner(_getContractAddress(_BURNER_CONTRACT_NAME)).requestBurnPEthAndDecreaseEth(burnAddress, pethAmountToBurn, ethAmountToDecrease);
+        IBurner(_getContractAddress(_BURNER_CONTRACT_NAME)).requestBurnPEthAndDecreaseEth(
+            burnAddress,
+            pethAmountToBurn,
+            ethAmountToDecrease
+        );
 
         emit LogPunishWithEth(burnAddress, pethAmountToBurn, ethAmountToDecrease);
     }
 
-    function getBeaconStat() external view returns (uint256 preDepositValidators, uint256 depositedValidators, uint256 beaconValidators, uint256 beaconBalance) {
+    function getBeaconStat()
+        external
+        view
+        returns (
+            uint256 preDepositValidators,
+            uint256 depositedValidators,
+            uint256 beaconValidators,
+            uint256 beaconBalance
+        )
+    {
         preDepositValidators = _getUint(_PRE_DEPOSIT_VALIDATORS_KEY);
         depositedValidators = _getUint(_DEPOSITED_VALIDATORS_KEY);
         beaconValidators = _getUint(_BEACON_ACTIVE_VALIDATORS_KEY);
@@ -353,17 +374,16 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
 
     function _getTotalPooledEther() internal view returns (uint256) {
         return
-        _getUint(_BUFFERED_ETHER_KEY) // buffered balance
-        .add(_getUint(_BEACON_ACTIVE_VALIDATOR_BALANCE_KEY)) // beacon balance
-        .add(
-            _getUint(_DEPOSITED_VALIDATORS_KEY).sub(_getUint(_BEACON_ACTIVE_VALIDATORS_KEY)).mul(
-                DEPOSIT_VALUE_PER_VALIDATOR
-            )
-        ) // transient balance
-        .add(_getUint(_PRE_DEPOSIT_VALIDATORS_KEY).mul(PRE_DEPOSIT_VALUE)) // pre validator balance
-        .sub(_getUint(_UNREACHABLE_ETHER_COUNT_KEY)); // unreachable ether
+            _getUint(_BUFFERED_ETHER_KEY) // buffered balance
+            .add(_getUint(_BEACON_ACTIVE_VALIDATOR_BALANCE_KEY)) // beacon balance
+                .add(
+                    _getUint(_DEPOSITED_VALIDATORS_KEY).sub(_getUint(_BEACON_ACTIVE_VALIDATORS_KEY)).mul(
+                        _DEPOSIT_VALUE_PER_VALIDATOR
+                    )
+                )
+                .add(_getUint(_PRE_DEPOSIT_VALIDATORS_KEY).mul(_PRE_DEPOSIT_VALUE))
+                .sub(_getUint(_UNREACHABLE_ETHER_COUNT_KEY)); // transient balance // pre validator balance // unreachable ether
     }
-
 
     // ***************** internal function *****************
 
@@ -396,7 +416,7 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
         address nodeManagerAddr = _getContractAddress(_NODE_OPERATOR_REGISTER_CONTRACT_NAME);
         IDepositNodeManager nodeManager = IDepositNodeManager(nodeManagerAddr);
 
-        if(nodeManager.getTotalActivatedValidatorsCount() > 0) {
+        if (nodeManager.getTotalActivatedValidatorsCount() > 0) {
             _transfer(address(this), nodeManagerAddr, rewardsPEth);
             nodeManager.distributeNodeOperatorRewards(rewardsPEth);
         }
@@ -452,8 +472,12 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
                 sha256(abi.encodePacked(_toLittleEndian64(depositAmount), signatureRoot))
             )
         );
-        IDepositContract(_getDepositContract()).deposit{ value: amount }(
-            pubkey, abi.encodePacked(withdrawalCredentials), signature, depositDataRoot);
+        IDepositContract(_getDepositContract()).deposit{value: amount}(
+            pubkey,
+            abi.encodePacked(withdrawalCredentials),
+            signature,
+            depositDataRoot
+        );
     }
 
     function getWithdrawalCredentials() external view returns (bytes32) {
@@ -469,12 +493,11 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
         return _getContractAddress(_DEPOSIT_CONTRACT_NAME);
     }
 
-
-
     // // ***************** modifier *****************
 
     modifier onlyActiveNodeOperator(address operator) {
-        (address nodeAddress, bool isActive) = IDepositNodeManager(_getContractAddress(_DEPOSIT_NODE_MANAGER)).getNodeOperator(operator);
+        (address nodeAddress, bool isActive) = IDepositNodeManager(_getContractAddress(_DEPOSIT_NODE_MANAGER))
+            .getNodeOperator(operator);
         if (msg.sender != nodeAddress) {
             revert CallerAuthFailed(msg.sender);
         }
