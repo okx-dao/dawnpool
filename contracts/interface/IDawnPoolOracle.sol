@@ -137,7 +137,8 @@ interface IDawnPoolOracle {
         uint64 _epochsPerFrame,
         uint64 _slotsPerEpoch,
         uint64 _secondsPerSlot,
-        uint64 _genesisTime
+        uint64 _genesisTime,
+        uint64 _lastProcessingRefSlot
     ) external;
 
     /**

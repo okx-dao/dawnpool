@@ -118,7 +118,7 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
         if (i < _currentReportVariants.length) {
             // 判断该 variant 的计数器是否已达到要求的数量.达到，则会通过调用 _push() 更新 dawnpool 合约的 validator 列表
             if (_currentReportVariants[i].getCount() + 1 >= quorum) {
-                _handleConsensusReportData(data);
+                _handleConsensusReportData(data, beaconSpec);
             } else {
                 // 增加对应 variant 的报告计数器
                 ++_currentReportVariants[i];
@@ -126,7 +126,7 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
         } else {
             // 只需要一个验证报告即可，则直接调用 _push()
             if (quorum == 1) {
-                _handleConsensusReportData(data);
+                _handleConsensusReportData(data, beaconSpec);
             }
             //                else {
             //                _currentReportVariants.push(report + 1);
@@ -136,7 +136,7 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
 
     }
 
-    function _handleConsensusReportData(ReportData calldata data) internal {
+    function _handleConsensusReportData(ReportData calldata data, BeaconSpec memory _beaconSpec) internal {
         if (data.requestsCount == 0) {
             return;
         }
