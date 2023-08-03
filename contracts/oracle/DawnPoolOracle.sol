@@ -29,6 +29,9 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
         uint256 ethAmountToLock;
     }
 
+    /// @dev Storage Epoch: uint256 lastProcessingRefEpoch
+    bytes32 internal constant _LAST_PROCESSING_REF_EPOCH_POSITION =
+    keccak256("DawnPoolOracle._LAST_PROCESSING_REF_EPOCH_POSITION");
     /// ACL
     bytes32 internal constant _MANAGE_QUORUM = keccak256("DawnPoolOracle.MANAGE_QUORUM");
 
@@ -247,10 +250,12 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
         uint64 _epochsPerFrame,
         uint64 _slotsPerEpoch,
         uint64 _secondsPerSlot,
-        uint64 _genesisTime
+        uint64 _genesisTime,
+        uint64 _lastProcessingRefSlot
     ) external onlyGuardian {
         assert(1 == ((1 << (MAX_MEMBERS - 1)) >> (MAX_MEMBERS - 1))); // static assert
 
+        _setUint(_LAST_PROCESSING_REF_EPOCH_POSITION, _lastProcessingRefSlot);
         // We consider storage state right after deployment (no initialize() called yet) as version 0
 
         // 在初始化版本为 0 时（即合约刚部署时），要求状态变量 CONTRACT_VERSION_POSITION 的值必须为 0，以保证该合约从初始状态开始。
@@ -319,11 +324,15 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
         emit QuorumChanged(_quorum);
     }
 
+    function getLastProcessingRefEpoch() external view returns (uint256) {
+        return _getUint(_LAST_PROCESSING_REF_EPOCH_POSITION);
+    }
+
     /**
      * @notice Accept oracle committee member reports from the ETH 2.0 side
-     * @param data ReportData
+     * @param data ReportData   兼容进程，方法名需改为 submitReportData
      */
-    function reportBeacon(ReportData calldata data) external {
+    function submitReportData(ReportData calldata data) external {
         BeaconSpec memory beaconSpec = _getBeaconSpec();
         uint256 expectedEpoch = _getUint(_EXPECTED_EPOCH_ID_POSITION);
         //确保传入的_epochId大于等于预期的 epoch ID，以避免提交过时的验证报告
@@ -336,7 +345,7 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
                 data.epochId == _getFrameFirstEpochId(_getCurrentEpochId(beaconSpec), beaconSpec),
                 "UNEXPECTED_EPOCH"
             );
-            //清除上一次未成功的验证报告并将预期的 epoch ID 更新为 _epochId。
+            //清将预期的 epoch ID 更新为 _epochId。
             _clearReportingAndAdvanceTo(data.epochId);
         }
 
@@ -352,7 +361,7 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
             msg.sender
         );
 
-        // 获取调用者在 dawnpool 合约中的成员 ID, 以确保调用者是 dawnpool 合约的授权成员之一 todo 二期再做
+        // 获取调用者在 dawnpool 合约中的成员 ID, 以确保调用者是 dawnpool 合约的授权成员之一
         uint256 index = _getMemberId(msg.sender);
         require(index != _MEMBER_NOT_FOUND, "MEMBER_NOT_FOUND");
         // 获取当前所有已提交验证报告的位表示，将其存储到变量 bitMask 中
@@ -487,8 +496,7 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
 
         // report to the dawnPool and collect stats
         IDawnDeposit dawnPool = getDawnDeposit();
-        //        dawnPool.handleOracleReport(_epochId, _beaconValidators, _beaconBalance, _rewardsVaultBalance, _exitedValidators);
-        // todo
+
         dawnPool.handleOracleReport(
             data.epochId,
             data.beaconValidators,
@@ -499,16 +507,15 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase {
             data.lastRequestIdToBeFulfilled,
             data.ethAmountToLock
         );
+        _setUint(_LAST_PROCESSING_REF_EPOCH_POSITION, data.epochId);
     }
 
     /**
      * @notice 清除上一次未成功的验证报告并将预期的 epoch ID 更新为 _epochId。
      */
     function _clearReportingAndAdvanceTo(uint256 _epochId) internal {
-        //        REPORTS_BITMASK_POSITION.setStorageUint256(0);
         _setUint(_REPORTS_BITMASK_POSITION, 0);
         _setUint(_EXPECTED_EPOCH_ID_POSITION, _epochId);
-        //        EXPECTED_EPOCH_ID_POSITION.setStorageUint256(_epochId);
         delete _currentReportVariants;
         emit ExpectedEpochIdUpdated(_epochId);
     }
