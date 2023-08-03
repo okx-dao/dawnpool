@@ -133,9 +133,7 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
             //            }
         }
 
-        // 处理提交的报告数据
-        //        _startProcessing();
-        _setUint(_LAST_PROCESSING_REF_EPOCH_POSITION, data.refEpoch);
+
     }
 
     function _handleConsensusReportData(ReportData calldata data) internal {
@@ -146,8 +144,12 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
         IDepositNodeManager nodeManager = getDepositNodeManager();
         nodeManager.updateValidatorsExit(data.requestsCount);
 
-        uint256 timestamp = _getTime();
+        // 清除上一次未成功的验证报告并将预期的 epoch ID 更新为 refEpoch + epochsPerFrame
+        _clearReportingAndAdvanceTo(data.refEpoch + _beaconSpec.epochsPerFrame);
 
+        // 更新上一次成功上报的refEpoch
+        _setUint(_LAST_PROCESSING_REF_EPOCH_POSITION, data.refEpoch);
+        uint256 timestamp = _getTime();
         // 将验证器退出请求的相关信息转换成事件并派发到链上，以供其他程序查询和使用。
         emit ValidatorExitRequest(data.requestsCount, timestamp);
     }
@@ -208,7 +210,6 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
      * @notice 清除上一次未成功的验证报告并将预期的 epoch ID 更新为 _epochId。 todo 调用次数时间
      */
     function _clearReportingAndAdvanceTo(uint256 _epochId) internal {
-        //        REPORTS_BITMASK_POSITION.setStorageUint256(0);
         _setUint(_REPORTS_BITMASK_POSITION, 0);
         _setUint(_EXPECTED_EPOCH_ID_POSITION, _epochId);
         delete _currentReportVariants;

@@ -155,6 +155,9 @@ interface IDawnPoolOracle {
      */
     function setQuorum(uint256 _quorum) external;
 
+    function getLastProcessingRefEpoch() external view returns (uint256);
+
+
     //    function reportBeacon(uint256 _epochId, uint256 _beaconBalance, uint256 _beaconValidators, uint256 _rewardsVaultBalance, uint256 _exitedValidators,
     //        uint256 _burnedPEthAmount ,uint256 _lastRequestIdToBeFulfilled, uint256 _ethAmountToLock) external;
 }
