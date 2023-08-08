@@ -1,5 +1,5 @@
 {
   "detectors_to_run": "all",
-  "filter_paths": "contracts/mocks",
+  "filter_paths": "contracts/mocks,contracts/deposit_contract,node_modules/@openzeppelin/contracts",
   "compile_force_framework": "hardhat"
 }
