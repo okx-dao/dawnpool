@@ -235,7 +235,7 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase, ReentrancyGuard {
 
     /**
      * @notice Accept oracle committee member reports from the ETH 2.0 side
-     * @param data ReportData   兼容进程，方法名需改为 submitReportData
+     * @param data ReportData   兼容进程，方法名需改为 submitReportData todo  _currentReportVariants push操作
      */
     function submitReportData(ReportData calldata data) external nonReentrant{
 
@@ -283,7 +283,8 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase, ReentrancyGuard {
         _setUint(_REPORTS_BITMASK_POSITION, bitMask | mask);
 
         // 将 _beaconBalance 和 _beaconValidators 编码为一个 uint256 类型的整数
-        uint256 report = (uint256(data.beaconBalance) << 48) | (uint256(data.beaconValidators) << 16);
+        uint256 report = ReportUtils.encode(data.beaconBalance, data.beaconValidators);
+//        uint256 report = (data.beaconBalance | data.beaconValidators);
         // 获取当前所需的最低验证报告数量 quorum
         uint256 quorum = IHashConsensus(_getContractAddressUnsafe("HashConsensus"))
         .getQuorum();
@@ -309,7 +310,6 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase, ReentrancyGuard {
                 _currentReportVariants.push(report + 1);
             }
         }
-
     }
 
     /**
@@ -405,7 +405,7 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase, ReentrancyGuard {
 
     /**
      *  首先通过 _epochId 除以 _beaconSpec.epochsPerFrame 来计算出该 Epoch 所处的 Frame 编号，然后将其乘以 _beaconSpec.epochsPerFrame，即可得到该 Frame 的第一个 Epoch ID
-     *  todo 取当前Frame的第一帧 忽略 slither 的 performs a multiplication on the result of a division提醒
+     *  todo 取当前Frame的第一帧 忽略 slither 的 performs a multiplication on the result of a division提醒 除法不会小于1
      */
     function _getFrameFirstEpochId(uint256 _epochId, BeaconSpec memory _beaconSpec) internal pure returns (uint256) {
         return (_epochId / _beaconSpec.epochsPerFrame) * _beaconSpec.epochsPerFrame;

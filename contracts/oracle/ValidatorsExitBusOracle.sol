@@ -72,7 +72,7 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
         return IDepositNodeManager(_getContractAddress("DepositNodeManager"));
     }
 
-    /// 提交报告数据，并进行一些必要的检查和处理操作。合约管理员可以根据需要调用此函数来处理提交的报告数据  whenResumed 则表示只有当合约恢复时才可以调用该函数 todo
+    /// 提交报告数据，并进行一些必要的检查和处理操作。合约管理员可以根据需要调用此函数来处理提交的报告数据
     function submitReportData(ReportData calldata data) external {
         BeaconSpec memory beaconSpec = _getBeaconSpec();
         uint256 expectedEpoch = _getUint(_EXPECTED_EPOCH_ID_POSITION);
@@ -80,7 +80,7 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
         require(data.refEpoch >= expectedEpoch, "EPOCH_IS_TOO_OLD");
 
         // if expected epoch has advanced, check that this is the first epoch of the current frame
-        // and clear the last unsuccessful reporting todo 退出验证者多久上报一次
+        // and clear the last unsuccessful reporting
         if (data.refEpoch > expectedEpoch) {
             require(
                 data.refEpoch == _getFrameFirstEpochId(_getCurrentEpochId(beaconSpec), beaconSpec),
@@ -105,6 +105,8 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
         // 验证通过了，则会将 bitMask 的第 index 位设置为 1, 以标记该调用者已经提交了验证报告
         _setUint(_REPORTS_BITMASK_POSITION, bitMask | mask);
 
+        // 将 _beaconBalance 和 _beaconValidators 编码为一个 uint256 类型的整数
+        uint256 report = ReportUtils.encode(data.refEpoch, data.requestsCount);
         // 获取当前所需的最低验证报告数量 quorum
         uint256 quorum = IHashConsensus(_getContractAddressUnsafe("HashConsensus"))
         .getQuorum();
@@ -112,8 +114,7 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
         uint256 i = 0;
 
         // iterate on all report variants we already have, limited by the oracle _members maximum
-        uint256 currentCount = _currentReportVariants.length;
-        while (i < currentCount) ++i;
+        while (i < _currentReportVariants.length && _currentReportVariants[i].isDifferent(report)) ++i;
         if (i < _currentReportVariants.length) {
             // 判断该 variant 的计数器是否已达到要求的数量.达到，则会通过调用 _push() 更新 dawnpool 合约的 validator 列表
             if (_currentReportVariants[i].getCount() + 1 >= quorum) {
@@ -126,6 +127,9 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
             // 只需要一个验证报告即可，则直接调用 _push()
             if (quorum == 1) {
                 _handleConsensusReportData(data, beaconSpec);
+            } else {
+                //创建一个新的 variant 并将其添加到 _currentReportVariants 数组中。
+                _currentReportVariants.push(report + 1);
             }
         }
 
@@ -179,7 +183,7 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
     }
 
     /**
-     * @notice 清除上一次未成功的验证报告并将预期的 epoch ID 更新为 _epochId。 todo 调用次数时间
+     * @notice 清除上一次未成功的验证报告并将预期的 epoch ID 更新为 _epochId。
      */
     function _clearReportingAndAdvanceTo(uint256 _epochId) internal {
         _setUint(_REPORTS_BITMASK_POSITION, 0);
