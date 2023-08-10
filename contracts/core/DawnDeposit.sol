@@ -305,7 +305,7 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
 
     function _punish(address burnAddress, uint256 pethAmountToBurn) internal {
         if (pethAmountToBurn == 0) revert ZeroBurnAmount();
-        if (this.balanceOf(burnAddress) < pethAmountToBurn) revert PEthNotEnough();
+        if (balanceOf(burnAddress) < pethAmountToBurn) revert PEthNotEnough();
 
         _transfer(burnAddress, _getContractAddress(_BURNER_CONTRACT_NAME), pethAmountToBurn);
         IBurner(_getContractAddress(_BURNER_CONTRACT_NAME)).requestBurnPEth(burnAddress, pethAmountToBurn);
@@ -315,7 +315,7 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
 
     function _punish(address burnAddress, uint256 pethAmountToBurn, uint256 ethAmountToDecrease) internal {
         if (pethAmountToBurn == 0) revert ZeroBurnAmount();
-        if (this.balanceOf(burnAddress) < pethAmountToBurn) revert PEthNotEnough();
+        if (balanceOf(burnAddress) < pethAmountToBurn) revert PEthNotEnough();
 
         _transfer(burnAddress, _getContractAddress(_BURNER_CONTRACT_NAME), pethAmountToBurn);
         IBurner(_getContractAddress(_BURNER_CONTRACT_NAME)).requestBurnPEthAndDecreaseEth(

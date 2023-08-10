@@ -6,7 +6,7 @@ import "../interface/IDawnStorageInterface.sol";
 /// 基础合约（主要实现修饰器方法和通用方法，定义常量、初始化dawnStorage存取数据对象）
 abstract contract DawnBase {
     /// 定义ETH计算基础单位 1 ether = 1e18 wei
-    uint256 internal constant _CALC_BASE = 1 ether;
+    /// uint256 internal constant _CALC_BASE = 1 ether;
     /// 数据存储接口初始化
     IDawnStorageInterface internal _dawnStorage = IDawnStorageInterface(address(0));
 
