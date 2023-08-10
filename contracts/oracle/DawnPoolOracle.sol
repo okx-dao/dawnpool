@@ -40,10 +40,6 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase, ReentrancyGuard {
 
     uint256 internal constant _MEMBER_NOT_FOUND = 2 ** 256 - 1;
 
-    /// Number of exactly the same reports needed to finalize the epoch
-
-    bytes32 internal constant _QUORUM_POSITION = keccak256("DawnPoolOracle.QUORUM_POSITION");
-
     /// Address of the dawnpool contract
     //    bytes32 internal constant _DAWNPOOL_POSITION = keccak256("DawnPoolOracle.DAWNPOOL_POSITION");
 
@@ -138,7 +134,7 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase, ReentrancyGuard {
 
     /**
      * @notice 更新 BeaconChain 规格信息
-     * 权限控制 onlyGuardian todo
+     * 权限控制 onlyGuardian
      */
     function setBeaconSpec(
         uint64 epochsPerFrame,
@@ -235,10 +231,9 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase, ReentrancyGuard {
 
     /**
      * @notice Accept oracle committee member reports from the ETH 2.0 side
-     * @param data ReportData   兼容进程，方法名需改为 submitReportData todo  _currentReportVariants push操作
+     * @param data ReportData   兼容进程，方法名需改为 submitReportData
      */
     function submitReportData(ReportData calldata data) external nonReentrant{
-
         BeaconSpec memory beaconSpec = _getBeaconSpec();
         uint256 expectedEpoch = _getUint(_EXPECTED_EPOCH_ID_POSITION);
         //确保传入的_epochId大于等于预期的 epoch ID，以避免提交过时的验证报告
@@ -292,16 +287,17 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase, ReentrancyGuard {
         uint256 i = 0;
 
         // iterate on all report variants we already have, limited by the oracle _members maximum
+        // 遍历当前已有的验证报告变体，如果找到与当前验证报告相同的变体，则判断计数器是否达到要求的数量
         while (i < _currentReportVariants.length && _currentReportVariants[i].isDifferent(report)) ++i;
         if (i < _currentReportVariants.length) {
-            // 判断该 variant 的计数器是否已达到要求的数量.达到，则会通过调用 _push() 更新 dawnpool 合约的 validator 列表
+            // 判断该 variant 的计数器是否已达到要求的数量.达到，则会通过调用 _push()
             if (_currentReportVariants[i].getCount() + 1 >= quorum) {
                 _push(data, beaconSpec);
-            } else {
+            } else { //
                 // 增加对应 variant 的报告计数器
                 ++_currentReportVariants[i];
             }
-        } else {
+        } else { //如果没有找到与当前验证报告相同的变体，则判断所需验证报告数量是否为1，调用_push() ，否则创建一个新的变体并添加到数组中
             // 只需要一个验证报告即可，则直接调用 _push()
             if (quorum == 1) {
                 _push(data, beaconSpec);
@@ -388,11 +384,11 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase, ReentrancyGuard {
     /**
      * @notice 清除上一次未成功的验证报告并将预期的 epoch ID 更新为 _epochId。
      */
-    function _clearReportingAndAdvanceTo(uint256 _epochId) internal {
+    function _clearReportingAndAdvanceTo(uint256 _epochId) internal nonReentrant{
+        emit ExpectedEpochIdUpdated(_epochId);
         _setUint(_REPORTS_BITMASK_POSITION, 0);
         _setUint(_EXPECTED_EPOCH_ID_POSITION, _epochId);
         delete _currentReportVariants;
-        emit ExpectedEpochIdUpdated(_epochId);
     }
 
     /**

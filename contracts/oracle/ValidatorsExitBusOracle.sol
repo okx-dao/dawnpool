@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity ^0.8.19;
 
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "../base/DawnBase.sol";
 import "./DawnPoolOracle.sol";
 import "../interface/IHashConsensus.sol";
@@ -8,7 +9,7 @@ import "./ReportUtils.sol";
 import "../interface/IDepositNodeManager.sol";
 import "../interface/IValidatorsExitBusOracle.sol";
 
-contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
+contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase, ReentrancyGuard {
     constructor(IDawnStorageInterface dawnStorageAddress) DawnBase(dawnStorageAddress) {}
 
     using ReportUtils for uint256;
@@ -73,7 +74,7 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
     }
 
     /// 提交报告数据，并进行一些必要的检查和处理操作。合约管理员可以根据需要调用此函数来处理提交的报告数据
-    function submitReportData(ReportData calldata data) external {
+    function submitReportData(ReportData calldata data) external nonReentrant{
         BeaconSpec memory beaconSpec = _getBeaconSpec();
         uint256 expectedEpoch = _getUint(_EXPECTED_EPOCH_ID_POSITION);
         //确保传入的_epochId大于等于预期的 epoch ID，以避免提交过时的验证报告
@@ -188,8 +189,8 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase {
     function _clearReportingAndAdvanceTo(uint256 _epochId) internal {
         _setUint(_REPORTS_BITMASK_POSITION, 0);
         _setUint(_EXPECTED_EPOCH_ID_POSITION, _epochId);
-        delete _currentReportVariants;
         emit ExpectedEpochIdUpdated(_epochId);
+        delete _currentReportVariants;
     }
 
     /**
