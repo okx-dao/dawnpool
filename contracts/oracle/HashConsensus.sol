@@ -50,15 +50,17 @@ contract HashConsensus is IHashConsensus, DawnBase {
     function removeOracleMember(address member) external onlyGuardian {
         uint256 index = getMemberId(member);
         require(index != _MEMBER_NOT_FOUND, "MEMBER_NOT_FOUND");
-        uint256 last = _members.length - 1;
-        if (index != last) _members[index] = _members[last];
-        _members[index] = _members[_members.length - 1];
-        //        members.length--;
-        emit MemberRemoved(member);
+        assert(index < _members.length);
 
+        uint256 last = _members.length - 1;
+        if (index != last) {
+            _members[index] = _members[last];
+        }
+        _members.pop();
+
+        emit MemberRemoved(member);
         // 该函数在移除 Oracle 成员之后，还需要将与该成员相关的历史验证信息清除 (将存储在合约中的该 Oracle 成员所提交的最后一次验证报告的掩码值设为 0)
         _setUint(_REPORTS_BITMASK_POSITION, 0);
-
     }
 
     /**
