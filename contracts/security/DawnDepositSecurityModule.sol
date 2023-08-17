@@ -56,6 +56,7 @@ contract DawnDepositSecurityModule is DawnBase, IDawnDepositSecuritymodule {
     string internal constant _DEPOSIT_NODE_MANAGER_CONTRACT_NAME = "DepositNodeManager";
     string internal constant _ADDRESS_SET_STORAGE_CONTRACT_NAME = "AddressSetStorage";
     IDepositContract public immutable depositContract;
+    uint256 internal constant _POST_DEPOSIT_VALUE = 31 ether;
 
     constructor(IDawnStorageInterface _depositStorage, address _depositContract) DawnBase(_depositStorage) {
         if (_depositContract == address(0)) revert ZeroAddress("_depositContract");
@@ -383,7 +384,7 @@ contract DawnDepositSecurityModule is DawnBase, IDawnDepositSecuritymodule {
     }
 
     function canDeposit() external view returns (bool) {
-        bool isCanDeposit = IDawnDeposit(_getDawnDeposit()).getBufferedEther() >= 31000000000000000000;
+        bool isCanDeposit = IDawnDeposit(_getDawnDeposit()).getBufferedEther() >= _POST_DEPOSIT_VALUE;
         return (_getGuardianQuorum() > 0 &&
             block.number - _getLastDepositBlock() >= _getMinDepositBlockDistance() &&
             isCanDeposit);
