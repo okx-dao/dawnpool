@@ -2,10 +2,11 @@
 pragma solidity ^0.8.19;
 
 library ReportUtils {
+    // 掩码，用于提取计数器相关的位
     uint256 internal constant _COUNT_OUTMASK = 0xFFFFFFFFFFFFFFFFFFFFFFFF0000;
 
-    function encode(uint64 beaconBalance, uint32 beaconValidators) internal pure returns (uint256) {
-        return (uint256(beaconBalance) << 48) | (uint256(beaconValidators) << 16);
+    function encode(uint64 paramA, uint32 paramB) internal pure returns (uint256) {
+        return (uint256(paramA) << 48) | (uint256(paramB) << 16);
     }
 
     function decode(uint256 value) internal pure returns (uint64 beaconBalance, uint32 beaconValidators) {

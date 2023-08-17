@@ -37,6 +37,7 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
     error NotReceiveEnoughRewards(uint256 required, uint256 current);
     error NotExistOperator();
     error InconsistentValidatorOperator(uint256 index, address required, address current);
+    error TokenTransferFailed();
 
     /**
      * @dev Constructor
@@ -495,7 +496,9 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
         uint256 claimableRewards = _getClaimableNodeRewards(operator, claimedRewardsPerValidator, rewardsPerValidator);
         if (claimableRewards > 0) {
             address withdrawAddress = getWithdrawAddress(operator);
-            IERC20(_getDawnDeposit()).transfer(withdrawAddress, claimableRewards);
+            if(!IERC20(_getDawnDeposit()).transfer(withdrawAddress, claimableRewards)){
+                revert TokenTransferFailed();
+            }
             _subUint(_TOTAL_REWARDS_PETH, claimableRewards);
             emit NodeOperatorNodeRewardsClaimed(operator, msg.sender, withdrawAddress, claimableRewards);
         }

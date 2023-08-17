@@ -28,7 +28,7 @@ contract DawnStorage is IDawnStorageInterface {
 
     /// 仅允许在部署后从DawnPool最新的合约进行访问
     modifier onlyLatestDawnPoolNetworkContract() {
-        if (_storageInit == true) {
+        if (_storageInit) {
             require(
                 _booleanStorage[keccak256(abi.encodePacked("contract.exists", msg.sender))],
                 "Invalid or outdated network contract"

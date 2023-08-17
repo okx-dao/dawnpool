@@ -5,9 +5,6 @@ import "../interface/IDawnDeposit.sol";
 
 interface IDawnPoolOracle {
     event BeaconReportReceiverSet(address callback);
-    event MemberAdded(address member);
-    event MemberRemoved(address member);
-    event QuorumChanged(uint256 quorum);
     event ExpectedEpochIdUpdated(uint256 epochId);
     event BeaconSpecSet(uint64 epochsPerFrame, uint64 slotsPerEpoch, uint64 secondsPerSlot, uint64 genesisTime);
     event BeaconReported(
@@ -38,11 +35,6 @@ interface IDawnPoolOracle {
     function getDawnDeposit() external view returns (IDawnDeposit);
 
     /**
-     * @notice Return the number of exactly the same reports needed to finalize the epoch
-     */
-    function getQuorum() external view returns (uint256);
-
-    /**
      * @notice Return the receiver contract address to be called when the report is pushed to Lido
      */
     function getBeaconReportReceiver() external view returns (address);
@@ -50,7 +42,7 @@ interface IDawnPoolOracle {
     /**
      * @notice Set the receiver contract address to be called when the report is pushed to Lido
      */
-    function setBeaconReportReceiver(address _addr) external;
+    function setBeaconReportReceiver(address addr) external;
 
     /**
      * @notice Return the current reporting bitmap, representing oracles who have already pushed
@@ -64,21 +56,9 @@ interface IDawnPoolOracle {
     function getCurrentReportVariantsSize() external view returns (uint256);
 
     /**
-     * @notice Return the current reporting array element with the given index
-     */
-    function getCurrentReportVariant(
-        uint256 _index
-    ) external view returns (uint64 beaconBalance, uint32 beaconValidators, uint16 count);
-
-    /**
      * @notice Return epoch that can be reported by oracles
      */
     function getExpectedEpochId() external view returns (uint256);
-
-    /**
-     * @notice Return the current oracle member committee list
-     */
-    function getOracleMembers() external view returns (address[] memory);
 
     /**
      * @notice Return beacon specification data
@@ -92,10 +72,10 @@ interface IDawnPoolOracle {
      * Updates beacon specification data
      */
     function setBeaconSpec(
-        uint64 _epochsPerFrame,
-        uint64 _slotsPerEpoch,
-        uint64 _secondsPerSlot,
-        uint64 _genesisTime
+        uint64 epochsPerFrame,
+        uint64 slotsPerEpoch,
+        uint64 secondsPerSlot,
+        uint64 genesisTime
     ) external;
 
     /**
@@ -127,33 +107,21 @@ interface IDawnPoolOracle {
 
     /**
      * @notice Initialize the contract (version 3 for now) from scratch
-     * @param _epochsPerFrame Number of epochs per frame
-     * @param _slotsPerEpoch Number of slots per epoch
-     * @param _secondsPerSlot Number of seconds per slot
-     * @param _genesisTime Genesis time
+     * @param epochsPerFrame Number of epochs per frame
+     * @param slotsPerEpoch Number of slots per epoch
+     * @param secondsPerSlot Number of seconds per slot
+     * @param genesisTime Genesis time
      */
     function initialize(
-        //        address _dawnpool,
-        uint64 _epochsPerFrame,
-        uint64 _slotsPerEpoch,
-        uint64 _secondsPerSlot,
-        uint64 _genesisTime
+        uint64 epochsPerFrame,
+        uint64 slotsPerEpoch,
+        uint64 secondsPerSlot,
+        uint64 genesisTime,
+        uint64 lastProcessingRefSlot
     ) external;
 
-    /**
-     * @notice Add `_member` to the oracle member committee list
-     */
-    function addOracleMember(address _member) external;
+    function getLastProcessingRefEpoch() external view returns (uint256);
 
-    /**
-     * @notice Remove '_member` from the oracle member committee list
-     */
-    function removeOracleMember(address _member) external;
-
-    /**
-     * @notice Set the number of exactly the same reports needed to finalize the epoch to `_quorum`
-     */
-    function setQuorum(uint256 _quorum) external;
 
     //    function reportBeacon(uint256 _epochId, uint256 _beaconBalance, uint256 _beaconValidators, uint256 _rewardsVaultBalance, uint256 _exitedValidators,
     //        uint256 _burnedPEthAmount ,uint256 _lastRequestIdToBeFulfilled, uint256 _ethAmountToLock) external;
