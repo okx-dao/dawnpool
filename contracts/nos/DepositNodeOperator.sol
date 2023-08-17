@@ -30,6 +30,7 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
     error NotEnoughDeposits(uint256 required, uint256 current);
     error InvalidPubkeyLen(uint256 len);
     error InvalidSignatureLen(uint256 len);
+    error TokenTransferFailed();
 
     /**
      * @dev Constructor
@@ -151,7 +152,9 @@ contract DepositNodeOperator is IDepositNodeOperator, DawnBase {
         IDepositNodeManager nodeManager = IDepositNodeManager(_getDepositNodeManager());
         if (stakeRewards > 0) {
             address withdrawAddress = nodeManager.getWithdrawAddress(operator);
-            IERC20(dawnDeposit).transfer(withdrawAddress, stakeRewards);
+            if (!IERC20(dawnDeposit).transfer(withdrawAddress, stakeRewards)) {
+                revert TokenTransferFailed();
+            }
             emit NodeOperatorStakingRewardsClaimed(msg.sender, withdrawAddress, stakeRewards);
         }
         nodeManager.claimNodeRewards(operator);

@@ -18,6 +18,7 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
     uint256 internal constant _PRE_DEPOSIT_VALUE = 1 ether;
     uint256 internal constant _POST_DEPOSIT_VALUE = 31 ether;
     uint256 internal constant _FEE_BASIC = 10000;
+    bytes1 internal constant _WITHDRAWAL_PREFIX = 0x01;
 
     bytes32 internal constant _BUFFERED_ETHER_KEY = keccak256("dawnDeposit.bufferedEther");
     bytes32 internal constant _PRE_DEPOSIT_VALIDATORS_KEY = keccak256("dawnDeposit.preDepositValidators");
@@ -305,7 +306,7 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
 
     function _punish(address burnAddress, uint256 pethAmountToBurn) internal {
         if (pethAmountToBurn == 0) revert ZeroBurnAmount();
-        if (this.balanceOf(burnAddress) < pethAmountToBurn) revert PEthNotEnough();
+        if (balanceOf(burnAddress) < pethAmountToBurn) revert PEthNotEnough();
 
         _transfer(burnAddress, _getContractAddress(_BURNER_CONTRACT_NAME), pethAmountToBurn);
         IBurner(_getContractAddress(_BURNER_CONTRACT_NAME)).requestBurnPEth(burnAddress, pethAmountToBurn);
@@ -315,7 +316,7 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
 
     function _punish(address burnAddress, uint256 pethAmountToBurn, uint256 ethAmountToDecrease) internal {
         if (pethAmountToBurn == 0) revert ZeroBurnAmount();
-        if (this.balanceOf(burnAddress) < pethAmountToBurn) revert PEthNotEnough();
+        if (balanceOf(burnAddress) < pethAmountToBurn) revert PEthNotEnough();
 
         _transfer(burnAddress, _getContractAddress(_BURNER_CONTRACT_NAME), pethAmountToBurn);
         IBurner(_getContractAddress(_BURNER_CONTRACT_NAME)).requestBurnPEthAndDecreaseEth(
@@ -486,7 +487,7 @@ contract DawnDeposit is IDawnDeposit, DawnTokenPETH, DawnBase {
 
     function _getWithdrawalCredentials() internal view returns (bytes32) {
         address rewardsVault = _getContractAddress(_REWARDS_VAULT_CONTRACT_NAME);
-        return bytes32(bytes.concat(bytes12(0x010000000000000000000000), bytes20(rewardsVault)));
+        return bytes32(bytes.concat(bytes12(_WITHDRAWAL_PREFIX), bytes20(rewardsVault)));
     }
 
     function _getDepositContract() internal view returns (address) {
