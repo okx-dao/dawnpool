@@ -13,7 +13,6 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase, Reentran
     constructor(IDawnStorageInterface dawnStorageAddress) DawnBase(dawnStorageAddress) {}
 
     using ReportUtils for uint256;
-
     /// @dev Storage slot: uint256 lastProcessingRefSlot
     bytes32 internal constant _LAST_PROCESSING_REF_EPOCH_POSITION =
     keccak256("ValidatorsExitBusOracle._LAST_PROCESSING_REF_EPOCH_POSITION");
@@ -46,23 +45,15 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase, Reentran
     uint256[] private _currentReportVariants; /// slot 1: reporting storage
 
     /// Data provider interface
-    /// 包含了 Oracle 共识信息、请求数据格式和验证者退出请求数据等多方面的信息
     struct ReportData {
         // 表示报告计算所依据的参考时隙
-        uint256 refEpoch;
+        uint64 refEpoch;
         // 表示在此报告中相关联的验证器退出请求的总数
-        uint256 requestsCount;
-
+        uint32 requestsCount;
         // 表示验证器退出请求数据的格式。目前仅支持 DATA_FORMAT_LIST=1
         //        uint256 dataFormat;
     }
 
-    //
-    //    struct ConsensusReport {
-    //        bytes32 hash;
-    //        uint64 refSlot;
-    //        uint64 processingDeadlineTime;
-    //    }
 
     uint256 public constant DATA_FORMAT_LIST = 1;
 
@@ -111,13 +102,12 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase, Reentran
         // 获取当前所需的最低验证报告数量 quorum
         uint256 quorum = IHashConsensus(_getContractAddressUnsafe("HashConsensus"))
         .getQuorum();
-        //        uint256 quorum = getQuorum();
         uint256 i = 0;
 
         // iterate on all report variants we already have, limited by the oracle _members maximum
         while (i < _currentReportVariants.length && _currentReportVariants[i].isDifferent(report)) ++i;
         if (i < _currentReportVariants.length) {
-            // 判断该 variant 的计数器是否已达到要求的数量.达到，则会通过调用 _push() 更新 dawnpool 合约的 validator 列表
+            // 判断该 variant 的计数器是否已达到要求的数量.达到，则会通过调用 _handleConsensusReportData
             if (_currentReportVariants[i].getCount() + 1 >= quorum) {
                 _handleConsensusReportData(data, beaconSpec);
             } else {
@@ -134,14 +124,12 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase, Reentran
             }
         }
 
-
     }
 
     function _handleConsensusReportData(ReportData calldata data, BeaconSpec memory _beaconSpec) internal {
         if (data.requestsCount == 0) {
             return;
         }
-
         IDepositNodeManager nodeManager = getDepositNodeManager();
         uint256[] memory indexes = nodeManager.updateValidatorsExit(data.requestsCount);
 
@@ -312,4 +300,8 @@ contract ValidatorsExitBusOracle is IValidatorsExitBusOracle, DawnBase, Reentran
         return (_epochId / _beaconSpec.epochsPerFrame) * _beaconSpec.epochsPerFrame;
     }
 
+    function getFrameFirstEpochId() external view returns (uint256) {
+        BeaconSpec memory beaconSpec = _getBeaconSpec();
+        return _getFrameFirstEpochId(_getCurrentEpochId(beaconSpec), beaconSpec);
+    }
 }

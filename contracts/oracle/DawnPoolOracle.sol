@@ -21,9 +21,9 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase, ReentrancyGuard {
     }
 
     struct ReportData {
-        uint256 epochId;
+        uint64 epochId;
         uint256 beaconBalance;
-        uint256 beaconValidators;
+        uint32 beaconValidators;
         uint256 rewardsVaultBalance;
         uint256 exitedValidators;
         uint256 burnedPEthAmount;
@@ -278,7 +278,7 @@ contract DawnPoolOracle is IDawnPoolOracle, DawnBase, ReentrancyGuard {
         _setUint(_REPORTS_BITMASK_POSITION, bitMask | mask);
 
         // 将 _beaconBalance 和 _beaconValidators 编码为一个 uint256 类型的整数
-        uint256 report = ReportUtils.encode(data.beaconBalance, data.beaconValidators);
+        uint256 report = ReportUtils.encode(data.epochId, data.beaconValidators);
 //        uint256 report = (data.beaconBalance | data.beaconValidators);
         // 获取当前所需的最低验证报告数量 quorum
         uint256 quorum = IHashConsensus(_getContractAddressUnsafe("HashConsensus"))
