@@ -3,6 +3,17 @@ const { anyValue } = require('@nomicfoundation/hardhat-chai-matchers/withArgs');
 const { expect } = require('chai');
 const { ethers } = require('hardhat');
 const { deployContracts, getDeployedContractAddress } = require('../utils/deployContracts');
+const { depositBufferedEther, setValidatorUnsafe } = require('../utils/makeSecurityModuleSignature');
+
+const ValidatorStatus = {
+  NOT_EXIST: 0,
+  WAITING_ACTIVATED: 1,
+  VALIDATING: 2,
+  EXIT: 3,
+  SLASHING: 4,
+  //        EXITED,
+  UNSAFE: 5,
+};
 
 describe('DepositNodeManager', function () {
   // We define a fixture to reuse the same setup in every test.
@@ -19,7 +30,10 @@ describe('DepositNodeManager', function () {
     const DawnDeposit = await ethers.getContractFactory('DawnDeposit');
     const dawnDeposit = await DawnDeposit.attach(dawnDepositAddr);
     dawnDeposit.stake({ value: ethers.utils.parseEther('60') });
-    return { nodeManager, owner, otherAccount };
+    const depositSecurityModuleAddress = await getDeployedContractAddress('DawnDepositSecurityModule');
+    const DawnDepositSecurityModule = await ethers.getContractFactory('DawnDepositSecurityModule');
+    const depositSecurityModule = await DawnDepositSecurityModule.attach(depositSecurityModuleAddress);
+    return { nodeManager, depositSecurityModule, owner, otherAccount };
   }
 
   const pubkey1 = '0x957f3a659faa3cdcd21be00a05b7bbca25a41b2f2384166ca5872363c37110b3dedbab1261179338fadc4ff70b4bea57';
@@ -165,18 +179,18 @@ describe('DepositNodeManager', function () {
         .withArgs(1, owner.address, pubkey2);
       expect(await nodeManager.getTotalValidatorsCount()).to.equal(validatorCount);
       expect(await nodeManager.getTotalActivatedValidatorsCount()).to.equal(0);
-      let nodeValidator = await nodeManager.getNodeValidator(0);
+      let nodeValidator = await nodeManager['getNodeValidator(uint256)'](0);
       expect(nodeValidator['operator']).to.equal(owner.address);
       expect(nodeValidator['pubkey']).to.equal(pubkey1);
-      expect(nodeValidator['status']).to.equal(1);
-      nodeValidator = await nodeManager.getNodeValidator(1);
+      expect(nodeValidator['status']).to.equal(ValidatorStatus.WAITING_ACTIVATED);
+      nodeValidator = await nodeManager['getNodeValidator(uint256)'](1);
       expect(nodeValidator['operator']).to.equal(owner.address);
       expect(nodeValidator['pubkey']).to.equal(pubkey2);
-      expect(nodeValidator['status']).to.equal(1);
-      nodeValidator = await nodeManager.getNodeValidator(2);
+      expect(nodeValidator['status']).to.equal(ValidatorStatus.WAITING_ACTIVATED);
+      nodeValidator = await nodeManager['getNodeValidator(uint256)'](2);
       expect(nodeValidator['operator']).to.equal(ethers.constants.AddressZero);
       expect(nodeValidator['pubkey']).to.equal('0x');
-      expect(nodeValidator['status']).to.equal(0);
+      expect(nodeValidator['status']).to.equal(ValidatorStatus.NOT_EXIST);
     });
 
     it('Each should register validators successfully', async function () {
@@ -200,14 +214,14 @@ describe('DepositNodeManager', function () {
       )
         .to.emit(nodeManager, 'SigningKeyAdded')
         .withArgs(1, otherAccount.address, pubkey2);
-      let nodeValidator = await nodeManager.getNodeValidator(0);
+      let nodeValidator = await nodeManager['getNodeValidator(uint256)'](0);
       expect(nodeValidator['operator']).to.equal(owner.address);
       expect(nodeValidator['pubkey']).to.equal(pubkey1);
-      expect(nodeValidator['status']).to.equal(1);
-      nodeValidator = await nodeManager.getNodeValidator(1);
+      expect(nodeValidator['status']).to.equal(ValidatorStatus.WAITING_ACTIVATED);
+      nodeValidator = await nodeManager['getNodeValidator(uint256)'](1);
       expect(nodeValidator['operator']).to.equal(otherAccount.address);
       expect(nodeValidator['pubkey']).to.equal(pubkey2);
-      expect(nodeValidator['status']).to.equal(1);
+      expect(nodeValidator['status']).to.equal(ValidatorStatus.WAITING_ACTIVATED);
     });
   });
 
@@ -235,19 +249,19 @@ describe('DepositNodeManager', function () {
     });
   });
 
-  describe('ActivateValidators', function () {
-    async function addValidatorsAndDeposit(nodeManager, account, pubkeys, preSignatures, depositSignatures) {
-      await nodeManager.connect(account).registerNodeOperator(account.address);
-      const { nodeAddress } = await nodeManager.getNodeOperator(account.address);
-      const nodeOperator = await ethers.getContractAt('IDepositNodeOperator', nodeAddress);
-      const validatorCount = 2;
-      const minOperatorStakingAmount = await nodeManager.getMinOperatorStakingAmount();
-      await nodeOperator.connect(account).addValidators(pubkeys, preSignatures, depositSignatures, {
-        value: minOperatorStakingAmount.mul(validatorCount),
-      });
-      return nodeOperator;
-    }
+  async function addValidatorsAndDeposit(nodeManager, account, pubkeys, preSignatures, depositSignatures) {
+    await nodeManager.connect(account).registerNodeOperator(account.address);
+    const { nodeAddress } = await nodeManager.getNodeOperator(account.address);
+    const nodeOperator = await ethers.getContractAt('IDepositNodeOperator', nodeAddress);
+    const validatorCount = 2;
+    const minOperatorStakingAmount = await nodeManager.getMinOperatorStakingAmount();
+    await nodeOperator.connect(account).addValidators(pubkeys, preSignatures, depositSignatures, {
+      value: minOperatorStakingAmount.mul(validatorCount),
+    });
+    return nodeOperator;
+  }
 
+  describe('ActivateValidators', function () {
     it('Should activate validators successfully', async function () {
       const { nodeManager, owner } = await loadFixture(deployDepositNodeManager);
       await addValidatorsAndDeposit(
@@ -257,72 +271,197 @@ describe('DepositNodeManager', function () {
         preSignature1 + removePrefix(preSignature2),
         depositSignature1 + removePrefix(depositSignature2),
       );
-      await expect(nodeManager.activateValidators([0, 1]))
+      await expect(depositBufferedEther([0, 1]))
         .to.emit(nodeManager, 'SigningKeyActivated')
         .withArgs(0, owner.address, pubkey1)
         .to.emit(nodeManager, 'SigningKeyActivated')
         .withArgs(1, owner.address, pubkey2);
       expect(await nodeManager.getTotalValidatorsCount()).to.equal(2);
       expect(await nodeManager.getTotalActivatedValidatorsCount()).to.equal(2);
-      let nodeValidator = await nodeManager.getNodeValidator(0);
+      let nodeValidator = await nodeManager['getNodeValidator(uint256)'](0);
       expect(nodeValidator['operator']).to.equal(owner.address);
       expect(nodeValidator['pubkey']).to.equal(pubkey1);
-      expect(nodeValidator['status']).to.equal(2);
-      nodeValidator = await nodeManager.getNodeValidator(1);
+      expect(nodeValidator['status']).to.equal(ValidatorStatus.VALIDATING);
+      nodeValidator = await nodeManager['getNodeValidator(uint256)'](1);
       expect(nodeValidator['operator']).to.equal(owner.address);
       expect(nodeValidator['pubkey']).to.equal(pubkey2);
-      expect(nodeValidator['status']).to.equal(2);
-      nodeValidator = await nodeManager.getNodeValidator(2);
+      expect(nodeValidator['status']).to.equal(ValidatorStatus.VALIDATING);
+      nodeValidator = await nodeManager['getNodeValidator(uint256)'](2);
       expect(nodeValidator['operator']).to.equal(ethers.constants.AddressZero);
       expect(nodeValidator['pubkey']).to.equal('0x');
-      expect(nodeValidator['status']).to.equal(0);
+      expect(nodeValidator['status']).to.equal(ValidatorStatus.NOT_EXIST);
     });
 
     it('Each should activate validators successfully', async function () {
       const { nodeManager, owner, otherAccount } = await loadFixture(deployDepositNodeManager);
       await addValidatorsAndDeposit(nodeManager, owner, pubkey1, preSignature1, depositSignature1);
       await addValidatorsAndDeposit(nodeManager, otherAccount, pubkey2, preSignature2, depositSignature2);
-      await expect(nodeManager.activateValidators([0]))
+      await expect(depositBufferedEther([0]))
         .to.emit(nodeManager, 'SigningKeyActivated')
         .withArgs(0, owner.address, pubkey1);
       expect(await nodeManager.getTotalActivatedValidatorsCount()).to.equal(1);
-      await expect(nodeManager.activateValidators([1]))
+      await expect(depositBufferedEther([1]))
         .to.emit(nodeManager, 'SigningKeyActivated')
         .withArgs(1, otherAccount.address, pubkey2);
       expect(await nodeManager.getTotalActivatedValidatorsCount()).to.equal(2);
-      let nodeValidator = await nodeManager.getNodeValidator(0);
+      let nodeValidator = await nodeManager['getNodeValidator(uint256)'](0);
       expect(nodeValidator['operator']).to.equal(owner.address);
       expect(nodeValidator['pubkey']).to.equal(pubkey1);
-      expect(nodeValidator['status']).to.equal(2);
-      nodeValidator = await nodeManager.getNodeValidator(1);
+      expect(nodeValidator['status']).to.equal(ValidatorStatus.VALIDATING);
+      nodeValidator = await nodeManager['getNodeValidator(uint256)'](1);
       expect(nodeValidator['operator']).to.equal(otherAccount.address);
       expect(nodeValidator['pubkey']).to.equal(pubkey2);
-      expect(nodeValidator['status']).to.equal(2);
+      expect(nodeValidator['status']).to.equal(ValidatorStatus.VALIDATING);
     });
 
     it('Should revert if called without access', async function () {
       const { nodeManager, owner, otherAccount } = await loadFixture(deployDepositNodeManager);
       await addValidatorsAndDeposit(nodeManager, owner, pubkey1, preSignature1, depositSignature1);
       await expect(nodeManager.connect(otherAccount).activateValidators([0])).to.be.revertedWith(
-        'Account is not a temporary guardian',
+        'Invalid or outdated contract',
       );
     });
 
     it('Should revert if activate pubkey not exist', async function () {
       const { nodeManager, owner } = await loadFixture(deployDepositNodeManager);
       await addValidatorsAndDeposit(nodeManager, owner, pubkey1, preSignature1, depositSignature1);
-      await expect(nodeManager.activateValidators([0, 1]))
-        .to.be.revertedWithCustomError(nodeManager, 'InconsistentValidatorStatus')
-        .withArgs(1, 1, 0);
+      await expect(depositBufferedEther([0, 1])).to.be.reverted;
     });
 
     it('Should revert if activate pubkey repeatedly', async function () {
       const { nodeManager, owner } = await loadFixture(deployDepositNodeManager);
       await addValidatorsAndDeposit(nodeManager, owner, pubkey1, preSignature1, depositSignature1);
-      await nodeManager.activateValidators([0]);
-      await expect(nodeManager.activateValidators([0]))
+      await depositBufferedEther([0]);
+      await expect(depositBufferedEther([0])).to.be.reverted;
+    });
+  });
+
+  async function activateValidators(nodeManager, owner) {
+    await addValidatorsAndDeposit(
+      nodeManager,
+      owner,
+      pubkey1 + removePrefix(pubkey2),
+      preSignature1 + removePrefix(preSignature2),
+      depositSignature1 + removePrefix(depositSignature2),
+    );
+    await depositBufferedEther([0, 1]);
+  }
+
+  describe('ValidatorsStatusChange', function () {
+    it('Should set validator unsafe successfully', async function () {
+      const { nodeManager, owner, otherAccount } = await loadFixture(deployDepositNodeManager);
+      const nodeOperator = await addValidatorsAndDeposit(
+        nodeManager,
+        owner,
+        pubkey1 + removePrefix(pubkey2),
+        preSignature1 + removePrefix(preSignature2),
+        depositSignature1 + removePrefix(depositSignature2),
+      );
+      const dawnDepositAddr = await getDeployedContractAddress('DawnDeposit');
+      const dawnDeposit = await ethers.getContractAt('DawnDeposit', dawnDepositAddr);
+      const pethAmount = await dawnDeposit.getPEthByEther(ethers.utils.parseEther('2'));
+      expect((await nodeManager.getNodeOperator(owner.address)).isActive).to.equal(true);
+      await expect(setValidatorUnsafe(0, pethAmount))
+        .to.emit(nodeManager, 'SigningKeyUnsafe')
+        .withArgs(0, owner.address, pubkey1, nodeOperator.address, pethAmount)
+        .to.emit(nodeManager, 'NodeOperatorActiveStatusChanged')
+        .withArgs(owner.address, false);
+      expect((await nodeManager.getNodeOperator(owner.address)).isActive).to.equal(false);
+      await expect(nodeManager.setNodeOperatorActiveStatus(owner.address, true))
+        .to.emit(nodeManager, 'NodeOperatorActiveStatusChanged')
+        .withArgs(owner.address, true);
+      await expect(nodeManager.setNodeOperatorActiveStatus(owner.address, false))
+        .to.emit(nodeManager, 'NodeOperatorActiveStatusChanged')
+        .withArgs(owner.address, false);
+      await expect(nodeManager.setNodeOperatorActiveStatus(otherAccount.address, false)).to.be.revertedWithCustomError(
+        nodeManager,
+        'NotExistOperator',
+      );
+    });
+
+    it('Should set validator exit successfully', async function () {
+      const { nodeManager, owner } = await loadFixture(deployDepositNodeManager);
+      await activateValidators(nodeManager, owner);
+      expect(await nodeManager.getTotalActivatedValidatorsCount()).to.equal(2);
+      await expect(nodeManager.setValidatorExit(0))
+        .to.emit(nodeManager, 'SigningKeyExit')
+        .withArgs(0, owner.address, pubkey1);
+      const { index, operator, status } = await nodeManager['getNodeValidator(bytes)'](pubkey1);
+      expect(index).to.equal(0);
+      expect(operator).to.equal(owner.address);
+      expect(status).to.equal(ValidatorStatus.EXIT);
+      expect(await nodeManager.getTotalActivatedValidatorsCount()).to.equal(1);
+      await expect(nodeManager.setValidatorExit(0))
         .to.be.revertedWithCustomError(nodeManager, 'InconsistentValidatorStatus')
-        .withArgs(0, 1, 2);
+        .withArgs(0, ValidatorStatus.VALIDATING, ValidatorStatus.EXIT);
+      expect((await nodeManager.getNodeOperator(owner.address)).isActive).to.equal(true);
+    });
+
+    it('Should set validator slashing successfully', async function () {
+      const { nodeManager, owner } = await loadFixture(deployDepositNodeManager);
+      await activateValidators(nodeManager, owner);
+      expect(await nodeManager.getTotalActivatedValidatorsCount()).to.equal(2);
+      const { nodeAddress, isActive } = await nodeManager.getNodeOperator(owner.address);
+      expect(isActive).to.equal(true);
+      const dawnDepositAddr = await getDeployedContractAddress('DawnDeposit');
+      const dawnDeposit = await ethers.getContractAt('DawnDeposit', dawnDepositAddr);
+      const pethAmount = await dawnDeposit.getPEthByEther(ethers.utils.parseEther('1'));
+      await expect(nodeManager.setValidatorSlashing(0, pethAmount, false))
+        .to.emit(nodeManager, 'SigningKeySlashing')
+        .withArgs(0, owner.address, pubkey1, nodeAddress, pethAmount)
+        .to.emit(nodeManager, 'NodeOperatorActiveStatusChanged')
+        .withArgs(owner.address, false);
+      expect((await nodeManager.getNodeOperator(owner.address)).isActive).to.equal(false);
+      const { index, operator, status } = await nodeManager['getNodeValidator(bytes)'](pubkey1);
+      expect(index).to.equal(0);
+      expect(operator).to.equal(owner.address);
+      expect(status).to.equal(ValidatorStatus.SLASHING);
+      expect(await nodeManager.getTotalActivatedValidatorsCount()).to.equal(1);
+      await expect(nodeManager.setValidatorSlashing(0, pethAmount, false))
+        .to.be.revertedWithCustomError(nodeManager, 'InconsistentValidatorStatus')
+        .withArgs(0, ValidatorStatus.VALIDATING, ValidatorStatus.SLASHING);
+    });
+
+    it('Should set validator slashing finished successfully', async function () {
+      const { nodeManager, owner } = await loadFixture(deployDepositNodeManager);
+      await activateValidators(nodeManager, owner);
+      expect(await nodeManager.getTotalActivatedValidatorsCount()).to.equal(2);
+      const { nodeAddress } = await nodeManager.getNodeOperator(owner.address);
+      const dawnDepositAddr = await getDeployedContractAddress('DawnDeposit');
+      const dawnDeposit = await ethers.getContractAt('DawnDeposit', dawnDepositAddr);
+      const pethAmount = await dawnDeposit.getPEthByEther(ethers.utils.parseEther('1'));
+      await expect(nodeManager.setValidatorSlashing(0, pethAmount, true))
+        .to.be.revertedWithCustomError(nodeManager, 'InconsistentValidatorStatus')
+        .withArgs(0, ValidatorStatus.SLASHING, ValidatorStatus.VALIDATING);
+      await nodeManager.setValidatorSlashing(0, pethAmount, false);
+      await expect(nodeManager.setValidatorSlashing(0, pethAmount, true))
+        .to.emit(nodeManager, 'SigningKeySlashing')
+        .withArgs(0, owner.address, pubkey1, nodeAddress, pethAmount)
+        .to.emit(nodeManager, 'SigningKeyExit')
+        .withArgs(0, owner.address, pubkey1);
+      expect((await nodeManager.getNodeOperator(owner.address)).isActive).to.equal(false);
+      const { index, operator, status } = await nodeManager['getNodeValidator(bytes)'](pubkey1);
+      expect(index).to.equal(0);
+      expect(operator).to.equal(owner.address);
+      expect(status).to.equal(ValidatorStatus.EXIT);
+      expect(await nodeManager.getTotalActivatedValidatorsCount()).to.equal(1);
+      await expect(nodeManager.setValidatorSlashing(0, pethAmount, true))
+        .to.be.revertedWithCustomError(nodeManager, 'InconsistentValidatorStatus')
+        .withArgs(0, ValidatorStatus.SLASHING, ValidatorStatus.EXIT);
+    });
+
+    it('Should decrease validator shares successfully', async function () {
+      const { nodeManager, owner } = await loadFixture(deployDepositNodeManager);
+      await activateValidators(nodeManager, owner);
+      expect(await nodeManager.getTotalActivatedValidatorsCount()).to.equal(2);
+      const { nodeAddress } = await nodeManager.getNodeOperator(owner.address);
+      const dawnDepositAddr = await getDeployedContractAddress('DawnDeposit');
+      const dawnDeposit = await ethers.getContractAt('DawnDeposit', dawnDepositAddr);
+      const pethAmount = await dawnDeposit.getPEthByEther(ethers.utils.parseEther('1'));
+      await expect(nodeManager.punishOneValidator(0, pethAmount, Buffer.from('test')))
+        .to.emit(nodeManager, 'SigningKeyPunished')
+        .withArgs(0, owner.address, pubkey1, nodeAddress, pethAmount, Buffer.from('test'));
+      expect((await nodeManager.getNodeOperator(owner.address)).isActive).to.equal(true);
     });
   });
 });

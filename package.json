@@ -59,6 +59,7 @@
   "dependencies": {
     "@openzeppelin/contracts": "^4.9.2",
     "@openzeppelin/contracts-upgradeable": "^4.9.2",
+    "ethereumjs-util": "^7.1.5",
     "solidity-bytes-utils": "^0.8.0"
   }
 }

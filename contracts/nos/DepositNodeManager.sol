@@ -496,7 +496,7 @@ contract DepositNodeManager is IDepositNodeManager, DawnBase {
         uint256 claimableRewards = _getClaimableNodeRewards(operator, claimedRewardsPerValidator, rewardsPerValidator);
         if (claimableRewards > 0) {
             address withdrawAddress = getWithdrawAddress(operator);
-            if(!IERC20(_getDawnDeposit()).transfer(withdrawAddress, claimableRewards)){
+            if (!IERC20(_getDawnDeposit()).transfer(withdrawAddress, claimableRewards)) {
                 revert TokenTransferFailed();
             }
             _subUint(_TOTAL_REWARDS_PETH, claimableRewards);
