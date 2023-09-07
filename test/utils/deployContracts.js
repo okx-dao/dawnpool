@@ -16,6 +16,11 @@ const Contracts = {
   // Node operator manager
   DepositNodeManager: ethers.getContractFactory('DepositNodeManager'),
   DepositNodeOperatorDeployer: ethers.getContractFactory('DepositNodeOperatorDeployer'),
+  // secure module
+  AddressSetStorage: ethers.getContractFactory('AddressSetStorage'),
+  AddressQueueStorage: ethers.getContractFactory('AddressQueueStorage'),
+  DawnDepositSecurityModule: ethers.getContractFactory('DawnDepositSecurityModule'),
+  Burner: ethers.getContractFactory('Burner'),
 };
 
 let dawnStorage;
@@ -37,7 +42,7 @@ async function getChainInfo() {
       depositContractAddr = (await deployDepositContract()).address;
       break;
     case 32382:
-      chainName = 'localhost';
+      chainName = 'dev';
       depositContractAddr = '0x4242424242424242424242424242424242424242';
       break;
     default:
@@ -54,11 +59,14 @@ async function deployDepositContract() {
 async function deployContracts() {
   dawnStorage = await (await DawnStorage).deploy();
   await dawnStorage.deployed();
+  const { depositContractAddr } = await getChainInfo();
+  const [owner] = await ethers.getSigners();
   let dawnInstance, storageAddr;
   for (let Contract in Contracts) {
     switch (Contract) {
-      case 'Contract':
-        // Do sth else here
+      case 'DawnDepositSecurityModule':
+        dawnInstance = await (await Contracts[Contract]).deploy(dawnStorage.address, depositContractAddr);
+        await dawnInstance.deployed();
         break;
       default:
         dawnInstance = await (await Contracts[Contract]).deploy(dawnStorage.address);
@@ -69,19 +77,25 @@ async function deployContracts() {
     await dawnStorage.setBool(keccak256(encodePacked('contract.exists', dawnInstance.address)), true);
   }
   // 初始化 DepositNodeManager 参数
-  storageAddr = await dawnStorage.getAddress(keccak256(encodePacked('contract.address', 'DepositNodeManager')));
+  storageAddr = await getDeployedContractAddress('DepositNodeManager');
   const depositNodeManager = await ethers.getContractAt('DepositNodeManager', storageAddr);
   await depositNodeManager.setMinOperatorStakingAmount(ethers.utils.parseEther('2'));
-  const { depositContractAddr } = await getChainInfo();
   await dawnStorage.setAddress(keccak256(encodePacked('contract.address', 'DepositContract')), depositContractAddr);
-  await dawnStorage.setDeployedStatus();
 
   // init oracle
-  const [owner] = await ethers.getSigners();
-  storageAddr = await dawnStorage.getAddress(keccak256(encodePacked('contract.address', 'DawnPoolOracle')));
+  storageAddr = await getDeployedContractAddress('DawnPoolOracle');
   const dawnPoolOracle = await ethers.getContractAt('DawnPoolOracle', storageAddr);
-  await dawnPoolOracle.initialize(225, 32, 12, 1639659600);
-  await dawnPoolOracle.addOracleMember(owner.address);
+  await dawnPoolOracle.initialize(225, 32, 12, 1639659600, 0);
+  // await dawnPoolOracle.addOracleMember(owner.address)
+
+  // init secure module
+  storageAddr = await getDeployedContractAddress('DawnDepositSecurityModule');
+  const depositSecurityModule = await ethers.getContractAt('DawnDepositSecurityModule', storageAddr);
+  await depositSecurityModule.initilize(100, 1, 1);
+  await depositSecurityModule.addGuardian(owner.address, 1);
+
+  // 最后调用此接口，调用后权限受到很大限制
+  await dawnStorage.setDeployedStatus();
   return dawnStorage;
 }
 

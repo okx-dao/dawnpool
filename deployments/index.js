@@ -137,7 +137,7 @@ const deployContracts = async function () {
   }
 
   // Disable direct access to storage now
-  await dawnStorage.setDeployedStatus();
+  tx = await dawnStorage.setDeployedStatus();
   console.log('** Removed Storage Direct Access...', toGreen(tx.hash));
   await tx.wait();
   console.log('Storage Direct Access For Owner Removed');
