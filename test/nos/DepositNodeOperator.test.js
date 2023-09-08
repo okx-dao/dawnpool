@@ -3,6 +3,7 @@ const { expect } = require('chai');
 const { ethers } = require('hardhat');
 const { deployContracts, getDeployedContractAddress } = require('../utils/deployContracts');
 const { BigNumber } = require('ethers');
+const { depositBufferedEther } = require('../utils/makeSecurityModuleSignature');
 
 describe('DepositNodeOperator', function () {
   // We define a fixture to reuse the same setup in every test.
@@ -183,25 +184,25 @@ describe('DepositNodeOperator', function () {
     });
   });
 
-  describe('ActivateValidator', function () {
-    async function addValidatorsAndDeposit(nodeOperator, nodeManager) {
-      const validatorCount = 2;
-      const minOperatorStakingAmount = await nodeManager.getMinOperatorStakingAmount();
-      await nodeOperator.addValidators(
-        pubkey1 + removePrefix(pubkey2),
-        preSignature1 + removePrefix(preSignature2),
-        depositSignature1 + removePrefix(depositSignature2),
-        { value: minOperatorStakingAmount.mul(validatorCount) },
-      );
-    }
+  async function addValidatorsAndDeposit(nodeOperator, nodeManager) {
+    const validatorCount = 2;
+    const minOperatorStakingAmount = await nodeManager.getMinOperatorStakingAmount();
+    await nodeOperator.addValidators(
+      pubkey1 + removePrefix(pubkey2),
+      preSignature1 + removePrefix(preSignature2),
+      depositSignature1 + removePrefix(depositSignature2),
+      { value: minOperatorStakingAmount.mul(validatorCount) },
+    );
+  }
 
+  describe('ActivateValidator', function () {
     it('Should activate validator successfully', async function () {
       const { nodeOperator, nodeManager } = await loadFixture(deployDepositNodeOperator);
       await addValidatorsAndDeposit(nodeOperator, nodeManager);
-      await nodeManager.activateValidators([0]);
+      await depositBufferedEther([0]);
       expect(await nodeOperator.getActiveValidatorsCount()).to.equal(2);
       expect(await nodeOperator.getValidatingValidatorsCount()).to.equal(1);
-      await nodeManager.activateValidators([1]);
+      await depositBufferedEther([1]);
       expect(await nodeOperator.getActiveValidatorsCount()).to.equal(2);
       expect(await nodeOperator.getValidatingValidatorsCount()).to.equal(2);
     });
@@ -210,6 +211,34 @@ describe('DepositNodeOperator', function () {
       const { nodeOperator, nodeManager } = await loadFixture(deployDepositNodeOperator);
       await addValidatorsAndDeposit(nodeOperator, nodeManager);
       await expect(nodeOperator.activateValidator(0, pubkey1)).to.be.revertedWith('Invalid or outdated contract');
+    });
+  });
+
+  async function activateValidators(nodeOperator, nodeManager) {
+    await addValidatorsAndDeposit(nodeOperator, nodeManager);
+    await depositBufferedEther([0, 1]);
+  }
+
+  describe('Request to exit validators', function () {
+    it('Should revert if called by other account', async function () {
+      const { nodeOperator, nodeManager, otherAccount } = await loadFixture(deployDepositNodeOperator);
+      await activateValidators(nodeOperator, nodeManager);
+      expect(await nodeManager.getTotalActivatedValidatorsCount()).to.equal(2);
+      await expect(nodeOperator.connect(otherAccount).voluntaryExitValidators([0, 1])).to.be.revertedWithCustomError(
+        nodeOperator,
+        'OperatorAccessDenied',
+      );
+    });
+
+    it('Should called successfully', async function () {
+      const { nodeOperator, nodeManager } = await loadFixture(deployDepositNodeOperator);
+      await activateValidators(nodeOperator, nodeManager);
+      expect(await nodeManager.getTotalActivatedValidatorsCount()).to.equal(2);
+      expect(await nodeOperator.getActiveValidatorsCount()).to.equal(2);
+      expect(await nodeOperator.getValidatingValidatorsCount()).to.equal(2);
+      await expect(nodeOperator.voluntaryExitValidators([0, 1]));
+      expect(await nodeOperator.getActiveValidatorsCount()).to.equal(0);
+      expect(await nodeOperator.getValidatingValidatorsCount()).to.equal(0);
     });
   });
 });

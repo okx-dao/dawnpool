@@ -223,6 +223,23 @@ describe('DepositNodeManager', function () {
       expect(nodeValidator['pubkey']).to.equal(pubkey2);
       expect(nodeValidator['status']).to.equal(ValidatorStatus.WAITING_ACTIVATED);
     });
+
+    it('Should revert if one pubkey registered repeatedly', async function () {
+      const { nodeManager, owner, otherAccount } = await loadFixture(deployDepositNodeManager);
+      await nodeManager.registerNodeOperator(owner.address);
+      const nodeOperatorReturned = await nodeManager.getNodeOperator(owner.address);
+      const nodeOperator = await ethers.getContractAt('IDepositNodeOperator', nodeOperatorReturned['nodeAddress']);
+      await nodeManager.connect(otherAccount).registerNodeOperator(owner.address);
+      const minOperatorStakingAmount = await nodeManager.getMinOperatorStakingAmount();
+      await expect(
+        nodeOperator.addValidators(pubkey1, preSignature1, depositSignature1, { value: minOperatorStakingAmount }),
+      )
+        .to.emit(nodeManager, 'SigningKeyAdded')
+        .withArgs(0, owner.address, pubkey1);
+      await expect(
+        nodeOperator.addValidators(pubkey1, preSignature1, depositSignature1, { value: minOperatorStakingAmount }),
+      ).to.be.revertedWithCustomError(nodeManager, 'PubkeyAlreadyExist');
+    });
   });
 
   describe('SetMinOperatorStakingAmount', function () {
@@ -462,6 +479,68 @@ describe('DepositNodeManager', function () {
         .to.emit(nodeManager, 'SigningKeyPunished')
         .withArgs(0, owner.address, pubkey1, nodeAddress, pethAmount, Buffer.from('test'));
       expect((await nodeManager.getNodeOperator(owner.address)).isActive).to.equal(true);
+    });
+  });
+
+  describe('Request to exit validators', function () {
+    it('Should revert if called directly without access', async function () {
+      const { nodeManager, owner } = await loadFixture(deployDepositNodeManager);
+      await activateValidators(nodeManager, owner);
+      expect(await nodeManager.getTotalActivatedValidatorsCount()).to.equal(2);
+      const { nodeAddress } = await nodeManager.getNodeOperator(owner.address);
+      await expect(nodeManager.operatorRequestToExitValidators(owner.address, [0, 1]))
+        .to.be.revertedWithCustomError(nodeManager, 'InconsistentNodeOperatorAddress')
+        .withArgs(owner.address, nodeAddress, owner.address);
+    });
+
+    it('Should request to exit successfully', async function () {
+      const { nodeManager, owner } = await loadFixture(deployDepositNodeManager);
+      await activateValidators(nodeManager, owner);
+      expect(await nodeManager.getTotalActivatedValidatorsCount()).to.equal(2);
+      const { nodeAddress } = await nodeManager.getNodeOperator(owner.address);
+      const nodeOperator = await ethers.getContractAt('DepositNodeOperator', nodeAddress);
+      await expect(nodeOperator.voluntaryExitValidators([0, 1]))
+        .to.emit(nodeManager, 'SigningKeyExit')
+        .withArgs(0, owner.address, pubkey1)
+        .to.emit(nodeManager, 'SigningKeyExit')
+        .withArgs(1, owner.address, pubkey2);
+      expect(await nodeManager.getTotalActivatedValidatorsCount()).to.equal(0);
+    });
+
+    it('Should revert if called repeatedly', async function () {
+      const { nodeManager, owner } = await loadFixture(deployDepositNodeManager);
+      await activateValidators(nodeManager, owner);
+      const { nodeAddress } = await nodeManager.getNodeOperator(owner.address);
+      const nodeOperator = await ethers.getContractAt('DepositNodeOperator', nodeAddress);
+      await expect(nodeOperator.voluntaryExitValidators([0]))
+        .to.emit(nodeManager, 'SigningKeyExit')
+        .withArgs(0, owner.address, pubkey1);
+      await expect(nodeOperator.voluntaryExitValidators([0]))
+        .to.be.revertedWithCustomError(nodeManager, 'InconsistentValidatorStatus')
+        .withArgs(0, ValidatorStatus.VALIDATING, ValidatorStatus.EXIT);
+      expect(await nodeManager.getTotalActivatedValidatorsCount()).to.equal(1);
+    });
+
+    it('Should revert if request to exit not exist validator', async function () {
+      const { nodeManager, owner } = await loadFixture(deployDepositNodeManager);
+      await activateValidators(nodeManager, owner);
+      const { nodeAddress } = await nodeManager.getNodeOperator(owner.address);
+      const nodeOperator = await ethers.getContractAt('DepositNodeOperator', nodeAddress);
+      await expect(nodeOperator.voluntaryExitValidators([0, 1, 2]))
+        .to.be.revertedWithCustomError(nodeManager, 'InconsistentValidatorOperator')
+        .withArgs(2, ethers.constants.AddressZero, owner.address);
+    });
+
+    it('Should revert if request to exit not owner validator', async function () {
+      const { nodeManager, owner, otherAccount } = await loadFixture(deployDepositNodeManager);
+      await addValidatorsAndDeposit(nodeManager, owner, pubkey1, preSignature1, depositSignature1);
+      await addValidatorsAndDeposit(nodeManager, otherAccount, pubkey2, preSignature2, depositSignature2);
+      await depositBufferedEther([0, 1]);
+      const { nodeAddress } = await nodeManager.getNodeOperator(owner.address);
+      const nodeOperator = await ethers.getContractAt('DepositNodeOperator', nodeAddress);
+      await expect(nodeOperator.voluntaryExitValidators([0, 1]))
+        .to.be.revertedWithCustomError(nodeManager, 'InconsistentValidatorOperator')
+        .withArgs(1, otherAccount.address, owner.address);
     });
   });
 });
