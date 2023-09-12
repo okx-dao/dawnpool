@@ -1,6 +1,6 @@
 const { loadFixture } = require('@nomicfoundation/hardhat-network-helpers');
 const { expect } = require('chai');
-const { ethers } = require('hardhat');
+const { ethers, web3 } = require('hardhat');
 const { deployContracts, getDeployedContractAddress } = require('../utils/deployContracts');
 const { BigNumber } = require('ethers');
 const { depositBufferedEther } = require('../utils/makeSecurityModuleSignature');
@@ -230,7 +230,7 @@ describe('DepositNodeOperator', function () {
       );
     });
 
-    it('Should called successfully', async function () {
+    it('Should voluntary exit validators successfully', async function () {
       const { nodeOperator, nodeManager } = await loadFixture(deployDepositNodeOperator);
       await activateValidators(nodeOperator, nodeManager);
       expect(await nodeManager.getTotalActivatedValidatorsCount()).to.equal(2);
@@ -239,6 +239,80 @@ describe('DepositNodeOperator', function () {
       await expect(nodeOperator.voluntaryExitValidators([0, 1]));
       expect(await nodeOperator.getActiveValidatorsCount()).to.equal(0);
       expect(await nodeOperator.getValidatingValidatorsCount()).to.equal(0);
+    });
+
+    it('Should update validators exit successfully', async function () {
+      const { nodeOperator, nodeManager, owner } = await loadFixture(deployDepositNodeOperator);
+      await activateValidators(nodeOperator, nodeManager);
+      const rewardsVaultAddress = await getDeployedContractAddress('RewardsVault');
+      const ethAmount = ethers.utils.parseEther('1');
+      await owner.sendTransaction({ to: rewardsVaultAddress, value: ethAmount });
+      const oracleAddress = await getDeployedContractAddress('DawnPoolOracle');
+      const oracle = await ethers.getContractAt('DawnPoolOracle', oracleAddress);
+      const latestBlock = await web3.eth.getBlock('latest');
+      await oracle.submitReportData({
+        epochId: Math.floor(latestBlock.number / 32),
+        beaconBalance: 0,
+        beaconValidators: 0,
+        rewardsVaultBalance: ethAmount,
+        exitedValidators: 0,
+        burnedPEthAmount: 0,
+        lastRequestIdToBeFulfilled: 0,
+        ethAmountToLock: 0,
+      });
+      const claimableNodeRewards = await nodeManager.getClaimableNodeRewards(owner.address);
+      const dawnDepositAddr = await getDeployedContractAddress('DawnDeposit');
+      const pethERC20 = await ethers.getContractAt('IERC20', dawnDepositAddr);
+      const pethBalanceBefore = await pethERC20.balanceOf(owner.address);
+      const validatorsExitBusOracleAddress = await getDeployedContractAddress('ValidatorsExitBusOracle');
+      const validatorsExitBusOracle = await ethers.getContractAt(
+        'ValidatorsExitBusOracle',
+        validatorsExitBusOracleAddress,
+      );
+      validatorsExitBusOracle.submitReportData({
+        refEpoch: Math.floor(latestBlock.number / 32),
+        requestsCount: 1,
+      });
+      const pethBalanceAfter = await pethERC20.balanceOf(owner.address);
+      expect(pethBalanceAfter.sub(pethBalanceBefore)).to.equal(claimableNodeRewards);
+      expect(await nodeOperator.getActiveValidatorsCount()).to.equal(1);
+      expect(await nodeOperator.getValidatingValidatorsCount()).to.equal(1);
+    });
+  });
+
+  describe('Request to claim rewards', function () {
+    it('Should claim rewards successfully', async function () {
+      const { nodeOperator, nodeManager, owner } = await loadFixture(deployDepositNodeOperator);
+      await activateValidators(nodeOperator, nodeManager);
+      const rewardsVaultAddress = await getDeployedContractAddress('RewardsVault');
+      const ethAmount = ethers.utils.parseEther('1');
+      await owner.sendTransaction({ to: rewardsVaultAddress, value: ethAmount });
+      const oracleAddress = await getDeployedContractAddress('DawnPoolOracle');
+      const oracle = await ethers.getContractAt('DawnPoolOracle', oracleAddress);
+      const latestBlock = await web3.eth.getBlock('latest');
+      await oracle.submitReportData({
+        epochId: Math.floor(latestBlock.number / 32),
+        beaconBalance: 0,
+        beaconValidators: 0,
+        rewardsVaultBalance: ethAmount,
+        exitedValidators: 0,
+        burnedPEthAmount: 0,
+        lastRequestIdToBeFulfilled: 0,
+        ethAmountToLock: 0,
+      });
+      const claimableNodeRewards = await nodeManager.getClaimableNodeRewards(owner.address);
+      const claimableRewards = await nodeOperator.getClaimableRewards();
+      expect(claimableRewards).to.greaterThan(claimableNodeRewards);
+      const dawnDepositAddr = await getDeployedContractAddress('DawnDeposit');
+      const pethERC20 = await ethers.getContractAt('IERC20', dawnDepositAddr);
+      const pethBalanceBefore = await pethERC20.balanceOf(owner.address);
+      await expect(nodeOperator.claimRewards())
+        .to.emit(nodeOperator, 'NodeOperatorStakingRewardsClaimed')
+        .withArgs(owner.address, owner.address, claimableRewards.sub(claimableNodeRewards));
+      const pethBalanceAfter = await pethERC20.balanceOf(owner.address);
+      expect(pethBalanceAfter.sub(pethBalanceBefore)).to.equal(claimableRewards);
+      expect(await nodeManager.getClaimableNodeRewards(owner.address)).to.equals(0);
+      expect(await nodeOperator.getClaimableRewards()).to.equals(0);
     });
   });
 });

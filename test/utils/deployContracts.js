@@ -21,6 +21,8 @@ const Contracts = {
   AddressQueueStorage: ethers.getContractFactory('AddressQueueStorage'),
   DawnDepositSecurityModule: ethers.getContractFactory('DawnDepositSecurityModule'),
   Burner: ethers.getContractFactory('Burner'),
+  HashConsensus: ethers.getContractFactory('HashConsensus'),
+  ValidatorsExitBusOracle: ethers.getContractFactory('ValidatorsExitBusOracle'),
 };
 
 let dawnStorage;
@@ -59,7 +61,7 @@ async function deployDepositContract() {
 async function deployContracts() {
   dawnStorage = await (await DawnStorage).deploy();
   await dawnStorage.deployed();
-  const { depositContractAddr } = await getChainInfo();
+  const { chainName, depositContractAddr } = await getChainInfo();
   const [owner] = await ethers.getSigners();
   let dawnInstance, storageAddr;
   for (let Contract in Contracts) {
@@ -76,6 +78,12 @@ async function deployContracts() {
     await dawnStorage.setAddress(keccak256(encodePacked('contract.address', Contract)), dawnInstance.address);
     await dawnStorage.setBool(keccak256(encodePacked('contract.exists', dawnInstance.address)), true);
   }
+
+  // 初始化 dawn deposit
+  dawnStorage.setUint(keccak256('dawnDeposit.fee'), 1000);
+  dawnStorage.setUint(keccak256('dawnDeposit.treasuryFee'), 5000);
+  dawnStorage.setUint(keccak256('dawnDeposit.nodeOperatorFee'), 5000);
+
   // 初始化 DepositNodeManager 参数
   storageAddr = await getDeployedContractAddress('DepositNodeManager');
   const depositNodeManager = await ethers.getContractAt('DepositNodeManager', storageAddr);
@@ -85,14 +93,28 @@ async function deployContracts() {
   // init oracle
   storageAddr = await getDeployedContractAddress('DawnPoolOracle');
   const dawnPoolOracle = await ethers.getContractAt('DawnPoolOracle', storageAddr);
-  await dawnPoolOracle.initialize(225, 32, 12, 1639659600, 0);
-  // await dawnPoolOracle.addOracleMember(owner.address)
+  let epochsPerFrame = 225;
+  if (chainName == 'local') {
+    epochsPerFrame = 1;
+  }
+  await dawnPoolOracle.initialize(epochsPerFrame, 32, 12, 1639659600, 0);
+
+  // init oracle
+  storageAddr = await getDeployedContractAddress('ValidatorsExitBusOracle');
+  const validatorsExitBusOracle = await ethers.getContractAt('ValidatorsExitBusOracle', storageAddr);
+  await validatorsExitBusOracle.initialize(epochsPerFrame, 32, 12, 1639659600, 0);
 
   // init secure module
   storageAddr = await getDeployedContractAddress('DawnDepositSecurityModule');
   const depositSecurityModule = await ethers.getContractAt('DawnDepositSecurityModule', storageAddr);
   await depositSecurityModule.initilize(100, 1, 1);
   await depositSecurityModule.addGuardian(owner.address, 1);
+
+  // init HashConsensus
+  storageAddr = await getDeployedContractAddress('HashConsensus');
+  const hashConsensus = await ethers.getContractAt('HashConsensus', storageAddr);
+  await hashConsensus.initialize();
+  await hashConsensus.addOracleMember(owner.address);
 
   // 最后调用此接口，调用后权限受到很大限制
   await dawnStorage.setDeployedStatus();
